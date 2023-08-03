@@ -1,0 +1,1 @@
+This download includes a tutorial and accompanying tutorial data.  After downloading these files, create a folder on your computer called “C:\SpatialStats” and unzip the tutorial data into that new folder.  

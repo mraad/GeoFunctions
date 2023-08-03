@@ -1,0 +1,50 @@
+package com.esri.spark
+
+import org.apache.spark.sql.SparkSession
+
+object Registry extends Serializable {
+  final def registerFunctions(): Unit = {
+    val ss = SparkSession.builder.getOrCreate()
+    val funcReg = ss.sessionState.functionRegistry
+    funcReg.createOrReplaceTempFunction("QR_CLIP", QRClip, "")
+    funcReg.createOrReplaceTempFunction("QR_ENVP", QREnvp, "")
+    funcReg.createOrReplaceTempFunction("QR_FROMXY", QRFromXY, "")
+    funcReg.createOrReplaceTempFunction("QR_INTERSECT", QRIntersect, "")
+    funcReg.createOrReplaceTempFunction("QR_LIST", QRList, "")
+    funcReg.createOrReplaceTempFunction("ST_ASTEXT", STAsText, "")
+    funcReg.createOrReplaceTempFunction("ST_BOX", STBox, "")
+    funcReg.createOrReplaceTempFunction("ST_CELL", STCell, "")
+    funcReg.createOrReplaceTempFunction("ST_CONTAINS", STContains, "")
+    funcReg.createOrReplaceTempFunction("ST_DISTANCE", STDistance, "")
+    funcReg.createOrReplaceTempFunction("ST_EUCLID", STEuclid, "")
+    funcReg.createOrReplaceTempFunction("ST_FROMTEXT", STFromText, "")
+    funcReg.createOrReplaceTempFunction("ST_HAVERSINE", STHaversine, "")
+    funcReg.createOrReplaceTempFunction("ST_INTERSECTION", STIntersection, "")
+    funcReg.createOrReplaceTempFunction("ST_INTERSECTS", STIntersects, "")
+    funcReg.createOrReplaceTempFunction("ST_ISEMPTY", STIsEmpty, "")
+    funcReg.createOrReplaceTempFunction("ST_LATTOR", STLatToR, "")
+    funcReg.createOrReplaceTempFunction("ST_LATTOY", STLatToY, "")
+    funcReg.createOrReplaceTempFunction("ST_LINE", STLine, "")
+    funcReg.createOrReplaceTempFunction("ST_LONTOQ", STLonToQ, "")
+    funcReg.createOrReplaceTempFunction("ST_LONTOX", STLonToX, "")
+    funcReg.createOrReplaceTempFunction("ST_MANHATTAN", STManhattan, "")
+    funcReg.createOrReplaceTempFunction("ST_POINT", STPoint, "")
+    funcReg.createOrReplaceTempFunction("ST_POLYGON", STPolygon, "")
+    funcReg.createOrReplaceTempFunction("ST_POLYGON2", STPolygon2, "")
+    funcReg.createOrReplaceTempFunction("ST_POLYLINE", STPolyline, "")
+    funcReg.createOrReplaceTempFunction("ST_POLYLINE2", STPolyline2, "")
+    funcReg.createOrReplaceTempFunction("ST_QTOX", STQToX, "")
+    funcReg.createOrReplaceTempFunction("ST_RECT", STRect, "")
+    funcReg.createOrReplaceTempFunction("ST_RTOY", STQToX, "")
+    funcReg.createOrReplaceTempFunction("ST_X", STX, "")
+    funcReg.createOrReplaceTempFunction("ST_XTOLON", STXToLon, "")
+    funcReg.createOrReplaceTempFunction("ST_Y", STY, "")
+    funcReg.createOrReplaceTempFunction("ST_YTOLAT", STYToLat, "")
+    funcReg.createOrReplaceTempFunction("ST_XTOQ", STXToQ, "")
+    funcReg.createOrReplaceTempFunction("ST_XY", STXY, "")
+    funcReg.createOrReplaceTempFunction("ST_CENTROID", STCentroid, "")
+    funcReg.createOrReplaceTempFunction("ST_BUFFER", STBuffer, "")
+    funcReg.createOrReplaceTempFunction("ST_CONVEXHULL", STConvexHull, "")
+    funcReg.createOrReplaceTempFunction("ST_MULTIPOINT", STMultipoint, "")
+  }
+}
