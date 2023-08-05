@@ -25,6 +25,7 @@ share/python-wheels/
 .idea/
 target/
 data/
+docs/
 .installed.cfg
 *.egg
 *.whl
