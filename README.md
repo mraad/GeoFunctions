@@ -20,7 +20,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install geofunctions-0.4-py3-none-any.whl
+pip install geofunctions-0.5-py3-none-any.whl
 ```
 
 Optional packages to install:
