@@ -4,7 +4,7 @@ This is a small collection of PySpark functions useful for working with geospati
 It is typically used within an ArcGIS Pro conda environment, and the spark engine is exposed using the [Spark Esri]
 (https://github.com/mraad/spark-esri) package.
 
-### Create Conda Environment
+### Create New Conda Environment
 
 Using ArcGIS Python Command Prompt:
 
@@ -30,6 +30,8 @@ pip install geopandas mapclassify folium xyzservices
 ```
 
 ### Functions
+
+**Note:** Look at the notebooks for example usages of the functions.
 
 - qr_clip(geom, cell, dist=0.0): Returns the intersections of the quad regions and the geometry.
 - qr_envp(geom, cell, dist=0.0): Returns list of qr,envelope of the quad region.
@@ -66,7 +68,7 @@ pip install geopandas mapclassify folium xyzservices
 - st_ytolat(y): Returns the latitude of a y coordinate.
 - st_ytor(y, cell): Returns the r value of a y coordinate.
 
-### On MacOS
+### On MacOS (Optional)
 
 - https://spark.apache.org/docs/latest/ml-linalg-guide.html
 - https://github.com/luhenry/netlib
