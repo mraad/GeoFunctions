@@ -21,7 +21,8 @@ dependencies:
   - scikit-learn>1.0
   - gdal<3.6
   - pyarrow>1.0
-  - black>22.10.0
+  - black
+  - blackd
   - isort>5.10.1
   - jupyterlab_code_formatter>1.6.1
   - mamba>1.0.0
@@ -35,6 +36,5 @@ dependencies:
   - pyspark>3.4.0
   - pip
   - pip:
-      - black[d]~=23.3.0
       - pyspark-ai
       - plotly-express

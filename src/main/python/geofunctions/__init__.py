@@ -28,7 +28,7 @@ def st_point(
     return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stPoint(
         _to_java_column(x),
         _to_java_column(y),
-    ))
+    )).alias("geom")
 
 
 def st_line(
