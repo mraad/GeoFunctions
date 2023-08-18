@@ -5,7 +5,6 @@ zip -j\
  geofunctions-${GF_VER}.zip\
  LICENSE\
  README.md\
- *.pdf\
  geofunctions-${GF_VER}-py3-none-any.whl\
  target/geofunctions-${GF_VER}.jar\
  notebooks/*.ipynb
