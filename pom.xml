@@ -83,7 +83,7 @@
         <dependency>
             <groupId>com.esri</groupId>
             <artifactId>filegdb</artifactId>
-            <version>0.59-${spark.compact}-${scala.compact}</version>
+            <version>0.63-${spark.compact}-${scala.compact}</version>
         </dependency>
         <dependency>
             <groupId>com.esri.geometry</groupId>
