@@ -25,7 +25,7 @@ def st_point(
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stPoint(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stPoint(
         _to_java_column(x),
         _to_java_column(y),
     )).alias("geom")
@@ -47,7 +47,7 @@ def st_line(
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stLine(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stLine(
         _to_java_column(x1),
         _to_java_column(y1),
         _to_java_column(x2),
@@ -71,7 +71,7 @@ def st_rect(
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stRect(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stRect(
         _to_java_column(x1),
         _to_java_column(y1),
         _to_java_column(x2),
@@ -101,7 +101,7 @@ def st_cell(
         w = lit(float(w))
     if isinstance(h, (float, int)):
         h = lit(float(h))
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stCell(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stCell(
         _to_java_column(x),
         _to_java_column(y),
         _to_java_column(w),
@@ -127,7 +127,7 @@ def st_box(
         v = h
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stBox(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stBox(
         _to_java_column(x),
         _to_java_column(y),
         _to_java_column(h),
@@ -143,7 +143,7 @@ def st_astext(geom: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stAsText(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stAsText(
         _to_java_column(geom),
     ))
 
@@ -156,7 +156,7 @@ def st_fromtext(text: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stFromText(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stFromText(
         _to_java_column(text),
     ))
 
@@ -169,7 +169,7 @@ def st_lontox(lon: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stLonToX(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stLonToX(
         _to_java_column(lon),
     )).alias("x")
 
@@ -182,7 +182,7 @@ def st_lattoy(lat: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stLatToY(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stLatToY(
         _to_java_column(lat),
     )).alias("y")
 
@@ -195,7 +195,7 @@ def st_xtolon(x: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stXToLon(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stXToLon(
         _to_java_column(x),
     )).alias("lon")
 
@@ -208,7 +208,7 @@ def st_ytolat(y: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stYToLat(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stYToLat(
         _to_java_column(y),
     )).alias("lat")
 
@@ -227,7 +227,7 @@ def st_lontoq(
     assert sc is not None and sc._jvm is not None
     if isinstance(cell, (float, int)):
         cell = lit(float(cell))
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stLonToQ(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stLonToQ(
         _to_java_column(lon),
         _to_java_column(cell),
     )).alias("q")
@@ -247,7 +247,7 @@ def st_lattor(
     assert sc is not None and sc._jvm is not None
     if isinstance(cell, (float, int)):
         cell = lit(float(cell))
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stLatToR(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stLatToR(
         _to_java_column(lat),
         _to_java_column(cell),
     )).alias("r")
@@ -271,7 +271,7 @@ def st_qtox(
         cell = lit(float(cell))
     if isinstance(dist, (float, int)):
         dist = lit(float(dist))
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stQToX(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stQToX(
         _to_java_column(q),
         _to_java_column(cell),
         _to_java_column(dist),
@@ -296,7 +296,7 @@ def st_rtoy(
         cell = lit(float(cell))
     if isinstance(dist, (float, int)):
         dist = lit(float(dist))
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stQToX(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stQToX(
         _to_java_column(r),
         _to_java_column(cell),
         _to_java_column(dist),
@@ -312,7 +312,7 @@ def st_polyline(*points) -> Column:
     sc = SparkContext._active_spark_context
     if points:
         arr = array(list(points)) if len(points) > 1 else points[0]
-        return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stPolyline(
+        return Column(sc._jvm.com.esri.spark.GeoFunctions.stPolyline(
             _to_java_column(arr)
         )).alias("geom")
     else:
@@ -328,7 +328,7 @@ def st_multipoint(*points) -> Column:
     sc = SparkContext._active_spark_context
     if points:
         arr = array(list(points)) if len(points) > 1 else points[0]
-        return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stMultipoint(
+        return Column(sc._jvm.com.esri.spark.GeoFunctions.stMultipoint(
             _to_java_column(arr)
         )).alias("geom")
     else:
@@ -343,7 +343,7 @@ def st_polyline2(xy: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stPolyline2(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stPolyline2(
         _to_java_column(xy),
     ))
 
@@ -357,7 +357,7 @@ def st_polygon(*points) -> Column:
     sc = SparkContext._active_spark_context
     if points:
         arr = array(list(points)) if len(points) > 1 else points[0]
-        return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stPolygon(
+        return Column(sc._jvm.com.esri.spark.GeoFunctions.stPolygon(
             _to_java_column(arr)
         )).alias("geom")
     else:
@@ -372,7 +372,7 @@ def st_polygon2(xy: Union[Column, str]) -> Column:
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stPolygon2(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stPolygon2(
         _to_java_column(xy),
     ))
 
@@ -387,7 +387,7 @@ def st_intersection(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stIntersection(
+        sc._jvm.com.esri.spark.GeoFunctions.stIntersection(
             _to_java_column(lhs),
             _to_java_column(rhs),
         )
@@ -404,7 +404,7 @@ def st_intersects(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stIntersects(
+        sc._jvm.com.esri.spark.GeoFunctions.stIntersects(
             _to_java_column(lhs),
             _to_java_column(rhs),
         )
@@ -421,7 +421,7 @@ def st_contains(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stContains(
+        sc._jvm.com.esri.spark.GeoFunctions.stContains(
             _to_java_column(lhs),
             _to_java_column(rhs),
         )
@@ -437,7 +437,7 @@ def st_isempty(geom: Union[Column, str]) -> Column:
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stIsEmpty(
+        sc._jvm.com.esri.spark.GeoFunctions.stIsEmpty(
             _to_java_column(geom),
         )
     )
@@ -460,7 +460,7 @@ def st_euclid(
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stEuclid(
+        sc._jvm.com.esri.spark.GeoFunctions.stEuclid(
             _to_java_column(x1),
             _to_java_column(y1),
             _to_java_column(x2),
@@ -479,7 +479,7 @@ def st_distance(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stDistance(
+        sc._jvm.com.esri.spark.GeoFunctions.stDistance(
             _to_java_column(lhs),
             _to_java_column(rhs),
         )
@@ -505,7 +505,7 @@ def qr_envp(
     if isinstance(dist, (int, float)):
         dist = lit(float(dist))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.qrEnvp(
+        sc._jvm.com.esri.spark.GeoFunctions.qrEnvp(
             _to_java_column(geom),
             _to_java_column(cell),
             _to_java_column(dist),
@@ -532,7 +532,7 @@ def qr_clip(
     if isinstance(dist, (int, float)):
         dist = lit(float(dist))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.qrClip(
+        sc._jvm.com.esri.spark.GeoFunctions.qrClip(
             _to_java_column(geom),
             _to_java_column(cell),
             _to_java_column(dist),
@@ -559,7 +559,7 @@ def qr_list(
     if isinstance(dist, (int, float)):
         dist = lit(float(dist))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.qrList(
+        sc._jvm.com.esri.spark.GeoFunctions.qrList(
             _to_java_column(geom),
             _to_java_column(cell),
             _to_java_column(dist),
@@ -584,7 +584,7 @@ def qr_intersect(
     if isinstance(cell, (int, float)):
         cell = lit(float(cell))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.qrIntersect(
+        sc._jvm.com.esri.spark.GeoFunctions.qrIntersect(
             _to_java_column(lhs),
             _to_java_column(rhs),
             _to_java_column(cell),
@@ -608,7 +608,7 @@ def qr_fromxy(
     if isinstance(cell, (int, float)):
         cell = lit(float(cell))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.qrFromXY(
+        sc._jvm.com.esri.spark.GeoFunctions.qrFromXY(
             _to_java_column(x),
             _to_java_column(y),
             _to_java_column(cell),
@@ -630,7 +630,7 @@ def st_x(
     if isinstance(index, (int, float)):
         index = lit(int(index))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stX(
+        sc._jvm.com.esri.spark.GeoFunctions.stX(
             _to_java_column(geom),
             _to_java_column(index),
         )).alias("x")
@@ -651,7 +651,7 @@ def st_y(
     if isinstance(index, (int, float)):
         index = lit(int(index))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stY(
+        sc._jvm.com.esri.spark.GeoFunctions.stY(
             _to_java_column(geom),
             _to_java_column(index),
         )).alias("y")
@@ -682,7 +682,7 @@ def st_manhattan(
     if isinstance(y2, (int, float)):
         y2 = lit(float(y2))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stManhattan(
+        sc._jvm.com.esri.spark.GeoFunctions.stManhattan(
             _to_java_column(x1),
             _to_java_column(y1),
             _to_java_column(x2),
@@ -715,7 +715,7 @@ def st_haversine(
     if isinstance(lat2, (int, float)):
         lat2 = lit(float(lat2))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stHaversine(
+        sc._jvm.com.esri.spark.GeoFunctions.stHaversine(
             _to_java_column(lon1),
             _to_java_column(lat1),
             _to_java_column(lon2),
@@ -737,7 +737,7 @@ def st_xtoq(
     assert sc is not None and sc._jvm is not None
     if isinstance(cell, (float, int)):
         cell = lit(float(cell))
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stXToQ(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stXToQ(
         _to_java_column(x),
         _to_java_column(cell),
     )).alias("q")
@@ -757,7 +757,7 @@ def st_ytor(
     assert sc is not None and sc._jvm is not None
     if isinstance(cell, (float, int)):
         cell = lit(float(cell))
-    return Column(sc._jvm.org.apache.spark.sql.GeoFunctions.stXToQ(
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stXToQ(
         _to_java_column(y),
         _to_java_column(cell),
     )).alias("r")
@@ -778,7 +778,7 @@ def st_xy(
     if isinstance(index, (int, float)):
         index = lit(int(index))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stXY(
+        sc._jvm.com.esri.spark.GeoFunctions.stXY(
             _to_java_column(geom),
             _to_java_column(index),
         )).alias("xy")
@@ -795,7 +795,7 @@ def st_centroid(
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stCentroid(
+        sc._jvm.com.esri.spark.GeoFunctions.stCentroid(
             _to_java_column(geom),
         )).alias("centroid")
 
@@ -819,7 +819,7 @@ def st_buffer(
     if isinstance(num_vertices, (int, float)):
         num_vertices = lit(int(num_vertices))
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stBuffer(
+        sc._jvm.com.esri.spark.GeoFunctions.stBuffer(
             _to_java_column(geom),
             _to_java_column(distance),
             _to_java_column(num_vertices),
@@ -835,6 +835,6 @@ def st_convexhull(geom: Union[Column, str]) -> Column:
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
-        sc._jvm.org.apache.spark.sql.GeoFunctions.stConvexHull(
+        sc._jvm.com.esri.spark.GeoFunctions.stConvexHull(
             _to_java_column(geom),
         )).alias("convex_hull")
