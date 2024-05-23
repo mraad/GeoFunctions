@@ -10,6 +10,7 @@ Using ArcGIS Python Command Prompt:
 
 ```shell
 cd %HOMEPATH%
+conda remove -n geofunctions --yes --all
 conda create -n geofunctions --yes --clone arcgispro-py3
 proswap geofunctions
 git clone https://github.com/mraad/spark-esri.git
@@ -20,7 +21,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install geofunctions-0.5-py3-none-any.whl
+pip install --no-deps geofunctions-0.6-py3-none-any.whl
 ```
 
 Optional packages to install:

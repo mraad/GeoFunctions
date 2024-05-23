@@ -31,6 +31,7 @@ docs/
 *.whl
 *.zip
 *.xml
+*.iml
 MANIFEST
 
 # Jupyter Notebook
