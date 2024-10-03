@@ -52,7 +52,7 @@ def st_line(
         _to_java_column(y1),
         _to_java_column(x2),
         _to_java_column(y2),
-    ))
+    )).alias("geom")
 
 
 def st_rect(
@@ -76,7 +76,7 @@ def st_rect(
         _to_java_column(y1),
         _to_java_column(x2),
         _to_java_column(y2),
-    ))
+    )).alias("geom")
 
 
 def st_cell(
@@ -132,7 +132,7 @@ def st_box(
         _to_java_column(y),
         _to_java_column(h),
         _to_java_column(v),
-    ))
+    )).alias("geom")
 
 
 def st_astext(geom: Union[Column, str]) -> Column:
@@ -345,7 +345,7 @@ def st_polyline2(xy: Union[Column, str]) -> Column:
     assert sc is not None and sc._jvm is not None
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stPolyline2(
         _to_java_column(xy),
-    ))
+    )).alias("geom")
 
 
 def st_polygon(*points) -> Column:
@@ -391,7 +391,7 @@ def st_intersection(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
             _to_java_column(lhs),
             _to_java_column(rhs),
         )
-    )
+    ).alias("geom")
 
 
 def st_intersects(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
@@ -620,7 +620,7 @@ def qr_fromxy(
             _to_java_column(x),
             _to_java_column(y),
             _to_java_column(cell),
-        )).alias('qr')
+        )).alias("qr")
 
 
 def st_x(
@@ -831,7 +831,7 @@ def st_buffer(
             _to_java_column(geom),
             _to_java_column(distance),
             _to_java_column(num_vertices),
-        )).alias("buffer")
+        )).alias("geom")
 
 
 def st_convexhull(geom: Union[Column, str]) -> Column:
@@ -845,4 +845,18 @@ def st_convexhull(geom: Union[Column, str]) -> Column:
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stConvexHull(
             _to_java_column(geom),
-        )).alias("convex_hull")
+        )).alias("geom")
+
+
+def st_union_col(coll: Union[Column, str]) -> Column:
+    """Get the union of the collection of geometries.
+
+    :param coll: A collection of geometries.
+    :return: The union of the collection of geometries.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stUnionCol(
+            _to_java_column(coll),
+        )).alias("geom")
