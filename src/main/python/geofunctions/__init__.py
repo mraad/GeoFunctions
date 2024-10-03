@@ -2,7 +2,7 @@ from typing import Union, Optional
 
 from pyspark import SparkContext
 from pyspark.sql.column import Column, _to_java_column
-from pyspark.sql.functions import lit, array
+from pyspark.sql.functions import lit, array, explode
 
 
 def st_register_functions() -> None:
@@ -538,6 +538,14 @@ def qr_clip(
             _to_java_column(dist),
         )
     )
+
+
+def qr_clip_explode(
+        geom: Union[Column, str],
+        cell: Union[Column, str, float],
+        dist: Union[Column, str, float] = 0.0,
+) -> Column:
+    return explode(qr_clip(geom, cell, dist)).alias("qr", metadata={"cell": cell, "dist": dist})
 
 
 def qr_list(

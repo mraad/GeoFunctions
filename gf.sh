@@ -1,5 +1,5 @@
 python3 -m pip wheel .
-mvn -P spark-3.3 package
+mvn clean package
 export GF_VER=$(grep -E '<version>' pom.xml | head -1 | gawk 'match($0,/<version>([^<]*)<\/version>/,a){print a[1]}')
 zip -j\
  geofunctions-${GF_VER}.zip\
