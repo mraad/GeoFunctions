@@ -20,6 +20,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_CONVEXHULL", STConvexHull, "")
     funcReg.createOrReplaceTempFunction("ST_DISTANCE", STDistance, "")
     funcReg.createOrReplaceTempFunction("ST_EUCLID", STEuclid, "")
+    funcReg.createOrReplaceTempFunction("ST_EXTERIORRING", STExteriorRing, "")
     funcReg.createOrReplaceTempFunction("ST_FROMTEXT", STFromText, "")
     funcReg.createOrReplaceTempFunction("ST_HAVERSINE", STHaversine, "")
     funcReg.createOrReplaceTempFunction("ST_INTERSECTION", STIntersection, "")

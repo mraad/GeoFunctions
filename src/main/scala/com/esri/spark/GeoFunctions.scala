@@ -193,4 +193,7 @@ object GeoFunctions {
 
   def stUnionCol(c1: Column): Column =
     new Column(STUnionCol(Array(c1.expr)))
+
+  def stExteriorRing(c1: Column): Column =
+    new Column(STExteriorRing(Array(c1.expr)))
 }

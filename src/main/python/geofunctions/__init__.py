@@ -860,3 +860,17 @@ def st_union_col(coll: Union[Column, str]) -> Column:
         sc._jvm.com.esri.spark.GeoFunctions.stUnionCol(
             _to_java_column(coll),
         )).alias("geom")
+
+
+def st_exterior_ring(geom: Union[Column, str]) -> Column:
+    """Get the exterior ring of a polygon.
+
+    :param geom: A polygon.
+    :return: The exterior ring of a polygon.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stExteriorRing(
+            _to_java_column(geom),
+        )).alias("geom")
