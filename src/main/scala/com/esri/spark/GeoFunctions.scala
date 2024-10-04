@@ -202,8 +202,10 @@ object GeoFunctions {
   def stMultipoint(c1: Column): Column =
     new Column(STMultipoint(Array(c1.expr)))
 
-  def stUnionCol(c1: Column): Column =
-    new Column(STUnionCol(Array(c1.expr)))
+  def stUnionCol(c1: Column,
+                 c2: Column
+                ): Column =
+    new Column(STUnionCol(Array(c1.expr, c2.expr)))
 
   def stExteriorRing(c1: Column): Column =
     new Column(STExteriorRing(Array(c1.expr)))
@@ -229,4 +231,10 @@ object GeoFunctions {
 
   def stDump(c1: Column): Column =
     new Column(STDump(Array(c1.expr)))
+
+  def gdbPolygon2(c1: Column): Column =
+    new Column(GDBPolygon2(Array(c1.expr)))
+
+  def gdbPolyline2(c1: Column): Column =
+    new Column(GDBPolyline2(Array(c1.expr)))
 }

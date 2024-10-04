@@ -54,5 +54,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_XY", STXY, "")
     funcReg.createOrReplaceTempFunction("ST_Y", STY, "")
     funcReg.createOrReplaceTempFunction("ST_YTOLAT", STYToLat, "")
+    funcReg.createOrReplaceTempFunction("GDB_POLYGON2", GDBPolygon2, "")
+    funcReg.createOrReplaceTempFunction("GDB_POLYLINE2", GDBPolyline2, "")
   }
 }

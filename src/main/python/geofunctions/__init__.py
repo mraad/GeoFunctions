@@ -967,10 +967,12 @@ def st_union_col(
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stUnionCol(
             _to_java_column(coll),
-            _to_java_column(wkid) if isinstance(wkid, (Column, str)) else lit(str(wkid)),
+            _to_java_column(wkid),
         )).alias("geom")
 
 
@@ -1013,10 +1015,12 @@ def st_simplify(
     :return: The simplified geometry.
     """
     sc = SparkContext._active_spark_context
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stSimplify(
             _to_java_column(geom),
-            _to_java_column(wkid) if isinstance(wkid, (Column, str)) else lit(str(wkid)),
+            _to_java_column(wkid),
         )
     ).alias("geom")
 
@@ -1032,10 +1036,12 @@ def st_repair(
     :return: The repaired geometry.
     """
     sc = SparkContext._active_spark_context
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stRepair(
             _to_java_column(geom),
-            _to_java_column(wkid) if isinstance(wkid, (Column, str)) else lit(str(wkid)),
+            _to_java_column(wkid),
         )
     ).alias("geom")
 
@@ -1065,6 +1071,44 @@ def st_dump_explode(
     :return: The exploded parts of the geometry.
     """
     return explode(st_dump(geom)).alias("geom")
+
+
+def gdb_polyline(shape: Union[Column, str] = "Shape") -> Column:
+    """Convert a GDB shape column to a polyline.
+
+    :param shape: GDB shape column.
+    :return: Polyline column.
+    """
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolyline2(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_polyline2(shape: Union[Column, str] = "Shape") -> Column:
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolyline2(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_polygon(shape: Union[Column, str] = "Shape") -> Column:
+    """Convert a GDB shape column to a polygon.
+
+    :param shape: GDB shape column.
+    :return: Polygon column.
+    """
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolygon2(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_polygon2(shape: Union[Column, str] = "Shape") -> Column:
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolygon2(_to_java_column(shape))
+    ).alias("geom")
 
 
 def join_qr(
