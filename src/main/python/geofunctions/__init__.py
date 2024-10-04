@@ -1010,6 +1010,7 @@ def st_simplify(
 
     :param geom: The geometry.
     :param wkid: The spatial reference ID.
+    :return: The simplified geometry.
     """
     sc = SparkContext._active_spark_context
     return Column(
@@ -1028,6 +1029,7 @@ def st_repair(
 
     :param geom: The geometry.
     :param wkid: The spatial reference ID.
+    :return: The repaired geometry.
     """
     sc = SparkContext._active_spark_context
     return Column(
@@ -1036,6 +1038,33 @@ def st_repair(
             _to_java_column(wkid) if isinstance(wkid, (Column, str)) else lit(str(wkid)),
         )
     ).alias("geom")
+
+
+def st_dump(
+        geom: Union[Column, str] = "geom",
+) -> Column:
+    """Dump the parts of a geometry.
+
+    :param geom: The geometry to dump.
+    :return: The parts of the geometry.
+    """
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stDump(
+            _to_java_column(geom),
+        )
+    )
+
+
+def st_dump_explode(
+        geom: Union[Column, str] = "geom",
+) -> Column:
+    """Explode the parts of a geometry.
+
+    :param geom: The geometry to dump.
+    :return: The exploded parts of the geometry.
+    """
+    return explode(st_dump(geom)).alias("geom")
 
 
 def join_qr(

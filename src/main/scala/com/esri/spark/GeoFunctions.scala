@@ -227,4 +227,6 @@ object GeoFunctions {
               ): Column =
     new Column(STRepair(Array(c1.expr, c2.expr)))
 
+  def stDump(c1: Column): Column =
+    new Column(STDump(Array(c1.expr)))
 }
