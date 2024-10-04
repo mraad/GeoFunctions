@@ -66,7 +66,7 @@ final case class QRContainsGeom(children: Seq[Expression])
     val a3 = c3.value
 
     val obj = QRContainsGeomObj.getClass.getName.stripSuffix("$")
-    val objEval = s"$obj.eval($a1)"
+    val objEval = s"$obj.eval($a1,$a2,$a3)"
     ev.copy(code =
       code"""
         ${c1.code}

@@ -39,6 +39,7 @@ final case class STIoU(children: Seq[Expression])
   override def inputTypes: Seq[DataType] = Seq(
     BinaryType,
     BinaryType,
+    StringType,
   )
 
   override def dataType: DataType = DoubleType

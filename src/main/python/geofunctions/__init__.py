@@ -15,8 +15,8 @@ def st_register_functions() -> None:
 
 
 def st_point(
-        x: Union[Column, str],
-        y: Union[Column, str]
+        x: Union[Column, str] = "x",
+        y: Union[Column, str] = "y",
 ) -> Column:
     """Create a point from the coordinates (x, y).
 
@@ -136,7 +136,9 @@ def st_box(
     )).alias("geom")
 
 
-def st_astext(geom: Union[Column, str]) -> Column:
+def st_astext(
+        geom: Union[Column, str] = "geom"
+) -> Column:
     """Convert a geometry to a WKT string representation.
 
     :param geom: The geometry.
@@ -162,7 +164,7 @@ def st_fromtext(text: Union[Column, str]) -> Column:
     ))
 
 
-def st_lontox(lon: Union[Column, str]) -> Column:
+def st_lontox(lon: Union[Column, str] = "lon") -> Column:
     """Convert a longitude to an x coordinate in meters.
 
     :param lon: The longitude.
@@ -175,7 +177,7 @@ def st_lontox(lon: Union[Column, str]) -> Column:
     )).alias("x")
 
 
-def st_lattoy(lat: Union[Column, str]) -> Column:
+def st_lattoy(lat: Union[Column, str] = "lat") -> Column:
     """Convert a latitude to a y coordinate in meters.
 
     :param lat: The latitude.
@@ -188,7 +190,7 @@ def st_lattoy(lat: Union[Column, str]) -> Column:
     )).alias("y")
 
 
-def st_xtolon(x: Union[Column, str]) -> Column:
+def st_xtolon(x: Union[Column, str] = "x") -> Column:
     """Convert an x coordinate in meters to a longitude.
 
     :param x: The x coordinate in meters.
@@ -201,7 +203,7 @@ def st_xtolon(x: Union[Column, str]) -> Column:
     )).alias("lon")
 
 
-def st_ytolat(y: Union[Column, str]) -> Column:
+def st_ytolat(y: Union[Column, str] = "y") -> Column:
     """Convert a y coordinate in meters to a latitude.
 
     :param y: The y coordinate in meters.
@@ -478,7 +480,9 @@ def st_iou(
     ).alias("iou")
 
 
-def st_isempty(geom: Union[Column, str]) -> Column:
+def st_isempty(
+        geom: Union[Column, str] = "geom"
+) -> Column:
     """Check if geometry is empty.
 
     :param geom: The geometry.
@@ -726,7 +730,7 @@ def qr_fromxy(
 
 
 def st_x(
-        geom: Union[Column, str],
+        geom: Union[Column, str] = "geom",
         index: Union[Column, str, int] = 0,
 ) -> Column:
     """Get the x coordinate of a geometry at a point index.
@@ -747,7 +751,7 @@ def st_x(
 
 
 def st_y(
-        geom: Union[Column, str],
+        geom: Union[Column, str] = "geom",
         index: Union[Column, str, int] = 0,
 ) -> Column:
     """Get the y coordinate of a geometry at a point index.
@@ -874,7 +878,7 @@ def st_ytor(
 
 
 def st_xy(
-        geom: Union[Column, str],
+        geom: Union[Column, str] = "geom",
         index: Union[Column, str, int] = 0
 ) -> Column:
     """Get the x/y coordinate of a geometry at a point index.
@@ -895,7 +899,7 @@ def st_xy(
 
 
 def st_centroid(
-        geom: Union[Column, str],
+        geom: Union[Column, str] = "geom",
 ) -> Column:
     """Get the centroid of a geometry.
 
@@ -941,7 +945,9 @@ def st_buffer(
         )).alias("geom")
 
 
-def st_convexhull(geom: Union[Column, str]) -> Column:
+def st_convexhull(
+        geom: Union[Column, str] = "geom"
+) -> Column:
     """Get the convex hull of a geometry.
 
     :param geom: The geometry.
@@ -990,7 +996,9 @@ def st_exterior_ring(geom: Union[Column, str]) -> Column:
         )).alias("geom")
 
 
-def st_extent(geom: Union[Column, str]) -> Column:
+def st_extent(
+        geom: Union[Column, str] = "geom"
+) -> Column:
     """Get the extent (xmin,ymin,xmax,ymax) of a geometry.
 
     :param geom: A geometry.
