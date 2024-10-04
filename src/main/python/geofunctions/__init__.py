@@ -1,9 +1,8 @@
-from typing import Union, Optional
-
 from pyspark import SparkContext
 from pyspark.sql import DataFrame
 from pyspark.sql.column import Column, _to_java_column
 from pyspark.sql.functions import lit, array, explode
+from typing import Union, Optional
 
 
 def st_register_functions() -> None:
@@ -12,6 +11,31 @@ def st_register_functions() -> None:
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     sc._jvm.com.esri.spark.Registry.registerFunctions()
+
+
+def st_translate(
+        geom: Union[Column, str] = "geom",
+        dx: Union[Column, str, float] = 0.0,
+        dy: Union[Column, str, float] = 0.0,
+) -> Column:
+    """Translate a geometry by dx, dy.
+
+    :param geom: The geometry.
+    :param dx: The x translation.
+    :param dy: The y translation.
+    :return: The translated geometry.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(dx, float):
+        dx = lit(float(dx))
+    if isinstance(dy, float):
+        dy = lit(float(dy))
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stTranslate(
+        _to_java_column(geom),
+        _to_java_column(dx),
+        _to_java_column(dy),
+    ))
 
 
 def st_area(geom: Union[Column, str] = "geom") -> Column:

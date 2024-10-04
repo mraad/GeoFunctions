@@ -6,14 +6,15 @@ object Registry extends Serializable {
   final def registerFunctions(): Unit = {
     val ss = SparkSession.builder.getOrCreate()
     val funcReg = ss.sessionState.functionRegistry
-    funcReg.createOrReplaceTempFunction("ST_AREA", STArea, "")
-    funcReg.createOrReplaceTempFunction("ST_LENGTH", STLength, "")
+    funcReg.createOrReplaceTempFunction("GDB_POLYGON2", GDBPolygon2, "")
+    funcReg.createOrReplaceTempFunction("GDB_POLYLINE2", GDBPolyline2, "")
     funcReg.createOrReplaceTempFunction("QR_CLIP", QRClip, "")
     funcReg.createOrReplaceTempFunction("QR_CONTAINSGEOM", QRContainsGeom, "")
     funcReg.createOrReplaceTempFunction("QR_ENVP", QREnvp, "")
     funcReg.createOrReplaceTempFunction("QR_FROMXY", QRFromXY, "")
     funcReg.createOrReplaceTempFunction("QR_INTERSECT", QRIntersect, "")
     funcReg.createOrReplaceTempFunction("QR_LIST", QRList, "")
+    funcReg.createOrReplaceTempFunction("ST_AREA", STArea, "")
     funcReg.createOrReplaceTempFunction("ST_ASTEXT", STAsText, "")
     funcReg.createOrReplaceTempFunction("ST_BOX", STBox, "")
     funcReg.createOrReplaceTempFunction("ST_BUFFER", STBuffer, "")
@@ -35,6 +36,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_ISEMPTY", STIsEmpty, "")
     funcReg.createOrReplaceTempFunction("ST_LATTOR", STLatToR, "")
     funcReg.createOrReplaceTempFunction("ST_LATTOY", STLatToY, "")
+    funcReg.createOrReplaceTempFunction("ST_LENGTH", STLength, "")
     funcReg.createOrReplaceTempFunction("ST_LINE", STLine, "")
     funcReg.createOrReplaceTempFunction("ST_LONTOQ", STLonToQ, "")
     funcReg.createOrReplaceTempFunction("ST_LONTOX", STLonToX, "")
@@ -50,6 +52,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_REPAIR", STRepair, "")
     funcReg.createOrReplaceTempFunction("ST_RTOY", STQToX, "")
     funcReg.createOrReplaceTempFunction("ST_SIMPLIFY", STSimplify, "")
+    funcReg.createOrReplaceTempFunction("ST_TRANSLATE", STTranslate, "")
     funcReg.createOrReplaceTempFunction("ST_UNIONCOL", STUnionCol, "")
     funcReg.createOrReplaceTempFunction("ST_X", STX, "")
     funcReg.createOrReplaceTempFunction("ST_XTOLON", STXToLon, "")
@@ -57,7 +60,5 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_XY", STXY, "")
     funcReg.createOrReplaceTempFunction("ST_Y", STY, "")
     funcReg.createOrReplaceTempFunction("ST_YTOLAT", STYToLat, "")
-    funcReg.createOrReplaceTempFunction("GDB_POLYGON2", GDBPolygon2, "")
-    funcReg.createOrReplaceTempFunction("GDB_POLYLINE2", GDBPolyline2, "")
   }
 }
