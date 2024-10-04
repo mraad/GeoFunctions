@@ -6,6 +6,8 @@ object Registry extends Serializable {
   final def registerFunctions(): Unit = {
     val ss = SparkSession.builder.getOrCreate()
     val funcReg = ss.sessionState.functionRegistry
+    funcReg.createOrReplaceTempFunction("ST_AREA", STArea, "")
+    funcReg.createOrReplaceTempFunction("ST_LENGTH", STLength, "")
     funcReg.createOrReplaceTempFunction("QR_CLIP", QRClip, "")
     funcReg.createOrReplaceTempFunction("QR_CONTAINSGEOM", QRContainsGeom, "")
     funcReg.createOrReplaceTempFunction("QR_ENVP", QREnvp, "")

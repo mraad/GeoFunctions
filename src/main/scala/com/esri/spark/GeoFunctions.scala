@@ -240,4 +240,10 @@ object GeoFunctions {
 
   def gdbPolyline2(c1: Column): Column =
     new Column(GDBPolyline2(Array(c1.expr)))
+
+  def stArea(c1: Column): Column =
+    new Column(STArea(Array(c1.expr)))
+
+  def stLength(c1: Column): Column =
+    new Column(STLength(Array(c1.expr)))
 }

@@ -14,6 +14,32 @@ def st_register_functions() -> None:
     sc._jvm.com.esri.spark.Registry.registerFunctions()
 
 
+def st_area(geom: Union[Column, str] = "geom") -> Column:
+    """Compute the area of a geometry.
+
+    :param geom: The geometry.
+    :return: The area.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stArea(
+        _to_java_column(geom),
+    ))
+
+
+def st_length(geom: Union[Column, str] = "geom") -> Column:
+    """Compute the length of a geometry.
+
+    :param geom: The geometry.
+    :return: The length.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stLength(
+        _to_java_column(geom),
+    ))
+
+
 def st_point(
         x: Union[Column, str] = "x",
         y: Union[Column, str] = "y",
