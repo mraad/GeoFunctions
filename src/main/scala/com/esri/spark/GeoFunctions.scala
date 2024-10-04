@@ -189,6 +189,9 @@ object GeoFunctions {
   def stCentroid(c1: Column): Column =
     new Column(STCentroid(Array(c1.expr)))
 
+  def stCentroidXY(c1: Column): Column =
+    new Column(STCentroidXY(Array(c1.expr)))
+
   def stBuffer(c1: Column,
                c2: Column,
                c3: Column,

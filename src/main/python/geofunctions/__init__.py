@@ -914,6 +914,22 @@ def st_centroid(
         )).alias("centroid")
 
 
+def st_centroid_xy(
+        geom: Union[Column, str] = "geom",
+) -> Column:
+    """Get the centroid XY of a geometry.
+
+    :param geom: The geometry.
+    :return: The centroid as XY.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stCentroidXY(
+            _to_java_column(geom),
+        )).alias("xy")
+
+
 def st_buffer(
         geom: Union[Column, str],
         distance: Union[Column, str, float, int],

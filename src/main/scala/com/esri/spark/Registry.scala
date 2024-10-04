@@ -17,6 +17,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_BUFFER", STBuffer, "")
     funcReg.createOrReplaceTempFunction("ST_CELL", STCell, "")
     funcReg.createOrReplaceTempFunction("ST_CENTROID", STCentroid, "")
+    funcReg.createOrReplaceTempFunction("ST_CENTROIDXY", STCentroidXY, "")
     funcReg.createOrReplaceTempFunction("ST_CONTAINS", STContains, "")
     funcReg.createOrReplaceTempFunction("ST_CONVEXHULL", STConvexHull, "")
     funcReg.createOrReplaceTempFunction("ST_DISTANCE", STDistance, "")
