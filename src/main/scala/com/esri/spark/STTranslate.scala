@@ -35,7 +35,7 @@ final case class STTranslate(children: Seq[Expression])
     DoubleType,
   )
 
-  override def dataType: DataType = BooleanType
+  override def dataType: DataType = BinaryType
 
   override def eval(inputRow: InternalRow): Any = {
     children match {
