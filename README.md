@@ -77,9 +77,3 @@ pip install geopandas mapclassify folium xyzservices
 ```shell
 OPENBLAS="$(brew --prefix openblas)" pip install PACKAGENAME
 ```
-
-### References
-
-- https://towardsdatascience.com/how-to-create-voronoi-regions-with-geospatial-data-in-python-adbb6c5f2134
-- https://medium.com/analytics-vidhya/create-voronoi-regions-with-python-28720b9c70d8
-- https://github.com/WZBSocialScienceCenter/geovoronoi

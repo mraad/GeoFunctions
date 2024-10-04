@@ -1,6 +1,7 @@
 from typing import Union, Optional
 
 from pyspark import SparkContext
+from pyspark.sql import DataFrame
 from pyspark.sql.column import Column, _to_java_column
 from pyspark.sql.functions import lit, array, explode
 
@@ -377,55 +378,104 @@ def st_polygon2(xy: Union[Column, str]) -> Column:
     ))
 
 
-def st_intersection(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
+def st_intersection(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
     """Compute the intersection of two geometries.
 
     :param lhs: The left hand side geometry.
     :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID.
     :return: The intersection.
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stIntersection(
             _to_java_column(lhs),
             _to_java_column(rhs),
+            _to_java_column(wkid),
         )
     ).alias("geom")
 
 
-def st_intersects(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
+def st_intersects(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
     """Check if two geometries intersect.
 
     :param lhs: The left hand side geometry.
     :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID.
     :return: True if geometries intersect, false otherwise.
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stIntersects(
             _to_java_column(lhs),
             _to_java_column(rhs),
+            _to_java_column(wkid),
         )
     )
 
 
-def st_contains(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
-    """Check if lhs contains rhs.
+def st_contains(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Check if lhs geometry contains rhs geometry.
 
     :param lhs: The left hand side geometry.
     :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID.
     :return: True if lhs contains rhs, false otherwise.
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stContains(
             _to_java_column(lhs),
             _to_java_column(rhs),
+            _to_java_column(wkid),
         )
     )
+
+
+def st_iou(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Calculate the IoU of the lhs geom with rhs geom.
+
+    :param lhs: The left hand side geometry.
+    :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID of the geometries.
+    :return: The IoU value.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stIoU(
+            _to_java_column(lhs),
+            _to_java_column(rhs),
+            _to_java_column(wkid),
+        )
+    ).alias("iou")
 
 
 def st_isempty(geom: Union[Column, str]) -> Column:
@@ -469,7 +519,10 @@ def st_euclid(
     )
 
 
-def st_distance(lhs: Union[Column, str], rhs: Union[Column, str]) -> Column:
+def st_distance(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+) -> Column:
     """Compute the distance between two geometries.
 
     :param lhs: The left hand side geometry.
@@ -513,16 +566,26 @@ def qr_envp(
     )
 
 
+def qr_envp_explode(
+        geom: Union[Column, str],
+        cell: Union[Column, str, float],
+        dist: Union[Column, str, float] = 0.0,
+) -> Column:
+    return explode(qr_envp(geom, cell, dist)).alias("qr", metadata={"cell": cell, "dist": dist})
+
+
 def qr_clip(
         geom: Union[Column, str],
         cell: Union[Column, str, float],
         dist: Union[Column, str, float] = 0.0,
+        wkid: Union[Column, str, int] = -1,
 ) -> Column:
     """Compute the qr/clip of a geometry.
 
     :param geom: The geometry.
     :param cell: The cell size.
     :param dist: The cell padding.
+    :param wkid: The spatial reference ID.
     :return: The qr/clip.
     """
     sc = SparkContext._active_spark_context
@@ -531,11 +594,39 @@ def qr_clip(
         cell = lit(float(cell))
     if isinstance(dist, (int, float)):
         dist = lit(float(dist))
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.qrClip(
             _to_java_column(geom),
             _to_java_column(cell),
             _to_java_column(dist),
+            _to_java_column(wkid),
+        )
+    )
+
+
+def qr_contains_geom(
+        qr: Union[Column, str],
+        cell: Union[Column, str, float],
+        geom: Union[Column, str],
+) -> Column:
+    """Check if the geometry is fully inside a QR cell.
+
+    :param qr: The QR code.
+    :param cell: The cell size.
+    :param geom: The geometry.
+    :return: True if qr contains geom, false otherwise.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(cell, (int, float)):
+        cell = lit(float(cell))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.qrContainsGeom(
+            _to_java_column(qr),
+            _to_java_column(cell),
+            _to_java_column(geom),
         )
     )
 
@@ -544,8 +635,19 @@ def qr_clip_explode(
         geom: Union[Column, str],
         cell: Union[Column, str, float],
         dist: Union[Column, str, float] = 0.0,
+        wkid: Union[Column, str, int] = -1,
 ) -> Column:
-    return explode(qr_clip(geom, cell, dist)).alias("qr", metadata={"cell": cell, "dist": dist})
+    """Explode the qr/clip of a geometry.
+
+    :param geom: The geometry.
+    :param cell: The cell size.
+    :param dist: The cell padding.
+    :param wkid: The spatial reference ID.
+    :return: The exploded qr/clip.
+    """
+    return explode(
+        qr_clip(geom, cell, dist, wkid)
+    ).alias("qr", metadata={"cell": cell, "dist": dist, "wkid": wkid})
 
 
 def qr_list(
@@ -578,9 +680,9 @@ def qr_list(
 def qr_intersect(
         lhs: Union[Column, str],
         rhs: Union[Column, str],
-        cell: Union[Column, str],
+        cell: Union[Column, int, float],
 ) -> Column:
-    """Check if the qr/envp of a geometries intersect.
+    """Check if the qr/envp of two geometries intersect.
 
     :param lhs: The lhs qr/envp.
     :param rhs: The rhs qr/envp.
@@ -602,7 +704,7 @@ def qr_intersect(
 def qr_fromxy(
         x: Union[Column, str],
         y: Union[Column, str],
-        cell: Union[Column, str],
+        cell: Union[Column, str, int, float],
 ) -> Column:
     """Compute the qr value for a give x/y coordinate.
 
@@ -812,12 +914,14 @@ def st_buffer(
         geom: Union[Column, str],
         distance: Union[Column, str, float, int],
         num_vertices: Union[float, int] = 36,
+        wkid: Union[Column, str, int] = -1,
 ) -> Column:
     """Get the buffer of a geometry.
 
     :param geom: The geometry.
     :param distance: The distance to buffer.
     :param num_vertices: The number of vertices to use.
+    :param wkid: The spatial reference ID.
     :return: The buffered geometry.
     """
     sc = SparkContext._active_spark_context
@@ -826,11 +930,14 @@ def st_buffer(
         distance = lit(float(distance))
     if isinstance(num_vertices, (int, float)):
         num_vertices = lit(int(num_vertices))
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stBuffer(
             _to_java_column(geom),
             _to_java_column(distance),
             _to_java_column(num_vertices),
+            _to_java_column(wkid),
         )).alias("geom")
 
 
@@ -848,10 +955,14 @@ def st_convexhull(geom: Union[Column, str]) -> Column:
         )).alias("geom")
 
 
-def st_union_col(coll: Union[Column, str]) -> Column:
-    """Get the union of the collection of geometries.
+def st_union_col(
+        coll: Union[Column, str],
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Get the union of a collection of geometries.
 
     :param coll: A collection of geometries.
+    :param wkid: The spatial reference ID.
     :return: The union of the collection of geometries.
     """
     sc = SparkContext._active_spark_context
@@ -859,6 +970,7 @@ def st_union_col(coll: Union[Column, str]) -> Column:
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stUnionCol(
             _to_java_column(coll),
+            _to_java_column(wkid) if isinstance(wkid, (Column, str)) else lit(str(wkid)),
         )).alias("geom")
 
 
@@ -874,3 +986,83 @@ def st_exterior_ring(geom: Union[Column, str]) -> Column:
         sc._jvm.com.esri.spark.GeoFunctions.stExteriorRing(
             _to_java_column(geom),
         )).alias("geom")
+
+
+def st_extent(geom: Union[Column, str]) -> Column:
+    """Get the extent (xmin,ymin,xmax,ymax) of a geometry.
+
+    :param geom: A geometry.
+    :return: The extent of the geometry.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stExtent(
+            _to_java_column(geom),
+        )).alias("extent")
+
+
+def st_simplify(
+        geom: Union[Column, str] = "geom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Simplify a geometry.
+
+    :param geom: The geometry.
+    :param wkid: The spatial reference ID.
+    """
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stSimplify(
+            _to_java_column(geom),
+            _to_java_column(wkid) if isinstance(wkid, (Column, str)) else lit(str(wkid)),
+        )
+    ).alias("geom")
+
+
+def st_repair(
+        geom: Union[Column, str] = "geom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Repair a geometry.
+
+    :param geom: The geometry.
+    :param wkid: The spatial reference ID.
+    """
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stRepair(
+            _to_java_column(geom),
+            _to_java_column(wkid) if isinstance(wkid, (Column, str)) else lit(str(wkid)),
+        )
+    ).alias("geom")
+
+
+def join_qr(
+        lhs: DataFrame,
+        rhs: DataFrame,
+        cell: float,
+        dist: float = 0.0,
+) -> DataFrame:
+    """Spatially join dataframes.
+
+    :param lhs: The left hand side dataframe.
+    :param rhs: The right hand side dataframe.
+    :param cell: The qr cell size.
+    :param dist: The qr offset distance. Default is 0.0.
+    """
+    ldf = lhs.withColumnRenamed("geom", "lgeom").withColumn(
+        "lqr", qr_envp_explode("lgeom", cell, dist)
+    )
+    rdf = rhs.withColumnRenamed("geom", "rgeom").withColumn(
+        "rqr", qr_envp_explode("rgeom", cell, dist)
+    )
+    return (
+        ldf
+        .join(rdf, ldf.lqr.qr == rdf.rqr.qr)
+        .filter(qr_intersect("lqr", "rqr", cell))
+        .drop("lqr", "rqr")
+    )
+
+
+DataFrame.join_qr = join_qr

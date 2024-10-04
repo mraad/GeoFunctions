@@ -90,19 +90,22 @@ object GeoFunctions {
     new Column(STPolygon2(Array(c1.expr)))
 
   def stIntersection(c1: Column,
-                     c2: Column
+                     c2: Column,
+                     c3: Column,
                     ): Column =
-    new Column(STIntersection(Array(c1.expr, c2.expr)))
+    new Column(STIntersection(Array(c1.expr, c2.expr, c3.expr)))
 
   def stIntersects(c1: Column,
-                   c2: Column
+                   c2: Column,
+                   c3: Column,
                   ): Column =
-    new Column(STIntersects(Array(c1.expr, c2.expr)))
+    new Column(STIntersects(Array(c1.expr, c2.expr, c3.expr)))
 
   def stContains(c1: Column,
-                 c2: Column
+                 c2: Column,
+                 c3: Column,
                 ): Column =
-    new Column(STContains(Array(c1.expr, c2.expr)))
+    new Column(STContains(Array(c1.expr, c2.expr, c3.expr)))
 
   def stIsEmpty(c1: Column): Column =
     new Column(STIsEmpty(Array(c1.expr)))
@@ -120,9 +123,16 @@ object GeoFunctions {
 
   def qrClip(c1: Column,
              c2: Column,
-             c3: Column
+             c3: Column,
+             c4: Column,
             ): Column =
-    new Column(QRClip(Array(c1.expr, c2.expr, c3.expr)))
+    new Column(QRClip(Array(c1.expr, c2.expr, c3.expr, c4.expr)))
+
+  def qrContainsGeom(c1: Column,
+                     c2: Column,
+                     c3: Column
+                    ): Column =
+    new Column(QRContainsGeom(Array(c1.expr, c2.expr, c3.expr)))
 
   def qrList(c1: Column,
              c2: Column,
@@ -181,9 +191,10 @@ object GeoFunctions {
 
   def stBuffer(c1: Column,
                c2: Column,
-               c3: Column
+               c3: Column,
+               c4: Column,
               ): Column =
-    new Column(STBuffer(Array(c1.expr, c2.expr, c3.expr)))
+    new Column(STBuffer(Array(c1.expr, c2.expr, c3.expr, c4.expr)))
 
   def stConvexHull(c1: Column): Column =
     new Column(STConvexHull(Array(c1.expr)))
@@ -196,4 +207,24 @@ object GeoFunctions {
 
   def stExteriorRing(c1: Column): Column =
     new Column(STExteriorRing(Array(c1.expr)))
+
+  def stIoU(c1: Column,
+            c2: Column,
+            c3: Column,
+           ): Column =
+    new Column(STIoU(Array(c1.expr, c2.expr, c3.expr)))
+
+  def stExtent(c1: Column): Column =
+    new Column(STExtent(Array(c1.expr)))
+
+  def stSimplify(c1: Column,
+                 c2: Column
+                ): Column =
+    new Column(STSimplify(Array(c1.expr, c2.expr)))
+
+  def stRepair(c1: Column,
+               c2: Column
+              ): Column =
+    new Column(STRepair(Array(c1.expr, c2.expr)))
+
 }

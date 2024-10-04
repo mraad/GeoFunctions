@@ -1,33 +1,35 @@
 package com.esri.spark
 
-import com.esri.core.geometry.Polygon
+import com.esri.core.geometry.{OperatorIntersection, OperatorUnion, Polygon}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
 
-
-object STCellObj extends Serializable {
-  // Create a box with lower left corner at x0,y0 and upper right corner at x0+ww, y0+hh.
-  final def eval(x0: Double,
-                 y0: Double,
-                 ww: Double,
-                 hh: Double,
-                ): Array[Byte] = {
-    val x1 = x0 + ww
-    val y1 = y0 + hh
-    val geom = new Polygon()
-    geom.startPath(x0, y0)
-    geom.lineTo(x0, y1)
-    geom.lineTo(x1, y1)
-    geom.lineTo(x1, y0)
-    geom.closePathWithLine()
-    geom.bytes
+object STIoUObj extends Serializable {
+  final def eval(lhs: Array[Byte],
+                 rhs: Array[Byte],
+                 wkid: UTF8String,
+                ): Double = {
+    (lhs.geom, rhs.geom) match {
+      case (l: Polygon, r: Polygon) =>
+        val sr = SpatialReferenceObj.create(wkid)
+        val i = OperatorIntersection.local.execute(l, r, sr, null).calculateArea2D()
+        val u = OperatorUnion.local.execute(l, r, sr, null).calculateArea2D()
+        if (u > 0.0) {
+          i / u
+        } else {
+          0.0
+        }
+      case _ =>
+        0.0
+    }
   }
 }
 
-final case class STCell(children: Seq[Expression])
+final case class STIoU(children: Seq[Expression])
   extends Expression with ImplicitCastInputTypes {
 
   override def foldable: Boolean = children.forall(_.foldable)
@@ -35,22 +37,23 @@ final case class STCell(children: Seq[Expression])
   override def nullable: Boolean = children.exists(_.nullable)
 
   override def inputTypes: Seq[DataType] = Seq(
-    DoubleType,
-    DoubleType,
-    DoubleType,
-    DoubleType,
+    BinaryType,
+    BinaryType,
   )
 
-  override def dataType: DataType = BinaryType
+  override def dataType: DataType = DoubleType
 
   override def eval(inputRow: InternalRow): Any = {
     children match {
-      case Seq(e1: Expression, e2: Expression, e3: Expression, e4: Expression) =>
-        STCellObj.eval(
-          e1.eval(inputRow).asInstanceOf[Double],
-          e2.eval(inputRow).asInstanceOf[Double],
-          e3.eval(inputRow).asInstanceOf[Double],
-          e4.eval(inputRow).asInstanceOf[Double],
+      case Seq(
+      e1: Expression,
+      e2: Expression,
+      e3: Expression,
+      ) =>
+        STIoUObj.eval(
+          e1.eval(inputRow).asInstanceOf[Array[Byte]],
+          e2.eval(inputRow).asInstanceOf[Array[Byte]],
+          e3.eval(inputRow).asInstanceOf[UTF8String],
         )
       case _ => null
     }
@@ -62,21 +65,18 @@ final case class STCell(children: Seq[Expression])
     val c1 = children.head.genCode(ctx)
     val c2 = children(1).genCode(ctx)
     val c3 = children(2).genCode(ctx)
-    val c4 = children.last.genCode(ctx)
 
     val a1 = c1.value
     val a2 = c2.value
     val a3 = c3.value
-    val a4 = c4.value
 
-    val obj = STCellObj.getClass.getName.stripSuffix("$")
-    val objEval = s"$obj.eval($a1,$a2,$a3,$a4)"
+    val obj = STIoUObj.getClass.getName.stripSuffix("$")
+    val objEval = s"$obj.eval($a1,$a2,$a3)"
     ev.copy(code =
       code"""
         ${c1.code}
         ${c2.code}
         ${c3.code}
-        ${c4.code}
         ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
         """, isNull = FalseLiteral)
   }

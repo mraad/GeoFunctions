@@ -9,6 +9,7 @@ import org.apache.spark.sql.types._
 
 
 object STBoxObj extends Serializable {
+  // Create a box around x0,y0 with width 2 hh and height 2 vv.
   final def eval(x0: Double,
                  y0: Double,
                  hh: Double,
@@ -57,7 +58,9 @@ final case class STBox(children: Seq[Expression])
     }
   }
 
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+  override protected def doGenCode(ctx: CodegenContext,
+                                   ev: ExprCode
+                                  ): ExprCode = {
     val c1 = children.head.genCode(ctx)
     val c2 = children(1).genCode(ctx)
     val c3 = children(2).genCode(ctx)

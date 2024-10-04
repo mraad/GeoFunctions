@@ -1,6 +1,35 @@
 #
-# python3 -m pip wheel .
+# rm -rf .venv && uv venv --python=python3.11 --seed
+# source .venv/bin/activate
+# uv pip install .
 #
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "geofunctions"
+version = "0.9"
+requires-python = ">3.10"
+license = { text = "Apache-2.0" }
+readme = "README.md"
+authors = [{ name = "mraad", email = "mraad@esri.com" }]
+
+dependencies = [
+    "jupyterlab>=4.2.5",
+    "ipywidgets",
+    "black",
+    "isort",
+    "jupyterlab_code_formatter",
+    "pyspark==3.5.3",
+    "pandas",
+    "pyarrow",
+    "geopandas",
+    "contextily",
+    "folium",
+    "mapclassify",
+    "matplotlib",
+]
+
+[tool.setuptools.packages.find]
+where = ["src/main/python"]
