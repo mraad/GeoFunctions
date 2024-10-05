@@ -21,7 +21,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps geofunctions-0.6-py3-none-any.whl
+pip install --no-deps .
 ```
 
 Optional packages to install:

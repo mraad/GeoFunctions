@@ -1,8 +1,11 @@
+import os
+from typing import Union, Optional
+
+import pyarrow as pa
 from pyspark import SparkContext
 from pyspark.sql import DataFrame
 from pyspark.sql.column import Column, _to_java_column
-from pyspark.sql.functions import lit, array, explode
-from typing import Union, Optional
+from pyspark.sql.functions import lit, array, explode, col, collect_list
 
 
 def st_register_functions() -> None:
@@ -1212,4 +1215,157 @@ def join_qr(
     )
 
 
+def to_feature_table(
+        df: DataFrame,
+        feature_table_name: str,
+        workspace: str = "scratch",
+) -> None:
+    """Converts a Spark DataFrame to an arcgis feature table.
+
+    :param df: Spark DataFrame.
+    :param feature_table_name: Name of the output feature table.
+    :param workspace: Workspace where the feature table will be created.
+        Can be "memory", "scratch" or a path to a geodatabase.
+        Default is "scratch".
+    """
+    import arcpy
+
+    if workspace == "scratch":
+        workspace = arcpy.env.scratchGDB
+
+    pdf = df.toPandas()
+    tab = pa.Table.from_pandas(pdf)
+    fc = os.path.join(workspace, feature_table_name)
+    arcpy.management.Delete(fc)
+    arcpy.management.CopyRows(tab, fc)
+
+
+def to_feature_class(
+        df: DataFrame,
+        feature_class_name: str,
+        geom: str = "geom",
+        sp_ref: Optional[int] = 3857,
+        workspace: str = "scratch",
+) -> None:
+    """Converts a Spark DataFrame to an arcgis feature class.
+
+    :param df: Spark DataFrame.
+    :param feature_class_name: Name of the output feature class.
+    :param geom: Name of the geometry column with WKB values. Default is "geom".
+    :param sp_ref: A spatial reference. Default is 3857. If negative, get active map SR.
+    :param workspace: Workspace where the feature class will be created.
+        Can be "memory", "scratch" or a path to a geodatabase.
+        Default is "scratch".
+    """
+    import arcpy
+
+    if workspace == "scratch":
+        workspace = arcpy.env.scratchGDB
+
+    pdf = df.withColumnRenamed(geom, "SHAPE").toPandas()
+    if isinstance(sp_ref, int) and sp_ref <= 0:
+        project = arcpy.mp.ArcGISProject("CURRENT")
+        sp_ref = project.activeMap.spatialReference
+    elif isinstance(sp_ref, int) and sp_ref > 0:
+        sp_ref = arcpy.SpatialReference(sp_ref)
+    metadata = {"esri.encoding": "WKB", "esri.sr_wkt": sp_ref.exportToString()}
+    pa_shape = pa.field("SHAPE", pa.binary(), nullable=False, metadata=metadata)
+
+    schema = pa.Schema.from_pandas(pdf)
+    shape_index = schema.get_field_index("SHAPE")
+    schema = schema.set(shape_index, pa_shape)
+    tab = pa.Table.from_pandas(pdf, schema=schema)
+    fc = os.path.join(workspace, feature_class_name)
+    arcpy.management.Delete(fc)
+    arcpy.management.CopyFeatures(tab, fc)
+
+
+def pairwise_dissolve(
+        buf: DataFrame,
+        cell: float = 100_000.0,
+        dist: float = 100.0,
+        wkid: int = 3857,
+        cell_mul: float = 10.0,
+        breaker: int = 10,
+        geom_name: str = "geom",
+) -> DataFrame:
+    """
+    Dissolve the dataframe by cell while keeping the polygons that are not in a QR and those that are
+    fully (by envelope) in a QR in separate lists.
+
+    Args:
+        buf: A dataframe with polygons to dissolve.
+        cell: The initial cell size.
+        dist: The padding distance.
+        wkid: The spatial reference identifier for the geometry.
+        cell_mul: The cell multiplier.
+        breaker: max number of iterations. Acting as a circuit breaker :-)
+        geom_name: The name of the geometry column.
+
+    Returns:
+        Dataframe with dissolved polygons.
+    """
+
+    def _dissolve(df: DataFrame, cell_: float) -> DataFrame:
+        """
+        Dissolve the polygons in a dataframe given a current cell size.
+
+        Args:
+            df: A reference to a dataframe with polygons.
+            cell_: A cell size.
+
+        Returns:
+            A new dataframe with the dissolved polygons.
+        """
+        return (
+            df
+            # Clip each polygon by its overlapping QR envp inflated by dist.
+            .withColumn("qr", qr_clip_explode("geom", cell_, dist, wkid))
+            # Get the QR and clipped geometry.
+            .select("qr.qr", "qr.geom")
+            # Collect all the clipped geometries by QR.
+            .groupBy("qr")
+            .agg(collect_list("geom").alias("col"))
+            # Union each collection.
+            .select("qr", st_union_col("col", wkid).alias("geom"))
+            # Multipart to single part.
+            .withColumn("geom", st_dump_explode("geom"))
+            # Get only the exterior rings.
+            .withColumn("geom", st_exterior_ring("geom"))
+            # Set a flag indicating if the ring (the dissolved polygon) is fully in a QR.
+            .withColumn("in_qr", qr_contains_geom("qr", cell_, "geom"))
+            # .checkpoint(eager=True)
+            .localCheckpoint()
+        )
+
+    dfu = None  # Resulting dataframe union.
+    # Rename geometry column.
+    rename = False
+    if geom_name != "geom":
+        buf = buf.withColumnRenamed(geom_name, "geom")
+        rename = True
+    # Circuit breaker, in case bottom count condition is not met and prevent inf loop.
+    for n in range(0, breaker):
+        # Dissolved the dataframe by cell.
+        res = _dissolve(buf, cell)
+        # Get all the dissolved polygons that are not in a QR.
+        buf = res.filter(col("in_qr") == False).localCheckpoint()  # .checkpoint(eager=True)
+        # Get all the dissolved polygons that are fully (by envelope) in a QR.
+        res = res.filter(col("in_qr") == True).localCheckpoint()  # .checkpoint(eager=True)
+        # If not first time through, keep union all the "inside qr" polygons.
+        dfu = res if dfu is None else dfu.unionAll(res).localCheckpoint()  # .checkpoint(eager=True)
+        # Increment the cell size.
+        cell *= cell_mul
+        # Check if there are no more polygons to dissolve.
+        if buf.count() == 0:
+            break
+
+    if rename:
+        dfu = dfu.withColumnRenamed("geom", geom_name)
+    return dfu.drop("qr", "in_qr").localCheckpoint()  # .checkpoint(eager=True)
+
+
+DataFrame.pairwise_dissolve = pairwise_dissolve
 DataFrame.join_qr = join_qr
+DataFrame.to_feature_table = to_feature_table
+DataFrame.to_feature_class = to_feature_class
