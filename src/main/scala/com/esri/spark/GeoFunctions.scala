@@ -101,11 +101,43 @@ object GeoFunctions {
                   ): Column =
     new Column(STIntersects(Array(c1.expr, c2.expr, c3.expr)))
 
+  def stIntersectsBox(c1: Column,
+                      c2: Column,
+                      c3: Column,
+                      c4: Column,
+                      c5: Column,
+                     ): Column =
+    new Column(STIntersectsBox(Array(c1.expr, c2.expr, c3.expr, c4.expr, c5.expr)))
+
   def stContains(c1: Column,
                  c2: Column,
                  c3: Column,
                 ): Column =
     new Column(STContains(Array(c1.expr, c2.expr, c3.expr)))
+
+  def stWithin(c1: Column,
+               c2: Column,
+               c3: Column,
+              ): Column =
+    new Column(STWithin(Array(c1.expr, c2.expr, c3.expr)))
+
+  def stDisjoint(c1: Column,
+                 c2: Column,
+                 c3: Column,
+                ): Column =
+    new Column(STDisjoint(Array(c1.expr, c2.expr, c3.expr)))
+
+  def stOverlaps(c1: Column,
+                 c2: Column,
+                 c3: Column,
+                ): Column =
+    new Column(STOverlaps(Array(c1.expr, c2.expr, c3.expr)))
+
+  def stTouches(c1: Column,
+                c2: Column,
+                c3: Column,
+               ): Column =
+    new Column(STTouches(Array(c1.expr, c2.expr, c3.expr)))
 
   def stIsEmpty(c1: Column): Column =
     new Column(STIsEmpty(Array(c1.expr)))

@@ -181,6 +181,10 @@ def st_box(
         v = h
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
+    if isinstance(h, (float, int)):
+        h = lit(float(h))
+    if isinstance(v, (float, int)):
+        v = lit(float(v))
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stBox(
         _to_java_column(x),
         _to_java_column(y),
@@ -483,6 +487,68 @@ def st_intersects(
     )
 
 
+def st_intersects_box(
+        geom: Union[Column, str] = "geom",
+        xmin: Union[Column, int, float] = -180.0,
+        ymin: Union[Column, int, float] = -90.0,
+        xmax: Union[Column, int, float] = 180.0,
+        ymax: Union[Column, int, float] = 90.0,
+) -> Column:
+    """Check if two geometries intersect.
+
+    :param geom: The left hand side geometry.
+    :param xmin: The minimum x coordinate of the box.
+    :param ymin: The minimum y coordinate of the box.
+    :param xmax: The maximum x coordinate of the box.
+    :param ymax: The maximum y coordinate of the box.
+    :return: True if geometries intersect, false otherwise.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(xmin, (int, float)):
+        xmin = lit(float(xmin))
+    if isinstance(ymin, (int, float)):
+        ymin = lit(float(ymin))
+    if isinstance(xmax, (int, float)):
+        xmax = lit(float(xmax))
+    if isinstance(ymax, (int, float)):
+        ymax = lit(float(ymax))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stIntersects(
+            _to_java_column(geom),
+            _to_java_column(xmin),
+            _to_java_column(ymin),
+            _to_java_column(xmax),
+            _to_java_column(ymax),
+        )
+    )
+
+
+def st_overlaps(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Check if two geometries overlap.
+
+    :param lhs: The left hand side geometry.
+    :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID.
+    :return: True if geometries overlap, false otherwise.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stOverlaps(
+            _to_java_column(lhs),
+            _to_java_column(rhs),
+            _to_java_column(wkid),
+        )
+    )
+
+
 def st_contains(
         lhs: Union[Column, str] = "lgeom",
         rhs: Union[Column, str] = "rgeom",
@@ -501,6 +567,81 @@ def st_contains(
         wkid = lit(str(wkid))
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stContains(
+            _to_java_column(lhs),
+            _to_java_column(rhs),
+            _to_java_column(wkid),
+        )
+    )
+
+
+def st_within(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Check if lhs geometry is within rhs geometry.
+
+    :param lhs: The left hand side geometry.
+    :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID.
+    :return: True if lhs is within rhs, false otherwise.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stWithin(
+            _to_java_column(lhs),
+            _to_java_column(rhs),
+            _to_java_column(wkid),
+        )
+    )
+
+
+def st_touches(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Check if lhs geometry touches rhs geometry.
+
+    :param lhs: The left hand side geometry.
+    :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID.
+    :return: True if lhs touches rhs, false otherwise.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stTouches(
+            _to_java_column(lhs),
+            _to_java_column(rhs),
+            _to_java_column(wkid),
+        )
+    )
+
+
+def st_disjoint(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Check if lhs geometry is disjoint from the rhs geometry.
+
+    :param lhs: The left hand side geometry.
+    :param rhs: The right hand side geometry.
+    :param wkid: The spatial reference ID.
+    :return: True if lhs is disjoint from the rhs, false otherwise.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stDisjoint(
             _to_java_column(lhs),
             _to_java_column(rhs),
             _to_java_column(wkid),
