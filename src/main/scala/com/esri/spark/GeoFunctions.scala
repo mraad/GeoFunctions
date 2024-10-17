@@ -46,6 +46,9 @@ object GeoFunctions {
   def stAsText(c1: Column): Column =
     new Column(STAsText(Array(c1.expr)))
 
+  def stAsGeoJSON(c1: Column): Column =
+    new Column(STAsGeoJSON(Array(c1.expr)))
+
   def stFromText(c1: Column): Column =
     new Column(STFromText(Array(c1.expr)))
 
@@ -233,6 +236,12 @@ object GeoFunctions {
 
   def stConvexHull(c1: Column): Column =
     new Column(STConvexHull(Array(c1.expr)))
+
+  def stMercator(c1: Column): Column =
+    new Column(STMercator(Array(c1.expr)))
+
+  def stWGS84(c1: Column): Column =
+    new Column(STWGS84(Array(c1.expr)))
 
   def stMultipoint(c1: Column): Column =
     new Column(STMultipoint(Array(c1.expr)))

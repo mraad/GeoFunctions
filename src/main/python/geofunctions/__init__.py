@@ -1,11 +1,10 @@
 import os
-from typing import Union, Optional
-
 import pyarrow as pa
 from pyspark import SparkContext
 from pyspark.sql import DataFrame
 from pyspark.sql.column import Column, _to_java_column
 from pyspark.sql.functions import lit, array, explode, col, collect_list
+from typing import Union, Optional
 
 
 def st_register_functions() -> None:
@@ -207,6 +206,19 @@ def st_astext(
         _to_java_column(geom),
     ))
 
+def st_asgeojson(
+        geom: Union[Column, str] = "geom"
+) -> Column:
+    """Convert a geometry to a GeoJSON string representation.
+
+    :param geom: The geometry.
+    :return: The string representation.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.stAsGeoJSON(
+        _to_java_column(geom),
+    ))
 
 def st_fromtext(text: Union[Column, str]) -> Column:
     """Create a geometry from a WKT string representation.
@@ -1161,12 +1173,44 @@ def st_convexhull(
     """Get the convex hull of a geometry.
 
     :param geom: The geometry.
-    :return: The convex hull.
+    :return: The convexhull.
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stConvexHull(
+            _to_java_column(geom),
+        )).alias("geom")
+
+
+def st_mercator(
+        geom: Union[Column, str] = "geom"
+) -> Column:
+    """Convert the coordinates from WGS84 to WebMercator.
+
+    :param geom: The geometry.
+    :return: The projected geometry.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stMercator(
+            _to_java_column(geom),
+        )).alias("geom")
+
+
+def st_wgs84(
+        geom: Union[Column, str] = "geom"
+) -> Column:
+    """Convert the coordinates from WebMercator to WGS84.
+
+    :param geom: The geometry.
+    :return: The projected geometry.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stWGS84(
             _to_java_column(geom),
         )).alias("geom")
 
