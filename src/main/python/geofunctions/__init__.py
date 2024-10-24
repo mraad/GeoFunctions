@@ -1,10 +1,10 @@
 import os
 import pyarrow as pa
 from pyspark import SparkContext
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.column import Column, _to_java_column
 from pyspark.sql.functions import lit, array, explode, col, collect_list
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 
 def st_register_functions() -> None:
@@ -206,6 +206,7 @@ def st_astext(
         _to_java_column(geom),
     ))
 
+
 def st_asgeojson(
         geom: Union[Column, str] = "geom"
 ) -> Column:
@@ -219,6 +220,7 @@ def st_asgeojson(
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stAsGeoJSON(
         _to_java_column(geom),
     ))
+
 
 def st_fromtext(text: Union[Column, str]) -> Column:
     """Create a geometry from a WKT string representation.
@@ -1463,6 +1465,33 @@ def to_feature_class(
     fc = os.path.join(workspace, feature_class_name)
     arcpy.management.Delete(fc)
     arcpy.management.CopyFeatures(tab, fc)
+
+
+def to_spark(
+        feature_class_name: str,
+        fields: Optional[List[str]] = None,
+        where_clause: Optional[str] = None,
+) -> DataFrame:
+    """Converts an arcgis feature class to a Spark DataFrame.
+
+    :param feature_class_name: Name of the feature class.
+    :param fields: List of fields to include in the DataFrame. Default is None.
+    :param where_clause: SQL where clause. Default is None.
+    """
+    import arcpy
+
+    if fields is None:
+        fields = ["OBJECTID", "SHAPE"]
+
+    if where_clause is None:
+        where_clause = ""
+
+    tab = arcpy.da.TableToArrowTable(feature_class_name, fields, where_clause, "WKB")
+    return (SparkSession
+            .builder
+            .getOrCreate()
+            .createDataFrame(tab.to_pandas())
+            )
 
 
 def pairwise_dissolve(
