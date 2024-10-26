@@ -1469,10 +1469,14 @@ def to_feature_class(
 
 def to_spark(
         feature_class_name: str,
-        fields: Optional[List[str]] = None,
+        fields: Optional[List[str] | str] = None,
         where_clause: Optional[str] = None,
 ) -> DataFrame:
     """Converts an arcgis feature class to a Spark DataFrame.
+    fields can be:
+        None: [OBJECTID, SHAPE]
+        *: All fields
+        List of fields: List of fields to include in the feature class.
 
     :param feature_class_name: Name of the feature class.
     :param fields: List of fields to include in the DataFrame. Default is None.
@@ -1482,6 +1486,9 @@ def to_spark(
 
     if fields is None:
         fields = ["OBJECTID", "SHAPE"]
+
+    if fields == "*":
+        fields = [f.name for f in arcpy.ListFields(feature_class_name)]
 
     if where_clause is None:
         where_clause = ""
