@@ -23,9 +23,9 @@ def st_translate(
     """Translate a geometry by dx, dy.
 
     :param geom: The geometry.
-    :param dx: The x translation.
-    :param dy: The y translation.
-    :return: The translated geometry.
+    :param dx: The x translation. Default is 0.0.
+    :param dy: The y translation. Default is 0.0.
+    :return: The translated geometry. Alias is "geom".
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -37,33 +37,33 @@ def st_translate(
         _to_java_column(geom),
         _to_java_column(dx),
         _to_java_column(dy),
-    ))
+    )).alias("geom")
 
 
 def st_area(geom: Union[Column, str] = "geom") -> Column:
     """Compute the area of a geometry.
 
-    :param geom: The geometry.
-    :return: The area.
+    :param geom: The geometry. Default is "geom".
+    :return: The area. Alias is "area".
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stArea(
         _to_java_column(geom),
-    ))
+    )).alias("area")
 
 
 def st_length(geom: Union[Column, str] = "geom") -> Column:
     """Compute the length of a geometry.
 
-    :param geom: The geometry.
-    :return: The length.
+    :param geom: The geometry. Default is "geom".
+    :return: The length. Alias is "length".
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stLength(
         _to_java_column(geom),
-    ))
+    )).alias("length")
 
 
 def st_point(
@@ -159,7 +159,7 @@ def st_cell(
         _to_java_column(y),
         _to_java_column(w),
         _to_java_column(h),
-    ))
+    )).alias("geom")
 
 
 def st_box(
@@ -197,14 +197,14 @@ def st_astext(
 ) -> Column:
     """Convert a geometry to a WKT string representation.
 
-    :param geom: The geometry.
-    :return: The string representation.
+    :param geom: The geometry. Default is "geom".
+    :return: The string representation. Alias is "text".
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stAsText(
         _to_java_column(geom),
-    ))
+    )).alias("text")
 
 
 def st_asgeojson(
@@ -212,27 +212,27 @@ def st_asgeojson(
 ) -> Column:
     """Convert a geometry to a GeoJSON string representation.
 
-    :param geom: The geometry.
-    :return: The string representation.
+    :param geom: The geometry. Default is "geom".
+    :return: The string representation. Alias is "geojson".
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stAsGeoJSON(
         _to_java_column(geom),
-    ))
+    )).alias("geojson")
 
 
-def st_fromtext(text: Union[Column, str]) -> Column:
+def st_fromtext(text: Union[Column, str] = "text") -> Column:
     """Create a geometry from a WKT string representation.
 
-    :param text: The WKT string representation.
-    :return: The geometry.
+    :param text: The WKT string representation. Default is "text".
+    :return: The geometry. Alias is "geom".
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stFromText(
         _to_java_column(text),
-    ))
+    )).alias("geom")
 
 
 def st_lontox(lon: Union[Column, str] = "lon") -> Column:
@@ -448,7 +448,7 @@ def st_polygon2(xy: Union[Column, str]) -> Column:
     assert sc is not None and sc._jvm is not None
     return Column(sc._jvm.com.esri.spark.GeoFunctions.stPolygon2(
         _to_java_column(xy),
-    ))
+    )).alias("geom")
 
 
 def st_intersection(
@@ -693,7 +693,7 @@ def st_isempty(
 ) -> Column:
     """Check if geometry is empty.
 
-    :param geom: The geometry.
+    :param geom: The geometry. Default is "geom".
     :return: True if geometry is empty, false otherwise.
     """
     sc = SparkContext._active_spark_context
