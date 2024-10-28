@@ -32,14 +32,22 @@ final case class STIsEmpty(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression) =>
-        STIsEmptyObj.eval(
-          e1.eval(inputRow).asInstanceOf[Array[Byte]],
-        )
-      case _ => null
+        e1.eval(inputRow) match {
+          case null =>
+            true
+          case bytes: Array[Byte] =>
+            STIsEmptyObj.eval(bytes)
+          case _ =>
+            true
+        }
+      case _ =>
+        true
     }
   }
 
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+  override protected def doGenCode(ctx: CodegenContext,
+                                   ev: ExprCode
+                                  ): ExprCode = {
     val c1 = children.head.genCode(ctx)
 
     val a1 = c1.value
