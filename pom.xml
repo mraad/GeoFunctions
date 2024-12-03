@@ -6,7 +6,7 @@
 
     <groupId>com.esri</groupId>
     <artifactId>geofunctions</artifactId>
-    <version>0.13</version>
+    <version>0.14</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -104,6 +104,12 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.uber</groupId>
+            <artifactId>h3</artifactId>
+            <version>4.1.1</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>

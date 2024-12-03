@@ -15,6 +15,48 @@ def st_register_functions() -> None:
     sc._jvm.com.esri.spark.Registry.registerFunctions()
 
 
+def h3_cell_to_boundary(
+        cell: Union[Column, str] = "cell",
+) -> Column:
+    """Convert H3 cell to boundary.
+
+    :param cell: The H3 cell.
+    :return: The boundary. Alias is "geom".
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.h3CellToBoundary(
+        _to_java_column(cell),
+    )).alias("geom")
+
+
+def h3_latlng_to_cell(
+        lat: Union[Column, str, float],
+        lng: Union[Column, str, float],
+        res: Union[Column, str, int],
+) -> Column:
+    """Convert latitude and longitude to H3 cell.
+
+    :param lat: The latitude.
+    :param lng: The longitude.
+    :param res: The resolution.
+    :return: The H3 cell. Alias is "cell".
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(lat, float):
+        lat = lit(float(lat))
+    if isinstance(lng, float):
+        lng = lit(float(lng))
+    if isinstance(res, int):
+        res = lit(int(res))
+    return Column(sc._jvm.com.esri.spark.GeoFunctions.h3LatLngToCell(
+        _to_java_column(lat),
+        _to_java_column(lng),
+        _to_java_column(res),
+    )).alias("cell")
+
+
 def st_translate(
         geom: Union[Column, str] = "geom",
         dx: Union[Column, str, float] = 0.0,

@@ -293,4 +293,13 @@ object GeoFunctions {
                   c3: Column
                  ): Column =
     new Column(STTranslate(Array(c1.expr, c2.expr, c3.expr)))
+
+  def h3LatLngToCell(c1: Column,
+                     c2: Column,
+                     c3: Column
+                    ): Column =
+    new Column(H3LatLngToCell(Array(c1.expr, c2.expr, c3.expr)))
+
+  def h3CellToBoundary(c1: Column): Column =
+    new Column(H3CellToBoundary(Array(c1.expr)))
 }

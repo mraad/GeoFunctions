@@ -8,6 +8,8 @@ object Registry extends Serializable {
     val funcReg = ss.sessionState.functionRegistry
     funcReg.createOrReplaceTempFunction("GDB_POLYGON2", GDBPolygon2, "")
     funcReg.createOrReplaceTempFunction("GDB_POLYLINE2", GDBPolyline2, "")
+    funcReg.createOrReplaceTempFunction("H3_LATLNGTOCELL", H3LatLngToCell, "")
+    funcReg.createOrReplaceTempFunction("H3_CELLTOBOUNDARY", H3CellToBoundary, "")
     funcReg.createOrReplaceTempFunction("QR_CLIP", QRClip, "")
     funcReg.createOrReplaceTempFunction("QR_CONTAINSGEOM", QRContainsGeom, "")
     funcReg.createOrReplaceTempFunction("QR_ENVP", QREnvp, "")

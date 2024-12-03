@@ -9,14 +9,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geofunctions"
-version = "0.13"
+version = "0.14"
 requires-python = ">3.10"
 license = { text = "Apache-2.0" }
 readme = "README.md"
 authors = [{ name = "mraad", email = "mraad@esri.com" }]
 
 dependencies = [
-    "jupyterlab>=4.2.5",
+    "jupyterlab>=4.3.1",
     "ipywidgets",
     "black",
     "isort",
