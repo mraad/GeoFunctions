@@ -6,7 +6,7 @@
 
     <groupId>com.esri</groupId>
     <artifactId>geofunctions</artifactId>
-    <version>0.14</version>
+    <version>0.15</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -124,6 +124,19 @@
             <version>1.14.3</version>
             <scope>test</scope>
         </dependency>
+        <!--
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>polyglot</artifactId>
+            <version>24.1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>python</artifactId>
+            <version>24.1.1</version>
+            <type>pom</type>
+        </dependency>
+        -->
     </dependencies>
 
     <build>
@@ -131,6 +144,23 @@
         <finalName>${project.artifactId}-${spark.compact}-${project.version}</finalName>
         -->
         <plugins>
+            <!--plugin>
+                <groupId>org.graalvm.python</groupId>
+                <artifactId>graalpy-maven-plugin</artifactId>
+                <version>24.1.1</version>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <packages>
+                                <package>litellm==1.55.8</package>
+                            </packages>
+                        </configuration>
+                        <goals>
+                            <goal>process-graalpy-resources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

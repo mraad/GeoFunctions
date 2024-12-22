@@ -16,7 +16,7 @@ readme = "README.md"
 authors = [{ name = "mraad", email = "mraad@esri.com" }]
 
 dependencies = [
-    "jupyterlab>=4.3.1",
+    "jupyterlab>=4.3.4",
     "ipywidgets",
     "black",
     "isort",
