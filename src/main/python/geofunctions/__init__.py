@@ -570,7 +570,7 @@ def st_intersects_box(
     if isinstance(ymax, (int, float)):
         ymax = lit(float(ymax))
     return Column(
-        sc._jvm.com.esri.spark.GeoFunctions.stIntersects(
+        sc._jvm.com.esri.spark.GeoFunctions.stIntersectsBox(
             _to_java_column(geom),
             _to_java_column(xmin),
             _to_java_column(ymin),
@@ -979,6 +979,27 @@ def qr_fromxy(
         )).alias("qr")
 
 
+def qr_fromgeom(
+        geom: Union[Column, str],
+        cell: Union[Column, str, int, float],
+) -> Column:
+    """Compute the qr value for a give geometry lower/left envelope point.
+
+    :param geom: The geometry.
+    :param cell: The cell size.
+    :return: The qr value.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(cell, (int, float)):
+        cell = lit(float(cell))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.qrFromGeom(
+            _to_java_column(geom),
+            _to_java_column(cell),
+        )).alias("qr")
+
+
 def st_x(
         geom: Union[Column, str] = "geom",
         index: Union[Column, str, int] = 0,
@@ -1161,7 +1182,7 @@ def st_centroid(
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.stCentroid(
             _to_java_column(geom),
-        )).alias("centroid")
+        )).alias("geom")
 
 
 def st_centroid_xy(
@@ -1414,6 +1435,20 @@ def gdb_polygon2(shape: Union[Column, str] = "Shape") -> Column:
     sc = SparkContext._active_spark_context
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolygon2(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_polygonM(shape: Union[Column, str] = "Shape") -> Column:
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolygonM(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_polygonZ(shape: Union[Column, str] = "Shape") -> Column:
+    sc = SparkContext._active_spark_context
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolygonZ(_to_java_column(shape))
     ).alias("geom")
 
 

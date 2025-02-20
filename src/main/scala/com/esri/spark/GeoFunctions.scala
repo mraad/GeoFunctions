@@ -187,6 +187,11 @@ object GeoFunctions {
               ): Column =
     new Column(QRFromXY(Array(c1.expr, c2.expr, c3.expr)))
 
+  def qrFromGeom(c1: Column,
+                 c2: Column,
+                ): Column =
+    new Column(QRFromGeom(Array(c1.expr, c2.expr)))
+
   def stX(c1: Column,
           c2: Column
          ): Column =
@@ -278,6 +283,12 @@ object GeoFunctions {
 
   def gdbPolygon2(c1: Column): Column =
     new Column(GDBPolygon2(Array(c1.expr)))
+
+  def gdbPolygonM(c1: Column): Column =
+    new Column(GDBPolygonM(Array(c1.expr)))
+
+  def gdbPolygonZ(c1: Column): Column =
+    new Column(GDBPolygonZ(Array(c1.expr)))
 
   def gdbPolyline2(c1: Column): Column =
     new Column(GDBPolyline2(Array(c1.expr)))
