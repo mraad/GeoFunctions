@@ -1,6 +1,7 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{Envelope, Envelope2D, MultiPath, OperatorIntersection, Polygon, Polyline}
+import com.esri.core.geometry.{Envelope, Envelope2D, Geometry, MultiPath, OperatorIntersection, Polygon, Polyline, SpatialReference}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
@@ -11,7 +12,121 @@ import org.apache.spark.unsafe.types.UTF8String
 
 import scala.collection.mutable.ArrayBuffer
 
+object QRClipPar extends Serializable {
+  private val operator = OperatorIntersection.local
+
+  private final def accelerateGeometryNoop(geom: Geometry,
+                                           sr: SpatialReference,
+                                          ): Unit = {
+    // No-op
+  }
+
+  private final def accelerateGeometryMild(geom: Geometry,
+                                           sr: SpatialReference,
+                                          ): Unit = {
+    operator.accelerateGeometry(geom, sr, Geometry.GeometryAccelerationDegree.enumMild)
+  }
+
+  private val accelerateGeometry: (Geometry, SpatialReference) ⇒ Unit = {
+    val accelerate = SparkSession
+      .getActiveSession
+      .forall(_.sparkContext.getConf.getBoolean("spark.esri.accelerate", defaultValue = true))
+
+    if (accelerate) {
+      accelerateGeometryMild
+    } else {
+      accelerateGeometryNoop
+    }
+  }
+
+  private val parallel: Int = SparkSession
+    .getActiveSession
+    .map(_.sparkContext.getConf.getInt("spark.esri.parallel", 64))
+    .getOrElse(64)
+
+  final def eval(bytes: Array[Byte],
+                 cell: Double,
+                 dist: Double,
+                 wkid: UTF8String
+                ): ArrayData = {
+    val sr = SpatialReferenceObj.create(wkid)
+
+    val envp = new Envelope2D()
+    val geom = bytes.geom
+    geom.queryEnvelope2D(envp)
+
+    val qmin = (envp.xmin / cell).floor.toLong
+    val rmin = (envp.ymin / cell).floor.toLong
+    val qmax = (envp.xmax / cell).floor.toLong + 1L
+    val rmax = (envp.ymax / cell).floor.toLong + 1L
+    val qRange = qmin until qmax
+    val rRange = rmin until rmax
+
+    accelerateGeometry(geom, sr)
+
+    def processQR(q: Long,
+                  r: Long
+                 ): Option[InternalRow] = {
+      val qr = (q << 32) | (r & 0xFFFFFFFFL)
+      val xmin = q * cell
+      val ymin = r * cell
+      val xmax = xmin + cell
+      val ymax = ymin + cell
+
+      val cellEnvp = new Envelope(xmin - dist, ymin - dist, xmax + dist, ymax + dist)
+      accelerateGeometry(cellEnvp, sr)
+
+      @inline
+      def optionalRow(mp: MultiPath,
+                      pointCount: Int
+                     ): Option[InternalRow] = {
+        if (mp.getPathCount > 0 && mp.getPointCount > pointCount) {
+          Some(InternalRow(qr, mp.bytes))
+        } else {
+          None
+        }
+      }
+
+      operator.execute(geom, cellEnvp, sr, null) match {
+        case polygon: Polygon =>
+          optionalRow(polygon, 2)
+        case polyline: Polyline =>
+          optionalRow(polyline, 1)
+        case envelope: Envelope ⇒
+          Some(InternalRow(qr, envelope.bytes))
+        case _ =>
+          None
+      }
+    }
+
+    val rows = {
+      val qrCount = (qmax - qmin) * (rmax - rmin)
+      if (qrCount > parallel) {
+        qRange
+          .flatMap(q ⇒
+            rRange
+              .map(r ⇒ (q, r))
+          )
+          .par
+          .flatMap { case (q, r) =>
+            processQR(q, r)
+          }
+          .seq
+      } else {
+        qRange
+          .flatMap(q ⇒
+            rRange
+              .flatMap(r ⇒ processQR(q, r))
+          )
+      }
+    }
+    ArrayData.toArrayData(rows)
+  }
+}
+
+
 object QRClipObj extends Serializable {
+  private val operator = OperatorIntersection.local
 
   final def eval(bytes: Array[Byte],
                  cell: Double,
@@ -20,7 +135,6 @@ object QRClipObj extends Serializable {
                 ): ArrayData = {
     val sr = SpatialReferenceObj.create(wkid)
     val arr = new ArrayBuffer[InternalRow]()
-    val operator = OperatorIntersection.local
     val dist2 = dist + dist
     val envp = new Envelope2D()
     val geom = bytes.geom
@@ -46,9 +160,8 @@ object QRClipObj extends Serializable {
                       pointCount: Int
                      ): Unit = {
           if (mp.getPathCount > 0 && mp.getPointCount > pointCount) {
-            val binary = mp.bytes
             val qr = (q << 32) | (r & 0xFFFFFFFFL)
-            arr.append(InternalRow(qr, binary))
+            arr.append(InternalRow(qr, mp.bytes))
           }
         }
 
@@ -94,7 +207,7 @@ final case class QRClip(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression, e4: Expression) =>
-        QRClipObj.eval(
+        QRClipPar.eval(
           e1.eval(inputRow).asInstanceOf[Array[Byte]],
           e2.eval(inputRow).asInstanceOf[Double],
           e3.eval(inputRow).asInstanceOf[Double],
@@ -117,7 +230,7 @@ final case class QRClip(children: Seq[Expression])
     val a3 = c3.value
     val a4 = c4.value
 
-    val obj = QRClipObj.getClass.getName.stripSuffix("$")
+    val obj = QRClipPar.getClass.getName.stripSuffix("$")
     val objEval = s"$obj.eval($a1,$a2,$a3,$a4)"
     ev.copy(code =
       code"""
