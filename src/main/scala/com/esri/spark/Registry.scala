@@ -17,6 +17,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("QR_CLIP", QRClip, "")
     funcReg.createOrReplaceTempFunction("QR_CONTAINSGEOM", QRContainsGeom, "")
     funcReg.createOrReplaceTempFunction("QR_ENVP", QREnvp, "")
+    funcReg.createOrReplaceTempFunction("QR_ENVPGROM", QREnvpGeom, "")
     funcReg.createOrReplaceTempFunction("QR_FROMGEOM", QRFromGeom, "")
     funcReg.createOrReplaceTempFunction("QR_FROMXY", QRFromXY, "")
     funcReg.createOrReplaceTempFunction("QR_INTERSECT", QRIntersect, "")

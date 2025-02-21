@@ -156,6 +156,13 @@ object GeoFunctions {
             ): Column =
     new Column(QREnvp(Array(c1.expr, c2.expr, c3.expr)))
 
+  def qrEnvpGeom(c1: Column,
+                 c2: Column,
+                 c3: Column,
+                 c4: Column,
+                ): Column =
+    new Column(QREnvpGeom(Array(c1.expr, c2.expr, c3.expr, c4.expr)))
+
   def qrClip(c1: Column,
              c2: Column,
              c3: Column,

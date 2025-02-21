@@ -10,9 +10,7 @@ import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-// import scala.collection.mutable.ArrayBuffer
-
-object QRClipPar extends Serializable {
+object QREnvpGeomPar extends Serializable {
   private val operator = OperatorIntersection.local
 
   private final def accelerateGeometryNoop(geom: Geometry,
@@ -81,7 +79,13 @@ object QRClipPar extends Serializable {
                       pointCount: Int
                      ): Option[InternalRow] = {
         if (mp.getPathCount > 0 && mp.getPointCount > pointCount) {
-          Some(InternalRow(qr, mp.bytes))
+          Some(InternalRow(
+            qr,
+            cellEnvp.getXMin,
+            cellEnvp.getYMin,
+            cellEnvp.getXMax,
+            cellEnvp.getYMax,
+            mp.bytes))
         } else {
           None
         }
@@ -93,7 +97,13 @@ object QRClipPar extends Serializable {
         case polyline: Polyline =>
           optionalRow(polyline, 1)
         case envelope: Envelope ⇒
-          Some(InternalRow(qr, envelope.bytes))
+          Some(InternalRow(
+            qr,
+            cellEnvp.getXMin,
+            cellEnvp.getYMin,
+            cellEnvp.getXMax,
+            cellEnvp.getYMax,
+            envelope.bytes))
         case _ =>
           None
       }
@@ -125,66 +135,7 @@ object QRClipPar extends Serializable {
 }
 
 
-//object QRClipObj extends Serializable {
-//  private val operator = OperatorIntersection.local
-//
-//  final def eval(bytes: Array[Byte],
-//                 cell: Double,
-//                 dist: Double,
-//                 wkid: UTF8String,
-//                ): ArrayData = {
-//    val sr = SpatialReferenceObj.create(wkid)
-//    val arr = new ArrayBuffer[InternalRow]()
-//    val dist2 = dist + dist
-//    val envp = new Envelope2D()
-//    val geom = bytes.geom
-//    geom.queryEnvelope2D(envp)
-//
-//    val q_min = (envp.xmin / cell).floor.toLong
-//    val r_min = (envp.ymin / cell).floor.toLong
-//    val q_max = (envp.xmax / cell).floor.toLong + 1L
-//    val r_max = (envp.ymax / cell).floor.toLong + 1L
-//    val cellEnvp = new Envelope(0.0, 0.0, 1.0, 1.0)
-//
-//    var r = r_min
-//    while (r < r_max) {
-//      val ymin = r * cell - dist
-//      val ymax = ymin + cell + dist2
-//      var q = q_min
-//      while (q < q_max) {
-//        val xmin = q * cell - dist
-//        val xmax = xmin + cell + dist2
-//        cellEnvp.setCoords(xmin, ymin, xmax, ymax)
-//
-//        def arrAppend(mp: MultiPath,
-//                      pointCount: Int
-//                     ): Unit = {
-//          if (mp.getPathCount > 0 && mp.getPointCount > pointCount) {
-//            val qr = (q << 32) | (r & 0xFFFFFFFFL)
-//            arr.append(InternalRow(qr, mp.bytes))
-//          }
-//        }
-//
-//        operator.execute(
-//          geom,
-//          cellEnvp,
-//          sr,
-//          null
-//        ) match {
-//          // TODO Handle case when point and multipoint.
-//          case polygon: Polygon => arrAppend(polygon, 2)
-//          case polyline: Polyline => arrAppend(polyline, 1)
-//          case _ => //
-//        }
-//        q += 1L
-//      }
-//      r += 1L
-//    }
-//    ArrayData.toArrayData(arr)
-//  }
-//}
-
-final case class QRClip(children: Seq[Expression])
+final case class QREnvpGeom(children: Seq[Expression])
   extends Expression with ImplicitCastInputTypes {
 
   override def foldable: Boolean = children.forall(_.foldable)
@@ -201,13 +152,17 @@ final case class QRClip(children: Seq[Expression])
   override def dataType: DataType = ArrayType(
     StructType(Array(
       StructField("qr", LongType, nullable = false),
+      StructField("xmin", DoubleType, nullable = false),
+      StructField("ymin", DoubleType, nullable = false),
+      StructField("xmax", DoubleType, nullable = false),
+      StructField("ymax", DoubleType, nullable = false),
       StructField("geom", BinaryType, nullable = false)
     )), containsNull = false)
 
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression, e4: Expression) =>
-        QRClipPar.eval(
+        QREnvpGeomPar.eval(
           e1.eval(inputRow).asInstanceOf[Array[Byte]],
           e2.eval(inputRow).asInstanceOf[Double],
           e3.eval(inputRow).asInstanceOf[Double],
@@ -230,7 +185,7 @@ final case class QRClip(children: Seq[Expression])
     val a3 = c3.value
     val a4 = c4.value
 
-    val obj = QRClipPar.getClass.getName.stripSuffix("$")
+    val obj = QREnvpGeomPar.getClass.getName.stripSuffix("$")
     val objEval = s"$obj.eval($a1,$a2,$a3,$a4)"
     ev.copy(code =
       code"""

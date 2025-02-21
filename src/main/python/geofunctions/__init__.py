@@ -820,12 +820,55 @@ def qr_envp(
     )
 
 
+def qr_envp_geom(
+        geom: Union[Column, str],
+        cell: Union[Column, str, float],
+        dist: Union[Column, str, float] = 0.0,
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Compute the qr/envp/geom of a geometry.
+
+    :param geom: The geometry.
+    :param cell: The cell size.
+    :param dist: The cell padding.
+    :param wkid: The spatial reference ID.
+    :return: The qr/envp/geom.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(cell, (int, float)):
+        cell = lit(float(cell))
+    if isinstance(dist, (int, float)):
+        dist = lit(float(dist))
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.qrEnvpGeom(
+            _to_java_column(geom),
+            _to_java_column(cell),
+            _to_java_column(dist),
+            _to_java_column(wkid),
+        )
+    )
+
+
 def qr_envp_explode(
         geom: Union[Column, str],
         cell: Union[Column, str, float],
         dist: Union[Column, str, float] = 0.0,
 ) -> Column:
     return explode(qr_envp(geom, cell, dist)).alias("qr", metadata={"cell": cell, "dist": dist})
+
+
+def qr_envp_geom_explode(
+        geom: Union[Column, str],
+        cell: Union[Column, str, float],
+        dist: Union[Column, str, float] = 0.0,
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    return explode(
+        qr_envp_geom(geom, cell, dist, wkid)
+    ).alias("qr", metadata={"cell": cell, "dist": dist})
 
 
 def qr_clip(
