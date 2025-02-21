@@ -9,6 +9,8 @@ import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
 
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
 
 
 object STDumpObj extends Serializable {
@@ -34,13 +36,31 @@ object STDumpObj extends Serializable {
         }
       case src: MultiPath =>
         val pathCount = src.getPathCount
-        var pathIndex = 0
-        while (pathIndex < pathCount) {
-          val mpp = src.createInstance().asInstanceOf[MultiPath]
-          mpp.insertPath(0, src, pathIndex, true)
-          arr append mpp.bytes
-          pathIndex += 1
+        //        var pathIndex = 0
+        //        while (pathIndex < pathCount) {
+        //          val mpp = src.createInstance().asInstanceOf[MultiPath]
+        //          mpp.insertPath(0, src, pathIndex, true)
+        //          arr append mpp.bytes
+        //          pathIndex += 1
+        //        }
+
+        //        val results = (0 until pathCount)
+        //          .par
+        //          .map { pathIndex =>
+        //            val mpp = src.createInstance().asInstanceOf[MultiPath]
+        //            mpp.insertPath(0, src, pathIndex, true)
+        //            mpp.bytes
+        //          }
+        //        arr ++= results.toIterator
+
+        val futures = (0 until pathCount).map { pathIndex =>
+          Future {
+            val mpp = src.createInstance().asInstanceOf[MultiPath]
+            mpp.insertPath(0, src, pathIndex, true)
+            mpp.bytes
+          }
         }
+        arr ++= Await.result(Future.sequence(futures), duration.Duration.Inf)
       case _ =>
     }
     ArrayData.toArrayData(arr)
