@@ -931,6 +931,33 @@ def qr_list(
     )
 
 
+def qr_count(
+        geom: Union[Column, str],
+        cell: Union[Column, str, float],
+        dist: Union[Column, str, float] = 0.0,
+) -> Column:
+    """Return the number of QR that the geometry covers.
+
+    :param geom: The geometry.
+    :param cell: The cell size.
+    :param dist: The cell padding.
+    :return: The number of QR that the geometry covers.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(cell, (int, float)):
+        cell = lit(float(cell))
+    if isinstance(dist, (int, float)):
+        dist = lit(float(dist))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.qrCount(
+            _to_java_column(geom),
+            _to_java_column(cell),
+            _to_java_column(dist),
+        )
+    )
+
+
 def qr_intersect(
         lhs: Union[Column, str],
         rhs: Union[Column, str],

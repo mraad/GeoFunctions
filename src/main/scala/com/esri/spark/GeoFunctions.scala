@@ -169,6 +169,12 @@ object GeoFunctions {
                     ): Column =
     new Column(QRContainsGeom(Array(c1.expr, c2.expr, c3.expr)))
 
+  def qrCount(c1: Column,
+              c2: Column,
+              c3: Column
+             ): Column =
+    new Column(QRCount(Array(c1.expr, c2.expr, c3.expr)))
+
   def qrList(c1: Column,
              c2: Column,
              c3: Column

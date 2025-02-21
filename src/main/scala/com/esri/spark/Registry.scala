@@ -20,6 +20,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("QR_FROMGEOM", QRFromGeom, "")
     funcReg.createOrReplaceTempFunction("QR_FROMXY", QRFromXY, "")
     funcReg.createOrReplaceTempFunction("QR_INTERSECT", QRIntersect, "")
+    funcReg.createOrReplaceTempFunction("QR_COUNT", QRCount, "")
     funcReg.createOrReplaceTempFunction("QR_LIST", QRList, "")
     funcReg.createOrReplaceTempFunction("ST_AREA", STArea, "")
     funcReg.createOrReplaceTempFunction("ST_ASGEOJSON", STAsGeoJSON, "")
