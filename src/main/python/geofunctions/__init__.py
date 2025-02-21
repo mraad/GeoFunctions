@@ -1,10 +1,11 @@
 import os
+from typing import Union, Optional, List
+
 import pyarrow as pa
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.column import Column, _to_java_column
 from pyspark.sql.functions import lit, array, explode, col, collect_list
-from typing import Union, Optional, List
 
 
 def st_register_functions() -> None:
@@ -1527,6 +1528,12 @@ def join_qr(
         rhs: DataFrame,
         cell: float,
         dist: float = 0.0,
+        qr: str = "qr",
+        oper: str = "none",
+        wkid: Union[str, int] = -1,
+        lhs_geom: str = "geom",
+        rhs_geom: str = "geom",
+        acceleration: str = "mild",
 ) -> DataFrame:
     """Spatially join dataframes.
 
@@ -1534,19 +1541,42 @@ def join_qr(
     :param rhs: The right hand side dataframe.
     :param cell: The qr cell size.
     :param dist: The qr offset distance. Default is 0.0.
+    :param qr: The name of the qr field in the dataframes. Default is `qr`.
+    :param oper: The operation to perform. Default is "none".
+    :param wkid: The spatial reference identifier. Default is -1.
+    :param lhs_geom: The name of the left geometry field. Default is geom.
+    :param rhs_geom: The name of the right geometry field. Default is geom.
+    :param acceleration: The geometry acceleration mode mild, medium, hot. Default is mild.
     """
-    ldf = lhs.withColumnRenamed("geom", "lgeom").withColumn(
-        "lqr", qr_envp_explode("lgeom", cell, dist)
-    )
-    rdf = rhs.withColumnRenamed("geom", "rgeom").withColumn(
-        "rqr", qr_envp_explode("rgeom", cell, dist)
-    )
-    return (
-        ldf
-        .join(rdf, ldf.lqr.qr == rdf.rqr.qr)
-        .filter(qr_intersect("lqr", "rqr", cell))
-        .drop("lqr", "rqr")
-    )
+    if qr not in lhs.columns and qr not in rhs.columns:
+        ldf = lhs.withColumnRenamed(lhs_geom, "lgeom").withColumn(
+            "lqr", qr_envp_explode("lgeom", cell, dist)
+        )
+        rdf = rhs.withColumnRenamed(rhs_geom, "rgeom").withColumn(
+            "rqr", qr_envp_explode("rgeom", cell, dist)
+        )
+        return (
+            ldf
+            .join(rdf, ldf.lqr.qr == rdf.rqr.qr)
+            .filter(qr_intersect("lqr", "rqr", cell))
+            .drop("lqr", "rqr")
+        )
+    else:
+        sc = SparkContext._active_spark_context
+        ss = lhs.sparkSession if hasattr(lhs, "sparkSession") else lhs.sql_ctx
+        return DataFrame(
+            sc._jvm.com.esri.spark.JoinQRInnerProcessor.apply(
+                lhs._jdf,
+                rhs._jdf,
+                float(cell),
+                qr,
+                oper,
+                str(wkid),
+                lhs_geom,
+                rhs_geom,
+                acceleration,
+            ),
+            ss)
 
 
 def to_feature_table(

@@ -1,6 +1,6 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{SpatialReference, VertexDescription}
+import com.esri.core.geometry.SpatialReference
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.io.Serializable
@@ -19,11 +19,16 @@ object SpatialReferenceObj extends Serializable {
     "EPSG:102008" -> sr102008
 
   final def create(wkid: UTF8String): SpatialReference = {
-    wkid.toString match {
+    create(wkid.toString)
+  }
+
+  final def create(wkid: String): SpatialReference = {
+    wkid match {
       case "-1" =>
         null
       case text =>
         srMap.getOrElse(text, if (Character.isDigit(text(0))) SpatialReference.create(text.toInt) else SpatialReference.create(text))
     }
   }
+
 }
