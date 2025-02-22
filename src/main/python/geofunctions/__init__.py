@@ -1,11 +1,10 @@
 import os
-from typing import Union, Optional, List
-
 import pyarrow as pa
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.column import Column, _to_java_column
 from pyspark.sql.functions import lit, array, explode, col, collect_list
+from typing import Union, Optional, List
 
 
 def st_register_functions() -> None:
@@ -872,19 +871,19 @@ def qr_envp_geom_explode(
     ).alias("qr", metadata={"cell": cell, "dist": dist})
 
 
-def qr_clip(
+def qr_geom(
         geom: Union[Column, str],
         cell: Union[Column, str, float],
         dist: Union[Column, str, float] = 0.0,
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
-    """Compute the qr/clip of a geometry.
+    """Compute the qr/geom of a geometry.
 
     :param geom: The geometry.
     :param cell: The cell size.
     :param dist: The cell padding.
     :param wkid: The spatial reference ID.
-    :return: The qr/clip.
+    :return: The qr/geom.
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -895,7 +894,7 @@ def qr_clip(
     if isinstance(wkid, int):
         wkid = lit(str(wkid))
     return Column(
-        sc._jvm.com.esri.spark.GeoFunctions.qrClip(
+        sc._jvm.com.esri.spark.GeoFunctions.qrGeom(
             _to_java_column(geom),
             _to_java_column(cell),
             _to_java_column(dist),
@@ -929,7 +928,7 @@ def qr_contains_geom(
     )
 
 
-def qr_clip_explode(
+def qr_geom_explode(
         geom: Union[Column, str],
         cell: Union[Column, str, float],
         dist: Union[Column, str, float] = 0.0,
@@ -944,7 +943,7 @@ def qr_clip_explode(
     :return: The exploded qr/clip.
     """
     return explode(
-        qr_clip(geom, cell, dist, wkid)
+        qr_geom(geom, cell, dist, wkid)
     ).alias("qr", metadata={"cell": cell, "dist": dist, "wkid": wkid})
 
 
@@ -1718,7 +1717,7 @@ def pairwise_dissolve(
         return (
             df
             # Clip each polygon by its overlapping QR envp inflated by dist.
-            .withColumn("qr", qr_clip_explode("geom", cell_, dist, wkid))
+            .withColumn("qr", qr_geom_explode("geom", cell_, dist, wkid))
             # Get the QR and clipped geometry.
             .select("qr.qr", "qr.geom")
             # Collect all the clipped geometries by QR.

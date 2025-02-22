@@ -53,6 +53,7 @@ object STDumpObj extends Serializable {
         //          }
         //        arr ++= results.toIterator
 
+        // TODO - Check pathCount and if it is less than parallel, then use parallel = pathCount
         val futures = (0 until pathCount).map { pathIndex =>
           Future {
             val mpp = src.createInstance().asInstanceOf[MultiPath]

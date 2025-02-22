@@ -27,16 +27,16 @@ pip install --no-deps .
 Optional packages to install:
 
 ```shell
-pip install geopandas mapclassify folium xyzservices
+pip install geopandas mapclassify folium xyzservices duckdb fastparquet
 ```
 
 ### Functions
 
 **Note:** Look at the notebooks for example usages of the functions.
 
-- qr_clip(geom, cell, dist=0.0): Returns the intersections of the quad regions and the geometry.
 - qr_envp(geom, cell, dist=0.0): Returns list of qr,envelope of the quad region.
 - qr_fromxy(x, y, cell): Returns the quad region containing the point (x, y).
+- qr_geom(geom, cell, dist=0.0): Returns the intersections of the quad regions and the geometry.
 - qr_intersect(lhs, rhs, cell): Returns the lower left status of two quad regions.
 - qr_list(geom, cell, dist=0.0): Returns a list of quad regions.
 - st_astext(geom): Returns the WKT representation of the geometry.

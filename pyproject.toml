@@ -9,26 +9,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geofunctions"
-version = "0.18"
+version = "0.19"
 requires-python = ">3.10"
 license = { text = "Apache-2.0" }
 readme = "README.md"
 authors = [{ name = "mraad", email = "mraad@esri.com" }]
 
 dependencies = [
-    "jupyterlab>=4.3.4",
-    "ipywidgets",
     "black",
-    "isort",
-    "jupyterlab_code_formatter",
-    "pyspark==3.5.4",
-    "pandas",
-    "pyarrow",
-    "geopandas",
     "contextily",
+    "duckdb",
+    "fastparquet",
     "folium",
+    "geopandas",
+    "ipywidgets",
+    "isort",
+    "jupyterlab>=4.3.4",
+    "jupyterlab_code_formatter",
     "mapclassify",
     "matplotlib",
+    "pandas",
+    "pyarrow",
+    "pyspark==3.5.4",
+    "seaborn",
 ]
 
 [tool.setuptools.packages.find]

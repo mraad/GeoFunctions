@@ -14,7 +14,7 @@ object Registry extends Serializable {
     //    funcReg.createOrReplaceTempFunction("GDB_POLYLINEZ", GDBPolylineZ, "")
     funcReg.createOrReplaceTempFunction("H3_CELLTOBOUNDARY", H3CellToBoundary, "")
     funcReg.createOrReplaceTempFunction("H3_LATLNGTOCELL", H3LatLngToCell, "")
-    funcReg.createOrReplaceTempFunction("QR_CLIP", QRClip, "")
+    funcReg.createOrReplaceTempFunction("QR_CLIP", QRGeom, "")
     funcReg.createOrReplaceTempFunction("QR_CONTAINSGEOM", QRContainsGeom, "")
     funcReg.createOrReplaceTempFunction("QR_ENVP", QREnvp, "")
     funcReg.createOrReplaceTempFunction("QR_ENVPGROM", QREnvpGeom, "")

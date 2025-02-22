@@ -163,12 +163,12 @@ object GeoFunctions {
                 ): Column =
     new Column(QREnvpGeom(Array(c1.expr, c2.expr, c3.expr, c4.expr)))
 
-  def qrClip(c1: Column,
+  def qrGeom(c1: Column,
              c2: Column,
              c3: Column,
              c4: Column,
             ): Column =
-    new Column(QRClip(Array(c1.expr, c2.expr, c3.expr, c4.expr)))
+    new Column(QRGeom(Array(c1.expr, c2.expr, c3.expr, c4.expr)))
 
   def qrContainsGeom(c1: Column,
                      c2: Column,

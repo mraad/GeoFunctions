@@ -12,7 +12,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 // import scala.collection.mutable.ArrayBuffer
 
-object QRClipPar extends Serializable {
+object QRGeomPar extends Serializable {
   private val operator = OperatorIntersection.local
 
   private final def accelerateGeometryNoop(geom: Geometry,
@@ -184,7 +184,7 @@ object QRClipPar extends Serializable {
 //  }
 //}
 
-final case class QRClip(children: Seq[Expression])
+final case class QRGeom(children: Seq[Expression])
   extends Expression with ImplicitCastInputTypes {
 
   override def foldable: Boolean = children.forall(_.foldable)
@@ -207,7 +207,7 @@ final case class QRClip(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression, e4: Expression) =>
-        QRClipPar.eval(
+        QRGeomPar.eval(
           e1.eval(inputRow).asInstanceOf[Array[Byte]],
           e2.eval(inputRow).asInstanceOf[Double],
           e3.eval(inputRow).asInstanceOf[Double],
@@ -230,7 +230,7 @@ final case class QRClip(children: Seq[Expression])
     val a3 = c3.value
     val a4 = c4.value
 
-    val obj = QRClipPar.getClass.getName.stripSuffix("$")
+    val obj = QRGeomPar.getClass.getName.stripSuffix("$")
     val objEval = s"$obj.eval($a1,$a2,$a3,$a4)"
     ev.copy(code =
       code"""
