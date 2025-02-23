@@ -857,7 +857,9 @@ def qr_envp_explode(
         cell: Union[Column, str, float],
         dist: Union[Column, str, float] = 0.0,
 ) -> Column:
-    return explode(qr_envp(geom, cell, dist)).alias("qr", metadata={"cell": cell, "dist": dist})
+    return explode(
+        qr_envp(geom, cell, dist)
+    ).alias("qr", metadata={"cell": cell, "dist": dist})
 
 
 def qr_envp_geom_explode(
@@ -972,6 +974,23 @@ def qr_list(
             _to_java_column(dist),
         )
     )
+
+
+def qr_list_explode(
+        geom: Union[Column, str],
+        cell: Union[Column, str, float],
+        dist: Union[Column, str, float] = 0.0,
+) -> Column:
+    """Explode the qr list of a geometry.
+
+    :param geom: The geometry.
+    :param cell: The cell size.
+    :param dist: The cell padding.
+    :return: The exploded qr list.
+    """
+    return explode(
+        qr_list(geom, cell, dist)
+    ).alias("qr", metadata={"cell": cell, "dist": dist})
 
 
 def qr_count(

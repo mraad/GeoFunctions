@@ -12,7 +12,10 @@ import scala.collection.mutable.ArrayBuffer
 
 object QRListObj extends Serializable {
 
-  final def eval(bytes: Array[Byte], cell: Double, dist: Double): ArrayData = {
+  final def eval(bytes: Array[Byte],
+                 cell: Double,
+                 dist: Double
+                ): ArrayData = {
     val envp = new Envelope2D()
     bytes.geom.queryEnvelope2D(envp)
 
@@ -37,7 +40,6 @@ object QRListObj extends Serializable {
       }
       q += 1
     }
-
     ArrayData.toArrayData(arr)
   }
 }
@@ -69,7 +71,9 @@ final case class QRList(children: Seq[Expression])
     }
   }
 
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+  override protected def doGenCode(ctx: CodegenContext,
+                                   ev: ExprCode
+                                  ): ExprCode = {
     val c1 = children.head.genCode(ctx)
     val c2 = children(1).genCode(ctx)
     val c3 = children.last.genCode(ctx)
