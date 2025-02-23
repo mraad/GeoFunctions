@@ -211,7 +211,7 @@ object JoinQRInnerProcessor extends Serializable {
       .toIterable
       .par
       .flatMap { lhsRow =>
-        val geom = lhsRow.getAs[Array[Byte]](bv.value.geomR).geom
+        val geom = lhsRow.getAs[Array[Byte]](bv.value.geomL).geom
         val lhsQR = lhsRow.getStruct(bv.value.qL)
         val ext = new Envelope2D(lhsQR.getDouble(1), lhsQR.getDouble(2), lhsQR.getDouble(3), lhsQR.getDouble(4))
         rtree.searchAll(
