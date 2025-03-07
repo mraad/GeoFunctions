@@ -30,7 +30,7 @@ dependencies = [
     "matplotlib",
     "pandas",
     "pyarrow",
-    "pyspark==3.5.4",
+    "pyspark==3.5.5",
     "seaborn",
 ]
 
