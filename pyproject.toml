@@ -3,13 +3,9 @@
 # source .venv/bin/activate
 # uv pip install .
 #
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "geofunctions"
-version = "0.20"
+version = "0.21"
 requires-python = ">3.10"
 license = { text = "Apache-2.0" }
 readme = "README.md"
@@ -30,9 +26,13 @@ dependencies = [
     "matplotlib",
     "pandas",
     "pyarrow",
-    "pyspark==3.5.5",
+    "pyspark==3.5.6",
     "seaborn",
 ]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src/main/python"]
