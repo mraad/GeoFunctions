@@ -1,38 +1,19 @@
-#
-# rm -rf .venv && uv venv --python=python3.11 --seed
-# source .venv/bin/activate
-# uv pip install .
-#
 [project]
 name = "geofunctions"
-version = "0.21"
+version = "0.24"
 requires-python = ">3.10"
-license = { text = "Apache-2.0" }
 readme = "README.md"
-authors = [{ name = "mraad", email = "mraad@esri.com" }]
-
-dependencies = [
-    "black",
-    "contextily",
-    "duckdb",
-    "fastparquet",
-    "folium",
-    "geopandas",
-    "ipywidgets",
-    "isort",
-    "jupyterlab>=4.3.4",
-    "jupyterlab_code_formatter",
-    "mapclassify",
-    "matplotlib",
-    "pandas",
-    "pyarrow",
-    "pyspark==3.5.6",
-    "seaborn",
-]
+dependencies = [ "black", "contextily", "duckdb", "fastparquet", "folium", "gdal==3.11.0", "geopandas", "ipywidgets", "isort", "jupyterlab>=4.3.4", "jupyterlab_code_formatter", "mapclassify", "matplotlib", "pandas", "pyarrow", "pyspark==3.5.6", "seaborn",]
+[[project.authors]]
+name = "mraad"
+email = "mraad@esri.com"
 
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = [ "setuptools", "wheel",]
 build-backend = "setuptools.build_meta"
 
+[project.license]
+text = "Apache-2.0"
+
 [tool.setuptools.packages.find]
-where = ["src/main/python"]
+where = [ "src/main/python",]
