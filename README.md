@@ -13,6 +13,7 @@ cd %HOMEPATH%
 conda remove -n geofunctions --yes --all
 conda create -n geofunctions --yes --clone arcgispro-py3
 proswap geofunctions
+
 git clone https://github.com/mraad/spark-esri.git
 cd spark-esri
 pip install .
@@ -21,7 +22,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps .
+pip install --no-deps <path-to>/geofunctions-0.26-py3-none-any.whl
 ```
 
 Optional packages to install:
