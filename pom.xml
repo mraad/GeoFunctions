@@ -6,7 +6,7 @@
 
     <groupId>com.esri</groupId>
     <artifactId>geofunctions</artifactId>
-    <version>0.24</version>
+    <version>0.25</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -57,7 +57,7 @@
         <dependency>
             <groupId>com.esri</groupId>
             <artifactId>webmercator</artifactId>
-            <version>1.12-${scala.compact}</version>
+            <version>1.13-${scala.compact}</version>
         </dependency>
         <dependency>
             <groupId>com.esri</groupId>

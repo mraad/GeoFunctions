@@ -7,7 +7,10 @@ zip -j geofunctions-${GF_VER}.zip\
  LICENSE\
  README.md\
  data/world.zip\
+ data/Miami.gdb.zip\
  target/geofunctions-${GF_VER}-py3-none-any.whl\
- target/geofunctions-${GF_VER}.jar notebooks/*.ipynb\
+ target/geofunctions-${GF_VER}.jar\
+ notebooks/*.ipynb\
  ~/ParquetToolbox.pyt\
- ~/ExtentToolbox.pyt
+ ~/ExtentToolbox.pyt\
+ ~/Extent.lyrx

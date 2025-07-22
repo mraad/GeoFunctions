@@ -192,10 +192,10 @@ final case class QRGeom(children: Seq[Expression])
   override def nullable: Boolean = children.exists(_.nullable)
 
   override def inputTypes: Seq[DataType] = Seq(
-    BinaryType,
-    DoubleType,
-    DoubleType,
-    StringType,
+    BinaryType, // geom
+    DoubleType, // cell
+    DoubleType, // dist
+    StringType, // wkid
   )
 
   override def dataType: DataType = ArrayType(
