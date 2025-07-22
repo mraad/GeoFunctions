@@ -34,6 +34,7 @@ pip install geopandas mapclassify folium xyzservices duckdb fastparquet
 
 **Note:** Look at the notebooks for example usages of the functions.
 
+- qr_asgeom(qr, cell, dist=0.0): Returns the rectangle geometry of the quad region.
 - qr_envp(geom, cell, dist=0.0): Returns list of qr,envelope of the quad region.
 - qr_fromxy(x, y, cell): Returns the quad region containing the point (x, y).
 - qr_geom(geom, cell, dist=0.0): Returns the intersections of the quad regions and the geometry.
@@ -59,7 +60,7 @@ pip install geopandas mapclassify folium xyzservices duckdb fastparquet
 - st_polygon(*point): Returns a polygon.
 - st_polyline(*point): Returns a polyline.
 - st_qtox(q, cell, dist=0.0): Returns the x coordinate of a q value.
-- st_rect(x1, y1, x2, y2): Returns a rectangle.
+- st_rect(x1, y1, x2, y2): Returns a rectangle geometry.
 - st_rtoy(r, cell, dist=0.0): Returns the y coordinate of an r value.
 - st_x(geom, index=0): Returns the x coordinate of a geometry at an index.
 - st_xtolon(x): Returns the longitude of an x coordinate.
