@@ -879,13 +879,13 @@ def qr_geom(
         dist: Union[Column, str, float] = 0.0,
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
-    """Compute the qr/geom of a geometry.
+    """Compute the list of qr/geom of a geometry.
 
     :param geom: The geometry.
     :param cell: The cell size.
     :param dist: The cell padding.
     :param wkid: The spatial reference ID.
-    :return: The qr/geom.
+    :return: List of qr/geom.
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -901,6 +901,33 @@ def qr_geom(
             _to_java_column(cell),
             _to_java_column(dist),
             _to_java_column(wkid),
+        )
+    )
+
+
+def qr_asgeom(
+        qr: Union[Column, str],
+        cell: Union[Column, str, float],
+        dist: Union[Column, str, float] = 0.0,
+) -> Column:
+    """Compute the geometry of a qr.
+
+    :param qr: The qr code.
+    :param cell: The cell size.
+    :param dist: The cell padding.
+    :return: The qr geometry.
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(cell, (int, float)):
+        cell = lit(float(cell))
+    if isinstance(dist, (int, float)):
+        dist = lit(float(dist))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.qrAsGeom(
+            _to_java_column(qr),
+            _to_java_column(cell),
+            _to_java_column(dist),
         )
     )
 

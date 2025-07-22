@@ -205,6 +205,12 @@ object GeoFunctions {
                 ): Column =
     new Column(QRFromGeom(Array(c1.expr, c2.expr)))
 
+  def qrAsGeom(c1: Column,
+               c2: Column,
+               c3: Column,
+              ): Column =
+    new Column(QRAsGeom(Array(c1.expr, c2.expr, c3.expr)))
+
   def stX(c1: Column,
           c2: Column
          ): Column =

@@ -6,7 +6,7 @@
 
     <groupId>com.esri</groupId>
     <artifactId>geofunctions</artifactId>
-    <version>0.25</version>
+    <version>0.26</version>
     <packaging>jar</packaging>
 
     <properties>
