@@ -52,7 +52,7 @@
         <dependency>
             <groupId>com.github.plokhotnyuk.rtree2d</groupId>
             <artifactId>rtree2d-core_${scala.compact}</artifactId>
-            <version>0.11.14-SNAPSHOT</version>
+            <version>0.11.15-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.esri</groupId>
@@ -169,7 +169,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.14.1</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -201,7 +201,7 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.9.2</version>
+                <version>4.9.6</version>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -234,7 +234,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>3.4.0</version>
+                <version>3.5.0</version>
                 <configuration>
                     <filesets>
                         <fileset>
@@ -251,7 +251,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.6.1</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -315,7 +315,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>3.5.1</version>
+                <version>3.6.2</version>
                 <executions>
                     <execution>
                         <phase>validate</phase>
@@ -368,7 +368,7 @@
                 <scala.compact>2.12</scala.compact>
                 <scala.version>${scala.compact}.18</scala.version>
                 <spark.compact>3.5</spark.compact>
-                <spark.version>${spark.compact}.6</spark.version>
+                <spark.version>${spark.compact}.7</spark.version>
             </properties>
         </profile>
         <profile>

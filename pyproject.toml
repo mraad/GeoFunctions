@@ -3,17 +3,25 @@ name = "geofunctions"
 version = "0.26"
 requires-python = ">3.10"
 readme = "README.md"
-dependencies = [ "black", "contextily", "duckdb", "fastparquet", "folium", "gdal==3.11.3", "geopandas", "ipywidgets", "isort", "jupyterlab>=4.3.4", "jupyterlab_code_formatter", "mapclassify", "matplotlib", "pandas", "pyarrow", "pyspark==3.5.6", "seaborn",]
+dependencies = [
+    "pyspark==3.5.7; sys_platform != 'win32'",
+    "pyspark==3.5.4; sys_platform == 'win32'",
+]
 [[project.authors]]
 name = "mraad"
 email = "mraad@esri.com"
 
 [build-system]
-requires = [ "setuptools", "wheel",]
+requires = ["setuptools", "wheel", ]
 build-backend = "setuptools.build_meta"
 
 [project.license]
 text = "Apache-2.0"
 
 [tool.setuptools.packages.find]
-where = [ "src/main/python",]
+where = ["src/main/python", ]
+
+[project.optional-dependencies]
+jupyter = [
+    "black", "contextily", "duckdb", "fastparquet", "folium", "gdal==3.11.3", "geopandas", "ipywidgets", "isort", "jupyterlab>=4.3.4", "jupyterlab_code_formatter", "mapclassify", "matplotlib", "pandas", "pyarrow", "seaborn",
+]
