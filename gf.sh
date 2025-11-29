@@ -3,6 +3,7 @@ set -e
 mvn clean package
 python3 -m pip wheel --no-deps --wheel-dir=target .
 export GF_VER=$(grep -E '<version>' pom.xml | head -1 | gawk 'match($0,/<version>([^<]*)<\/version>/,a){print a[1]}')
+echo "GF_VER=${GF_VER}"
 zip -j geofunctions-${GF_VER}.zip\
  LICENSE\
  README.md\
