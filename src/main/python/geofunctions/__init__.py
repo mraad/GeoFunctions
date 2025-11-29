@@ -9,6 +9,16 @@ from typing import Union, Optional, List
 
 def st_register_functions() -> None:
     """Register ST_XXX SQL functions with active spark context.
+
+    This function registers all spatial SQL functions (ST_XXX) with the active
+    Spark context, making them available for use in Spark SQL queries.
+
+    :return: None
+    :rtype: None
+
+    Example::
+
+        st_register_functions()
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -20,8 +30,14 @@ def h3_cell_to_boundary(
 ) -> Column:
     """Convert H3 cell to boundary.
 
-    :param cell: The H3 cell.
-    :return: The boundary. Alias is "geom".
+    :param cell: The H3 cell identifier or column name
+    :type cell: Union[Column, str]
+    :return: The boundary geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("boundary", h3_cell_to_boundary("h3_cell"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -37,10 +53,18 @@ def h3_latlng_to_cell(
 ) -> Column:
     """Convert latitude and longitude to H3 cell.
 
-    :param lat: The latitude.
-    :param lng: The longitude.
-    :param res: The resolution.
-    :return: The H3 cell. Alias is "cell".
+    :param lat: The latitude value or column name
+    :type lat: Union[Column, str, float]
+    :param lng: The longitude value or column name
+    :type lng: Union[Column, str, float]
+    :param res: The H3 resolution level (0-15)
+    :type res: Union[Column, str, int]
+    :return: The H3 cell identifier with alias "cell"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("h3_cell", h3_latlng_to_cell("latitude", "longitude", 9))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -64,10 +88,18 @@ def st_translate(
 ) -> Column:
     """Translate a geometry by dx, dy.
 
-    :param geom: The geometry.
-    :param dx: The x translation. Default is 0.0.
-    :param dy: The y translation. Default is 0.0.
-    :return: The translated geometry. Alias is "geom".
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param dx: The x translation offset in units of the geometry. Default is 0.0
+    :type dx: Union[Column, str, float]
+    :param dy: The y translation offset in units of the geometry. Default is 0.0
+    :type dy: Union[Column, str, float]
+    :return: The translated geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("translated", st_translate("geom", 100.0, 50.0))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -82,11 +114,19 @@ def st_translate(
     )).alias("geom")
 
 
-def st_area(geom: Union[Column, str] = "geom") -> Column:
+def st_area(
+        geom: Union[Column, str] = "geom",
+) -> Column:
     """Compute the area of a geometry.
 
-    :param geom: The geometry. Default is "geom".
-    :return: The area. Alias is "area".
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The area value with alias "area"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("polygon_area", st_area("geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -95,11 +135,19 @@ def st_area(geom: Union[Column, str] = "geom") -> Column:
     )).alias("area")
 
 
-def st_length(geom: Union[Column, str] = "geom") -> Column:
+def st_length(
+        geom: Union[Column, str] = "geom",
+) -> Column:
     """Compute the length of a geometry.
 
-    :param geom: The geometry. Default is "geom".
-    :return: The length. Alias is "length".
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The length value with alias "length"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("line_length", st_length("geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -114,9 +162,16 @@ def st_point(
 ) -> Column:
     """Create a point from the coordinates (x, y).
 
-    :param x: The x coordinate.
-    :param y: The y coordinate.
-    :return: A point instance.
+    :param x: The x coordinate or column name
+    :type x: Union[Column, str]
+    :param y: The y coordinate or column name
+    :type y: Union[Column, str]
+    :return: A point geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("point", st_point("lon", "lat"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -134,11 +189,20 @@ def st_line(
 ) -> Column:
     """Create a polyline from the coordinates (x1, y1, x2, y2).
 
-    :param x1: The x coordinate.
-    :param y1: The y coordinate.
-    :param x2: The x coordinate.
-    :param y2: The y coordinate.
-    :return: A polyline instance.
+    :param x1: The first point x coordinate or column name
+    :type x1: Union[Column, str]
+    :param y1: The first point y coordinate or column name
+    :type y1: Union[Column, str]
+    :param x2: The second point x coordinate or column name
+    :type x2: Union[Column, str]
+    :param y2: The second point y coordinate or column name
+    :type y2: Union[Column, str]
+    :return: A polyline geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("line", st_line("x1", "y1", "x2", "y2"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -158,11 +222,20 @@ def st_rect(
 ) -> Column:
     """Create a polygon rectangle from the coordinates (x1, y1, x2, y2).
 
-    :param x1: The x coordinate.
-    :param y1: The y coordinate.
-    :param x2: The x coordinate.
-    :param y2: The y coordinate.
-    :return: A polygon instance.
+    :param x1: The first corner x coordinate or column name
+    :type x1: Union[Column, str]
+    :param y1: The first corner y coordinate or column name
+    :type y1: Union[Column, str]
+    :param x2: The opposite corner x coordinate or column name
+    :type x2: Union[Column, str]
+    :param y2: The opposite corner y coordinate or column name
+    :type y2: Union[Column, str]
+    :return: A rectangular polygon geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("rect", st_rect("xmin", "ymin", "xmax", "ymax"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -182,11 +255,21 @@ def st_cell(
 ) -> Column:
     """Create a polygon rectangle with lower left corner at x/y with width w and height h.
 
-    :param x: The left x coordinate.
-    :param y: The lower y coordinate.
-    :param w: The width of the cell.
-    :param h: The height of the cell. If h is None, then h = w.
-    :return: A polygon instance.
+    :param x: The left x coordinate or column name
+    :type x: Union[Column, str]
+    :param y: The lower y coordinate or column name
+    :type y: Union[Column, str]
+    :param w: The width of the cell or column name
+    :type w: Union[Column, str, float]
+    :param h: The height of the cell or column name. If h is None, then h = w
+    :type h: Optional[Union[Column, str, float]]
+    :return: A rectangular polygon geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("cell", st_cell("x", "y", 100.0, 50.0))
+        df.withColumn("square_cell", st_cell("x", "y", 100.0))  # h defaults to w
     """
     if h is None:
         h = w
@@ -212,11 +295,21 @@ def st_box(
 ) -> Column:
     """Create a polygon rectangle with center at x/y with width = 2*h and height = 2*v.
 
-    :param x: The center x coordinate.
-    :param y: The center y coordinate.
-    :param h: The horizontal padding of the box.
-    :param v: The vertical padding of the box. If v is None, then v = h.
-    :return: A polygon instance.
+    :param x: The center x coordinate or column name
+    :type x: Union[Column, str]
+    :param y: The center y coordinate or column name
+    :type y: Union[Column, str]
+    :param h: The horizontal padding of the box or column name
+    :type h: Union[Column, str]
+    :param v: The vertical padding of the box or column name. If v is None, then v = h
+    :type v: Optional[Union[Column, str]]
+    :return: A rectangular polygon geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("box", st_box("x", "y", "h_pad", "v_pad"))
+        df.withColumn("square_box", st_box("x", "y", "padding"))  # v defaults to h
     """
     if v is None:
         v = h
@@ -235,12 +328,18 @@ def st_box(
 
 
 def st_astext(
-        geom: Union[Column, str] = "geom"
+        geom: Union[Column, str] = "geom",
 ) -> Column:
     """Convert a geometry to a WKT string representation.
 
-    :param geom: The geometry. Default is "geom".
-    :return: The string representation. Alias is "text".
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The WKT (Well-Known Text) string representation with alias "text"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("wkt", st_astext("geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -250,12 +349,18 @@ def st_astext(
 
 
 def st_asgeojson(
-        geom: Union[Column, str] = "geom"
+        geom: Union[Column, str] = "geom",
 ) -> Column:
     """Convert a geometry to a GeoJSON string representation.
 
-    :param geom: The geometry. Default is "geom".
-    :return: The string representation. Alias is "geojson".
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The GeoJSON string representation with alias "geojson"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("geojson_str", st_asgeojson("geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -264,11 +369,19 @@ def st_asgeojson(
     )).alias("geojson")
 
 
-def st_fromtext(text: Union[Column, str] = "text") -> Column:
+def st_fromtext(
+        text: Union[Column, str] = "text",
+) -> Column:
     """Create a geometry from a WKT string representation.
 
-    :param text: The WKT string representation. Default is "text".
-    :return: The geometry. Alias is "geom".
+    :param text: The WKT string or column name. Default is "text"
+    :type text: Union[Column, str]
+    :return: The geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("geom", st_fromtext("wkt_column"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -277,11 +390,19 @@ def st_fromtext(text: Union[Column, str] = "text") -> Column:
     )).alias("geom")
 
 
-def st_lontox(lon: Union[Column, str] = "lon") -> Column:
-    """Convert a longitude to an x coordinate in meters.
+def st_lontox(
+        lon: Union[Column, str] = "lon",
+) -> Column:
+    """Convert a longitude to an x coordinate in meters (Web Mercator projection).
 
-    :param lon: The longitude.
-    :return: The x coordinate in meters.
+    :param lon: The longitude value or column name
+    :type lon: Union[Column, str]
+    :return: The x coordinate in meters with alias "x"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("x_meters", st_lontox("longitude"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -290,11 +411,19 @@ def st_lontox(lon: Union[Column, str] = "lon") -> Column:
     )).alias("x")
 
 
-def st_lattoy(lat: Union[Column, str] = "lat") -> Column:
-    """Convert a latitude to a y coordinate in meters.
+def st_lattoy(
+        lat: Union[Column, str] = "lat",
+) -> Column:
+    """Convert a latitude to a y coordinate in meters (Web Mercator projection).
 
-    :param lat: The latitude.
-    :return: The y coordinate in meters.
+    :param lat: The latitude value or column name
+    :type lat: Union[Column, str]
+    :return: The y coordinate in meters with alias "y"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("y_meters", st_lattoy("latitude"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -303,11 +432,19 @@ def st_lattoy(lat: Union[Column, str] = "lat") -> Column:
     )).alias("y")
 
 
-def st_xtolon(x: Union[Column, str] = "x") -> Column:
-    """Convert an x coordinate in meters to a longitude.
+def st_xtolon(
+        x: Union[Column, str] = "x",
+) -> Column:
+    """Convert an x coordinate in meters to a longitude (Web Mercator projection).
 
-    :param x: The x coordinate in meters.
-    :return: The longitude.
+    :param x: The x coordinate in meters or column name
+    :type x: Union[Column, str]
+    :return: The longitude value with alias "lon"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("longitude", st_xtolon("x_meters"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -316,11 +453,19 @@ def st_xtolon(x: Union[Column, str] = "x") -> Column:
     )).alias("lon")
 
 
-def st_ytolat(y: Union[Column, str] = "y") -> Column:
-    """Convert a y coordinate in meters to a latitude.
+def st_ytolat(
+        y: Union[Column, str] = "y",
+) -> Column:
+    """Convert a y coordinate in meters to a latitude (Web Mercator projection).
 
-    :param y: The y coordinate in meters.
-    :return: The latitude.
+    :param y: The y coordinate in meters or column name
+    :type y: Union[Column, str]
+    :return: The latitude value with alias "lat"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("latitude", st_ytolat("y_meters"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -331,13 +476,20 @@ def st_ytolat(y: Union[Column, str] = "y") -> Column:
 
 def st_lontoq(
         lon: Union[Column, str],
-        cell: Union[Column, str, float, int]
+        cell: Union[Column, str, float, int],
 ) -> Column:
-    """Convert a longitude to a q value.
+    """Convert a longitude to a q value (column index in quadtree grid).
 
-    :param lon: The longitude.
-    :param cell: The cell size in meters.
-    :return: The q value.
+    :param lon: The longitude value or column name
+    :type lon: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :return: The q value (column index) with alias "q"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("q", st_lontoq("longitude", 10000.0))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -353,11 +505,18 @@ def st_lattor(
         lat: Union[Column, str],
         cell: Union[Column, str, float, int],
 ) -> Column:
-    """Convert a latitude to an r value.
+    """Convert a latitude to an r value (row index in quadtree grid).
 
-    :param lat: The latitude.
-    :param cell: The cell size in meters.
-    :return: The r value.
+    :param lat: The latitude value or column name
+    :type lat: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :return: The r value (row index) with alias "r"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("r", st_lattor("latitude", 10000.0))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -374,12 +533,21 @@ def st_qtox(
         cell: Union[Column, str, float, int],
         dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
-    """Convert q value to x meters.
+    """Convert q value (column index) to x coordinate in meters.
 
-    :param q: The q value.
-    :param cell: The cell size in meters.
-    :param dist: The cell padding in meters.
-    :return: meters.
+    :param q: The q value (column index) or column name
+    :type q: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding/offset in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The x coordinate in meters with alias "x"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("x", st_qtox("q", 10000.0))
+        df.withColumn("x", st_qtox("q", 10000.0, 100.0))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -399,12 +567,21 @@ def st_rtoy(
         cell: Union[Column, str, float, int],
         dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
-    """Convert r value to y meters.
+    """Convert r value (row index) to y coordinate in meters.
 
-    :param r: The r value.
-    :param cell: The cell size in meters.
-    :param dist: The padding distance in meters.
-    :return: meters.
+    :param r: The r value (row index) or column name
+    :type r: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding/offset in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The y coordinate in meters with alias "y"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("y", st_rtoy("r", 10000.0))
+        df.withColumn("y", st_rtoy("r", 10000.0, 100.0))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -419,11 +596,21 @@ def st_rtoy(
     )).alias("y")
 
 
-def st_polyline(*points) -> Column:
-    """Convert an array of st_point to a polyline.
+def st_polyline(
+        *points,
+) -> Column:
+    """Convert an array of st_point to a polyline geometry.
 
-    :param points: The array of st_point.
-    :return: The polyline.
+    :param points: Variable number of point geometries or array column
+    :type points: Variable arguments of Column
+    :return: The polyline geometry with alias "geom"
+    :rtype: Column
+    :raises ValueError: If no points are provided
+
+    Example::
+
+        df.withColumn("line", st_polyline(st_point("x1", "y1"), st_point("x2", "y2")))
+        df.withColumn("line", st_polyline("point_array"))
     """
     sc = SparkContext._active_spark_context
     if points:
@@ -435,11 +622,21 @@ def st_polyline(*points) -> Column:
         raise ValueError("st_polyline expects a list of st_point instances.")
 
 
-def st_multipoint(*points) -> Column:
-    """Convert an array of st_point to a multipoint.
+def st_multipoint(
+        *points,
+) -> Column:
+    """Convert an array of st_point to a multipoint geometry.
 
-    :param points: The array of st_point.
-    :return: The multipoint.
+    :param points: Variable number of point geometries or array column
+    :type points: Variable arguments of Column
+    :return: The multipoint geometry with alias "geom"
+    :rtype: Column
+    :raises ValueError: If no points are provided
+
+    Example::
+
+        df.withColumn("multipt", st_multipoint(st_point("x1", "y1"), st_point("x2", "y2")))
+        df.withColumn("multipt", st_multipoint("point_array"))
     """
     sc = SparkContext._active_spark_context
     if points:
@@ -451,11 +648,19 @@ def st_multipoint(*points) -> Column:
         raise ValueError("st_multipoint expects a list of st_point instances.")
 
 
-def st_polyline2(xy: Union[Column, str]) -> Column:
-    """Convert a xy array to a polyline.
+def st_polyline2(
+        xy: Union[Column, str],
+) -> Column:
+    """Convert an XY coordinate array to a polyline geometry.
 
-    :param xy: The xy array.
-    :return: The polyline.
+    :param xy: Array of [x, y] coordinates or column name
+    :type xy: Union[Column, str]
+    :return: The polyline geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("line", st_polyline2("xy_array"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -464,11 +669,21 @@ def st_polyline2(xy: Union[Column, str]) -> Column:
     )).alias("geom")
 
 
-def st_polygon(*points) -> Column:
-    """Convert an array of st_point to a polygon.
+def st_polygon(
+        *points,
+) -> Column:
+    """Convert an array of st_point to a polygon geometry.
 
-    :param points: The array of st_point.
-    :return: The polygon.
+    :param points: Variable number of point geometries or array column
+    :type points: Variable arguments of Column
+    :return: The polygon geometry with alias "geom"
+    :rtype: Column
+    :raises ValueError: If no points are provided
+
+    Example::
+
+        df.withColumn("poly", st_polygon(st_point("x1", "y1"), st_point("x2", "y2"), st_point("x3", "y3")))
+        df.withColumn("poly", st_polygon("point_array"))
     """
     sc = SparkContext._active_spark_context
     if points:
@@ -480,11 +695,19 @@ def st_polygon(*points) -> Column:
         raise ValueError("st_polygon expects a list of st_point instances.")
 
 
-def st_polygon2(xy: Union[Column, str]) -> Column:
-    """Convert a xy array to a polygon.
+def st_polygon2(
+        xy: Union[Column, str],
+) -> Column:
+    """Convert an XY coordinate array to a polygon geometry.
 
-    :param xy: The xy array.
-    :return: The polygon.
+    :param xy: Array of [x, y] coordinates or column name
+    :type xy: Union[Column, str]
+    :return: The polygon geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("poly", st_polygon2("xy_array"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -500,10 +723,18 @@ def st_intersection(
 ) -> Column:
     """Compute the intersection of two geometries.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID.
-    :return: The intersection.
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The intersection geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("intersection", st_intersection("geom1", "geom2", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -525,10 +756,18 @@ def st_intersects(
 ) -> Column:
     """Check if two geometries intersect.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID.
-    :return: True if geometries intersect, false otherwise.
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Boolean column indicating if geometries intersect
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_intersects("geom1", "geom2", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -550,14 +789,25 @@ def st_intersects_box(
         xmax: Union[Column, int, float] = 180.0,
         ymax: Union[Column, int, float] = 90.0,
 ) -> Column:
-    """Check if two geometries intersect.
+    """Check if a geometry intersects with a bounding box.
 
-    :param geom: The left hand side geometry.
-    :param xmin: The minimum x coordinate of the box.
-    :param ymin: The minimum y coordinate of the box.
-    :param xmax: The maximum x coordinate of the box.
-    :param ymax: The maximum y coordinate of the box.
-    :return: True if geometries intersect, false otherwise.
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :param xmin: The minimum x coordinate of the box. Default is -180.0
+    :type xmin: Union[Column, int, float]
+    :param ymin: The minimum y coordinate of the box. Default is -90.0
+    :type ymin: Union[Column, int, float]
+    :param xmax: The maximum x coordinate of the box. Default is 180.0
+    :type xmax: Union[Column, int, float]
+    :param ymax: The maximum y coordinate of the box. Default is 90.0
+    :type ymax: Union[Column, int, float]
+    :return: Boolean column indicating if geometry intersects the box
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_intersects_box("geom", -180, -90, 180, 90))
+        df.filter(st_intersects_box("geom", "xmin_col", "ymin_col", "xmax_col", "ymax_col"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -587,10 +837,21 @@ def st_overlaps(
 ) -> Column:
     """Check if two geometries overlap.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID.
-    :return: True if geometries overlap, false otherwise.
+    Geometries overlap if they have some but not all points in common,
+    are of the same dimension, and the intersection of their interiors is non-empty.
+
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Boolean column indicating if geometries overlap
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_overlaps("geom1", "geom2", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -612,10 +873,21 @@ def st_contains(
 ) -> Column:
     """Check if lhs geometry contains rhs geometry.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID.
-    :return: True if lhs contains rhs, false otherwise.
+    Returns true if the left geometry contains the right geometry
+    (no points of rhs lie outside of lhs, and at least one interior point is inside lhs).
+
+    :param lhs: The left hand side (container) geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side (contained) geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Boolean column indicating if lhs contains rhs
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_contains("polygon", "point", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -637,10 +909,21 @@ def st_within(
 ) -> Column:
     """Check if lhs geometry is within rhs geometry.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID.
-    :return: True if lhs is within rhs, false otherwise.
+    Returns true if the left geometry is completely within the right geometry
+    (inverse of st_contains).
+
+    :param lhs: The left hand side (inner) geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side (outer) geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Boolean column indicating if lhs is within rhs
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_within("point", "polygon", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -662,10 +945,21 @@ def st_touches(
 ) -> Column:
     """Check if lhs geometry touches rhs geometry.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID.
-    :return: True if lhs touches rhs, false otherwise.
+    Returns true if the geometries have at least one point in common, but their
+    interiors do not intersect.
+
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Boolean column indicating if geometries touch
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_touches("polygon1", "polygon2", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -687,10 +981,20 @@ def st_disjoint(
 ) -> Column:
     """Check if lhs geometry is disjoint from the rhs geometry.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID.
-    :return: True if lhs is disjoint from the rhs, false otherwise.
+    Returns true if the geometries have no point in common.
+
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Boolean column indicating if geometries are disjoint
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_disjoint("geom1", "geom2", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -710,12 +1014,23 @@ def st_iou(
         rhs: Union[Column, str] = "rgeom",
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
-    """Calculate the IoU of the lhs geom with rhs geom.
+    """Calculate the Intersection over Union (IoU) of two geometries.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :param wkid: The spatial reference ID of the geometries.
-    :return: The IoU value.
+    IoU = Area(intersection) / Area(union)
+    Commonly used in object detection and image segmentation for measuring overlap.
+
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param wkid: The spatial reference WKID of the geometries. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The IoU value (0.0 to 1.0) with alias "iou"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("iou_score", st_iou("predicted_geom", "ground_truth", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -731,12 +1046,18 @@ def st_iou(
 
 
 def st_isempty(
-        geom: Union[Column, str] = "geom"
+        geom: Union[Column, str] = "geom",
 ) -> Column:
     """Check if geometry is empty.
 
-    :param geom: The geometry. Default is "geom".
-    :return: True if geometry is empty, false otherwise.
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: Boolean column indicating if geometry is empty
+    :rtype: Column
+
+    Example::
+
+        df.filter(~st_isempty("geom"))  # Filter out empty geometries
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -755,11 +1076,23 @@ def st_euclid(
 ) -> Column:
     """Compute the Euclidean distance between two points.
 
-    :param x1: The x coordinate of the first point.
-    :param y1: The y coordinate of the first point.
-    :param x2: The x coordinate of the second point.
-    :param y2: The y coordinate of the second point.
-    :return: The Euclidean distance.
+    Calculates the straight-line distance using the formula:
+    sqrt((x2-x1)² + (y2-y1)²)
+
+    :param x1: The x coordinate of the first point or column name
+    :type x1: Union[Column, str]
+    :param y1: The y coordinate of the first point or column name
+    :type y1: Union[Column, str]
+    :param x2: The x coordinate of the second point or column name
+    :type x2: Union[Column, str]
+    :param y2: The y coordinate of the second point or column name
+    :type y2: Union[Column, str]
+    :return: The Euclidean distance
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("distance", st_euclid("x1", "y1", "x2", "y2"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -779,9 +1112,16 @@ def st_distance(
 ) -> Column:
     """Compute the distance between two geometries.
 
-    :param lhs: The left hand side geometry.
-    :param rhs: The right hand side geometry.
-    :return: The distance.
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :return: The distance value
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("dist", st_distance("geom1", "geom2"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -795,15 +1135,19 @@ def st_distance(
 
 def qr_envp(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
     """Compute the qr/envp of a geometry.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :return: The qr/envp.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: Array of qr/envp values
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -822,17 +1166,22 @@ def qr_envp(
 
 def qr_envp_geom(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
     """Compute the qr/envp/geom of a geometry.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :param wkid: The spatial reference ID.
-    :return: The qr/envp/geom.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :param wkid: The spatial reference ID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Array of qr/envp/geom values
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -854,9 +1203,20 @@ def qr_envp_geom(
 
 def qr_envp_explode(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
+    """Explode the qr/envp of a geometry into separate rows.
+
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The exploded qr with alias "qr"
+    :rtype: Column
+    """
     return explode(
         qr_envp(geom, cell, dist)
     ).alias("qr", metadata={"cell": cell, "dist": dist})
@@ -864,10 +1224,23 @@ def qr_envp_explode(
 
 def qr_envp_geom_explode(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
+    """Explode the qr/envp/geom of a geometry into separate rows.
+
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :param wkid: The spatial reference ID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The exploded qr with alias "qr"
+    :rtype: Column
+    """
     return explode(
         qr_envp_geom(geom, cell, dist, wkid)
     ).alias("qr", metadata={"cell": cell, "dist": dist})
@@ -875,17 +1248,22 @@ def qr_envp_geom_explode(
 
 def qr_geom(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
     """Compute the list of qr/geom of a geometry.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :param wkid: The spatial reference ID.
-    :return: List of qr/geom.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :param wkid: The spatial reference ID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Array of qr/geom structures
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -907,15 +1285,19 @@ def qr_geom(
 
 def qr_asgeom(
         qr: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
     """Compute the geometry of a qr.
 
-    :param qr: The qr code.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :return: The qr geometry.
+    :param qr: The qr code or column name
+    :type qr: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The qr geometry with alias "geom"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -934,15 +1316,19 @@ def qr_asgeom(
 
 def qr_contains_geom(
         qr: Union[Column, str],
-        cell: Union[Column, str, float],
+        cell: Union[Column, str, float, int],
         geom: Union[Column, str],
 ) -> Column:
     """Check if the geometry is fully inside a QR cell.
 
-    :param qr: The QR code.
-    :param cell: The cell size.
-    :param geom: The geometry.
-    :return: True if qr contains geom, false otherwise.
+    :param qr: The QR code or column name
+    :type qr: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :return: Boolean column indicating if qr contains geom
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -959,17 +1345,22 @@ def qr_contains_geom(
 
 def qr_geom_explode(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
-    """Explode the qr/clip of a geometry.
+    """Explode the qr/geom of a geometry into separate rows.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :param wkid: The spatial reference ID.
-    :return: The exploded qr/clip.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :param wkid: The spatial reference ID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The exploded qr with alias "qr"
+    :rtype: Column
     """
     return explode(
         qr_geom(geom, cell, dist, wkid)
@@ -978,15 +1369,19 @@ def qr_geom_explode(
 
 def qr_list(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
     """Compute the qr list of a geometry.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :return: The qr list.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: Array of qr values
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1005,15 +1400,19 @@ def qr_list(
 
 def qr_list_explode(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
-    """Explode the qr list of a geometry.
+    """Explode the qr list of a geometry into separate rows.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :return: The exploded qr list.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The exploded qr with alias "qr"
+    :rtype: Column
     """
     return explode(
         qr_list(geom, cell, dist)
@@ -1022,15 +1421,19 @@ def qr_list_explode(
 
 def qr_count(
         geom: Union[Column, str],
-        cell: Union[Column, str, float],
-        dist: Union[Column, str, float] = 0.0,
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
     """Return the number of QR that the geometry covers.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :param dist: The cell padding.
-    :return: The number of QR that the geometry covers.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The number of QR cells that the geometry covers
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1054,10 +1457,14 @@ def qr_intersect(
 ) -> Column:
     """Check if the qr/envp of two geometries intersect.
 
-    :param lhs: The lhs qr/envp.
-    :param rhs: The rhs qr/envp.
-    :param cell: The cell size.
-    :return: True if qr/envp intersect, false otherwise.
+    :param lhs: The left hand side qr/envp or column name
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side qr/envp or column name
+    :type rhs: Union[Column, str]
+    :param cell: The cell size in meters
+    :type cell: Union[Column, int, float]
+    :return: Boolean column indicating if qr/envp intersect
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1076,12 +1483,16 @@ def qr_fromxy(
         y: Union[Column, str],
         cell: Union[Column, str, int, float],
 ) -> Column:
-    """Compute the qr value for a give x/y coordinate.
+    """Compute the qr value for a given x/y coordinate.
 
-    :param x: The x coordinate.
-    :param y: The y coordinate.
-    :param cell: The cell size.
-    :return: The qr value.
+    :param x: The x coordinate or column name
+    :type x: Union[Column, str]
+    :param y: The y coordinate or column name
+    :type y: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, int, float]
+    :return: The qr value with alias "qr"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1099,11 +1510,14 @@ def qr_fromgeom(
         geom: Union[Column, str],
         cell: Union[Column, str, int, float],
 ) -> Column:
-    """Compute the qr value for a give geometry lower/left envelope point.
+    """Compute the qr value for a given geometry lower/left envelope point.
 
-    :param geom: The geometry.
-    :param cell: The cell size.
-    :return: The qr value.
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, int, float]
+    :return: The qr value with alias "qr"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1122,9 +1536,12 @@ def st_x(
 ) -> Column:
     """Get the x coordinate of a geometry at a point index.
 
-    :param geom: The geometry.
-    :param index: The point index.
-    :return: The x coordinate.
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :param index: The point index. Default is 0
+    :type index: Union[Column, str, int]
+    :return: The x coordinate with alias "x"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1143,9 +1560,12 @@ def st_y(
 ) -> Column:
     """Get the y coordinate of a geometry at a point index.
 
-    :param geom: The geometry.
-    :param index: The point index.
-    :return: The y coordinate.
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :param index: The point index. Default is 0
+    :type index: Union[Column, str, int]
+    :return: The y coordinate with alias "y"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1166,11 +1586,18 @@ def st_manhattan(
 ) -> Column:
     """Compute the Manhattan distance between two points.
 
-    :param x1: The x coordinate of the first point.
-    :param y1: The y coordinate of the first point.
-    :param x2: The x coordinate of the second point.
-    :param y2: The y coordinate of the second point.
-    :return: The Manhattan distance.
+    The Manhattan distance is the sum of absolute differences: |x2-x1| + |y2-y1|
+
+    :param x1: The x coordinate of the first point or column name
+    :type x1: Union[Column, str, float, int]
+    :param y1: The y coordinate of the first point or column name
+    :type y1: Union[Column, str, float, int]
+    :param x2: The x coordinate of the second point or column name
+    :type x2: Union[Column, str, float, int]
+    :param y2: The y coordinate of the second point or column name
+    :type y2: Union[Column, str, float, int]
+    :return: The Manhattan distance
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1197,13 +1624,21 @@ def st_haversine(
         lon2: Union[Column, str, float, int],
         lat2: Union[Column, str, float, int],
 ) -> Column:
-    """Compute the Haversine distance between two points.
+    """Compute the Haversine distance between two points on a sphere.
 
-    :param lon1: The longitude of the first point.
-    :param lat1: The latitude of the first point.
-    :param lon2: The longitude of the second point.
-    :param lat2: The latitude of the second point.
-    :return: The Haversine distance.
+    The Haversine distance is the great-circle distance between two points on Earth,
+    given their longitudes and latitudes.
+
+    :param lon1: The longitude of the first point or column name
+    :type lon1: Union[Column, str, float, int]
+    :param lat1: The latitude of the first point or column name
+    :type lat1: Union[Column, str, float, int]
+    :param lon2: The longitude of the second point or column name
+    :type lon2: Union[Column, str, float, int]
+    :param lat2: The latitude of the second point or column name
+    :type lat2: Union[Column, str, float, int]
+    :return: The Haversine distance in meters
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1228,11 +1663,14 @@ def st_xtoq(
         x: Union[Column, str],
         cell: Union[Column, str, float, int],
 ) -> Column:
-    """Convert x meters to a q value.
+    """Convert x meters to a q value (column index in quadtree grid).
 
-    :param x: The x coordinate in meters.
-    :param cell: The cell size in meters.
-    :return: The q value.
+    :param x: The x coordinate in meters or column name
+    :type x: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :return: The q value (column index) with alias "q"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1248,11 +1686,14 @@ def st_ytor(
         y: Union[Column, str],
         cell: Union[Column, str, float, int],
 ) -> Column:
-    """Convert y meters to an r value.
+    """Convert y meters to an r value (row index in quadtree grid).
 
-    :param y: The y coordinate in meters.
-    :param cell: The cell size in meters.
-    :return: The r value.
+    :param y: The y coordinate in meters or column name
+    :type y: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :return: The r value (row index) with alias "r"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1266,13 +1707,16 @@ def st_ytor(
 
 def st_xy(
         geom: Union[Column, str] = "geom",
-        index: Union[Column, str, int] = 0
+        index: Union[Column, str, int] = 0,
 ) -> Column:
     """Get the x/y coordinate of a geometry at a point index.
 
-    :param geom: The geometry.
-    :param index: The point index.
-    :return: The x/y coordinate.
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :param index: The point index. Default is 0
+    :type index: Union[Column, str, int]
+    :return: The x/y coordinate as array with alias "xy"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1290,8 +1734,10 @@ def st_centroid(
 ) -> Column:
     """Get the centroid of a geometry.
 
-    :param geom: The geometry.
-    :return: The centroid as a point.
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The centroid as a point with alias "geom"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1304,10 +1750,12 @@ def st_centroid(
 def st_centroid_xy(
         geom: Union[Column, str] = "geom",
 ) -> Column:
-    """Get the centroid XY of a geometry.
+    """Get the centroid XY coordinates of a geometry.
 
-    :param geom: The geometry.
-    :return: The centroid as XY.
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The centroid as XY array with alias "xy"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1325,11 +1773,23 @@ def st_buffer(
 ) -> Column:
     """Get the buffer of a geometry.
 
-    :param geom: The geometry.
-    :param distance: The distance to buffer.
-    :param num_vertices: The number of vertices to use.
-    :param wkid: The spatial reference ID.
-    :return: The buffered geometry.
+    Creates a polygon representing all points within a given distance from the geometry.
+
+    :param geom: The geometry or column name
+    :type geom: Union[Column, str]
+    :param distance: The buffer distance in units of the geometry or column name
+    :type distance: Union[Column, str, float, int]
+    :param num_vertices: The number of vertices to approximate curves. Default is 36
+    :type num_vertices: Union[float, int]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The buffered geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("buffer", st_buffer("geom", 100.0))
+        df.withColumn("precise_buffer", st_buffer("geom", 100.0, 72, 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1349,12 +1809,20 @@ def st_buffer(
 
 
 def st_convexhull(
-        geom: Union[Column, str] = "geom"
+        geom: Union[Column, str] = "geom",
 ) -> Column:
     """Get the convex hull of a geometry.
 
-    :param geom: The geometry.
-    :return: The convexhull.
+    The convex hull is the smallest convex polygon that contains the geometry.
+
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The convex hull geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("hull", st_convexhull("geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1365,12 +1833,20 @@ def st_convexhull(
 
 
 def st_mercator(
-        geom: Union[Column, str] = "geom"
+        geom: Union[Column, str] = "geom",
 ) -> Column:
-    """Convert the coordinates from WGS84 to WebMercator.
+    """Convert the coordinates from WGS84 to Web Mercator projection.
 
-    :param geom: The geometry.
-    :return: The projected geometry.
+    Projects geographic coordinates (latitude/longitude) to Web Mercator (EPSG:3857).
+
+    :param geom: The geometry in WGS84 or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The projected geometry in Web Mercator with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("web_merc", st_mercator("wgs84_geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1381,12 +1857,20 @@ def st_mercator(
 
 
 def st_wgs84(
-        geom: Union[Column, str] = "geom"
+        geom: Union[Column, str] = "geom",
 ) -> Column:
-    """Convert the coordinates from WebMercator to WGS84.
+    """Convert the coordinates from Web Mercator to WGS84 projection.
 
-    :param geom: The geometry.
-    :return: The projected geometry.
+    Projects Web Mercator coordinates (EPSG:3857) to geographic coordinates (latitude/longitude).
+
+    :param geom: The geometry in Web Mercator or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: The projected geometry in WGS84 with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("wgs84", st_wgs84("web_merc_geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1402,9 +1886,19 @@ def st_union_col(
 ) -> Column:
     """Get the union of a collection of geometries.
 
-    :param coll: A collection of geometries.
-    :param wkid: The spatial reference ID.
-    :return: The union of the collection of geometries.
+    Combines all geometries in the collection into a single geometry.
+
+    :param coll: A collection/array of geometries or column name
+    :type coll: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The union of all geometries with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.groupBy("group_id").agg(collect_list("geom").alias("geoms")) \\
+          .withColumn("union", st_union_col("geoms", 4326))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1417,11 +1911,21 @@ def st_union_col(
         )).alias("geom")
 
 
-def st_exterior_ring(geom: Union[Column, str]) -> Column:
+def st_exterior_ring(
+        geom: Union[Column, str],
+) -> Column:
     """Get the exterior ring of a polygon.
 
-    :param geom: A polygon.
-    :return: The exterior ring of a polygon.
+    Extracts the outer boundary ring of a polygon, discarding any holes.
+
+    :param geom: A polygon geometry or column name
+    :type geom: Union[Column, str]
+    :return: The exterior ring as a polyline with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("outer_ring", st_exterior_ring("polygon"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1432,12 +1936,20 @@ def st_exterior_ring(geom: Union[Column, str]) -> Column:
 
 
 def st_extent(
-        geom: Union[Column, str] = "geom"
+        geom: Union[Column, str] = "geom",
 ) -> Column:
-    """Get the extent (xmin,ymin,xmax,ymax) of a geometry.
+    """Get the extent (xmin, ymin, xmax, ymax) of a geometry.
 
-    :param geom: A geometry.
-    :return: The extent of the geometry.
+    Returns the minimum bounding rectangle as an array [xmin, ymin, xmax, ymax].
+
+    :param geom: A geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: Array of [xmin, ymin, xmax, ymax] with alias "extent"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("bbox", st_extent("geom"))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -1451,11 +1963,21 @@ def st_simplify(
         geom: Union[Column, str] = "geom",
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
-    """Simplify a geometry.
+    """Simplify a geometry by removing redundant vertices.
 
-    :param geom: The geometry.
-    :param wkid: The spatial reference ID.
-    :return: The simplified geometry.
+    Creates a topologically equivalent geometry with fewer vertices while
+    preserving the overall shape.
+
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The simplified geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("simplified", st_simplify("complex_geom", 4326))
     """
     sc = SparkContext._active_spark_context
     if isinstance(wkid, int):
@@ -1472,11 +1994,21 @@ def st_repair(
         geom: Union[Column, str] = "geom",
         wkid: Union[Column, str, int] = -1,
 ) -> Column:
-    """Repair a geometry.
+    """Repair a geometry by fixing topological errors.
 
-    :param geom: The geometry.
-    :param wkid: The spatial reference ID.
-    :return: The repaired geometry.
+    Attempts to fix invalid geometries such as self-intersections, incorrect
+    ring orientations, and other topological issues.
+
+    :param geom: The geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: The repaired geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("fixed", st_repair("invalid_geom", 4326))
     """
     sc = SparkContext._active_spark_context
     if isinstance(wkid, int):
@@ -1492,10 +2024,19 @@ def st_repair(
 def st_dump(
         geom: Union[Column, str] = "geom",
 ) -> Column:
-    """Dump the parts of a geometry.
+    """Dump the parts of a multi-part geometry.
 
-    :param geom: The geometry to dump.
-    :return: The parts of the geometry.
+    Converts a multi-part geometry (MultiPoint, MultiLineString, MultiPolygon,
+    GeometryCollection) into an array of single-part geometries.
+
+    :param geom: The multi-part geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: Array of single-part geometries
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("parts", st_dump("multipolygon"))
     """
     sc = SparkContext._active_spark_context
     return Column(
@@ -1508,19 +2049,32 @@ def st_dump(
 def st_dump_explode(
         geom: Union[Column, str] = "geom",
 ) -> Column:
-    """Explode the parts of a geometry.
+    """Explode the parts of a multi-part geometry into separate rows.
 
-    :param geom: The geometry to dump.
-    :return: The exploded parts of the geometry.
+    Converts a multi-part geometry into multiple rows, each containing a
+    single-part geometry.
+
+    :param geom: The multi-part geometry or column name. Default is "geom"
+    :type geom: Union[Column, str]
+    :return: Exploded single-part geometry with alias "geom"
+    :rtype: Column
+
+    Example::
+
+        df.withColumn("part", st_dump_explode("multipolygon"))
     """
     return explode(st_dump(geom)).alias("geom")
 
 
-def gdb_polyline(shape: Union[Column, str] = "Shape") -> Column:
+def gdb_polyline(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
     """Convert a GDB shape column to a polyline.
 
-    :param shape: GDB shape column.
-    :return: Polyline column.
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polyline geometry with alias "geom"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     return Column(
@@ -1528,18 +2082,31 @@ def gdb_polyline(shape: Union[Column, str] = "Shape") -> Column:
     ).alias("geom")
 
 
-def gdb_polyline2(shape: Union[Column, str] = "Shape") -> Column:
+def gdb_polyline2(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB shape column to a polyline (version 2).
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polyline geometry with alias "geom"
+    :rtype: Column
+    """
     sc = SparkContext._active_spark_context
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolyline2(_to_java_column(shape))
     ).alias("geom")
 
 
-def gdb_polygon(shape: Union[Column, str] = "Shape") -> Column:
+def gdb_polygon(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
     """Convert a GDB shape column to a polygon.
 
-    :param shape: GDB shape column.
-    :return: Polygon column.
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polygon geometry with alias "geom"
+    :rtype: Column
     """
     sc = SparkContext._active_spark_context
     return Column(
@@ -1547,25 +2114,153 @@ def gdb_polygon(shape: Union[Column, str] = "Shape") -> Column:
     ).alias("geom")
 
 
-def gdb_polygon2(shape: Union[Column, str] = "Shape") -> Column:
+def gdb_polygon2(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB shape column to a polygon (version 2).
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polygon geometry with alias "geom"
+    :rtype: Column
+    """
     sc = SparkContext._active_spark_context
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolygon2(_to_java_column(shape))
     ).alias("geom")
 
 
-def gdb_polygonM(shape: Union[Column, str] = "Shape") -> Column:
+def gdb_polygonM(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB shape column to a polygon with M values.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polygon M geometry with alias "geom"
+    :rtype: Column
+    """
     sc = SparkContext._active_spark_context
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolygonM(_to_java_column(shape))
     ).alias("geom")
 
 
-def gdb_polygonZ(shape: Union[Column, str] = "Shape") -> Column:
+def gdb_polygonZ(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB shape column to a polygon with Z values.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polygon Z geometry with alias "geom"
+    :rtype: Column
+    """
     sc = SparkContext._active_spark_context
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolygonZ(_to_java_column(shape))
     ).alias("geom")
+
+
+def clip_line(
+        line: Union[Column, str],
+        cell: Union[Column, str, float, int],
+) -> Column:
+    """Clip a line geometry by a cell size.
+
+    :param line: The line geometry or column name
+    :type line: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :return: The clipped line geometry
+    :rtype: Column
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(cell, (float, int)):
+        cell = lit(float(cell))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.clipLine(
+            _to_java_column(line),
+            _to_java_column(cell),
+        ))
+
+
+def st_clipline(
+        line: Union[Column, str],
+        cell: Union[Column, str, float, int],
+) -> Column:
+    """Clip a line geometry by a cell size.
+
+    Alias for clip_line function.
+
+    :param line: The line geometry or column name
+    :type line: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :return: The clipped line geometry
+    :rtype: Column
+
+    Example:
+
+        df.withColumn("clipped\", st_clipline("geom\", 10000.0))
+    """
+    return clip_line(line, cell)
+
+
+def clip_line_dist(
+        line: Union[Column, str],
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
+) -> Column:
+    """Clip a line geometry by a cell size with optional padding.
+
+    :param line: The line geometry or column name
+    :type line: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding/offset in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The clipped line geometry
+    :rtype: Column
+    """
+    sc = SparkContext._active_spark_context
+    assert sc is not None and sc._jvm is not None
+    if isinstance(cell, (float, int)):
+        cell = lit(float(cell))
+    if isinstance(dist, (float, int)):
+        dist = lit(float(dist))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.clipLineDist(
+            _to_java_column(line),
+            _to_java_column(cell),
+            _to_java_column(dist),
+        ))
+
+
+def st_cliplinedist(
+        line: Union[Column, str],
+        cell: Union[Column, str, float, int],
+        dist: Union[Column, str, float, int] = 0.0,
+) -> Column:
+    """Clip a line geometry by a cell size with optional padding.
+
+    Alias for clip_line_dist function.
+
+    :param line: The line geometry or column name
+    :type line: Union[Column, str]
+    :param cell: The cell size in meters or column name
+    :type cell: Union[Column, str, float, int]
+    :param dist: The cell padding/offset in meters. Default is 0.0
+    :type dist: Union[Column, str, float, int]
+    :return: The clipped line geometry
+    :rtype: Column
+
+    Example:
+
+        df.withColumn("clipped\", st_cliplinedist("geom\", 10000.0, 100.0))
+    """
+    return clip_line_dist(line, cell, dist)
 
 
 def join_qr(
@@ -1580,18 +2275,38 @@ def join_qr(
         rhs_geom: str = "geom",
         acceleration: str = "mild",
 ) -> DataFrame:
-    """Spatially join dataframes.
+    """Spatially join dataframes using quadtree-based spatial indexing.
 
-    :param lhs: The left hand side dataframe.
-    :param rhs: The right hand side dataframe.
-    :param cell: The qr cell size.
-    :param dist: The qr offset distance. Default is 0.0.
-    :param qr: The name of the qr field in the dataframes. Default is `qr`.
-    :param oper: The operation to perform. Default is "none".
-    :param wkid: The spatial reference identifier. Default is -1.
-    :param lhs_geom: The name of the left geometry field. Default is geom.
-    :param rhs_geom: The name of the right geometry field. Default is geom.
-    :param acceleration: The geometry acceleration mode mild, medium, hot. Default is mild.
+    This function performs an efficient spatial join between two DataFrames using
+    a quadtree (QR) indexing strategy for improved performance on large datasets.
+
+    :param lhs: The left hand side dataframe
+    :type lhs: DataFrame
+    :param rhs: The right hand side dataframe
+    :type rhs: DataFrame
+    :param cell: The QR cell size in meters
+    :type cell: float
+    :param dist: The QR offset/padding distance in meters. Default is 0.0
+    :type dist: float
+    :param qr: The name of the QR field in the dataframes. Default is "qr"
+    :type qr: str
+    :param oper: The spatial operation to perform ("none", "intersection", etc.). Default is "none"
+    :type oper: str
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[str, int]
+    :param lhs_geom: The name of the left geometry field. Default is "geom"
+    :type lhs_geom: str
+    :param rhs_geom: The name of the right geometry field. Default is "geom"
+    :type rhs_geom: str
+    :param acceleration: The geometry acceleration mode: "mild", "medium", or "hot". Default is "mild"
+    :type acceleration: str
+    :return: DataFrame with joined results
+    :rtype: DataFrame
+
+    Example::
+
+        result = join_qr(df1, df2, cell=10000.0, wkid=3857)
+        result = join_qr(df1, df2, cell=10000.0, dist=100.0, oper="intersection")
     """
     if qr not in lhs.columns and qr not in rhs.columns:
         ldf = lhs.withColumnRenamed(lhs_geom, "lgeom").withColumn(
@@ -1629,13 +2344,23 @@ def to_feature_table(
         feature_table_name: str,
         workspace: str = "scratch",
 ) -> None:
-    """Converts a Spark DataFrame to an arcgis feature table.
+    """Converts a Spark DataFrame to an ArcGIS feature table.
 
-    :param df: Spark DataFrame.
-    :param feature_table_name: Name of the output feature table.
+    :param df: Spark DataFrame to convert
+    :type df: DataFrame
+    :param feature_table_name: Name of the output feature table
+    :type feature_table_name: str
     :param workspace: Workspace where the feature table will be created.
-        Can be "memory", "scratch" or a path to a geodatabase.
-        Default is "scratch".
+        Can be "memory", "scratch", or a path to a geodatabase.
+        Default is "scratch"
+    :type workspace: str
+    :return: None
+    :rtype: None
+
+    Example::
+
+        to_feature_table(df, "my_table", workspace="scratch")
+        to_feature_table(df, "my_table", workspace="/path/to/my.gdb")
     """
     import arcpy
 
@@ -1656,15 +2381,28 @@ def to_feature_class(
         sp_ref: Optional[int] = 3857,
         workspace: str = "scratch",
 ) -> None:
-    """Converts a Spark DataFrame to an arcgis feature class.
+    """Converts a Spark DataFrame to an ArcGIS feature class.
 
-    :param df: Spark DataFrame.
-    :param feature_class_name: Name of the output feature class.
-    :param geom: Name of the geometry column with WKB values. Default is "geom".
-    :param sp_ref: A spatial reference. Default is 3857. If negative, get active map SR.
+    :param df: Spark DataFrame to convert
+    :type df: DataFrame
+    :param feature_class_name: Name of the output feature class
+    :type feature_class_name: str
+    :param geom: Name of the geometry column with WKB values. Default is "geom"
+    :type geom: str
+    :param sp_ref: A spatial reference WKID. Default is 3857 (Web Mercator).
+        If negative, gets the active map's spatial reference
+    :type sp_ref: Optional[int]
     :param workspace: Workspace where the feature class will be created.
-        Can be "memory", "scratch" or a path to a geodatabase.
-        Default is "scratch".
+        Can be "memory", "scratch", or a path to a geodatabase.
+        Default is "scratch"
+    :type workspace: str
+    :return: None
+    :rtype: None
+
+    Example::
+
+        to_feature_class(df, "my_fc", geom="geom", sp_ref=4326)
+        to_feature_class(df, "my_fc", workspace="/path/to/my.gdb")
     """
     import arcpy
 
@@ -1694,15 +2432,29 @@ def to_spark(
         fields: Optional[List[str] | str] = None,
         where_clause: Optional[str] = None,
 ) -> DataFrame:
-    """Converts an arcgis feature class to a Spark DataFrame.
-    fields can be:
-        None: [OBJECTID, SHAPE]
-        *: All fields
-        List of fields: List of fields to include in the feature class.
+    """Converts an ArcGIS feature class to a Spark DataFrame.
 
-    :param feature_class_name: Name of the feature class.
-    :param fields: List of fields to include in the DataFrame. Default is None.
-    :param where_clause: SQL where clause. Default is None.
+    The fields parameter can be:
+        - None: Only [OBJECTID, SHAPE] fields (default)
+        - "*": All fields from the feature class
+        - List of field names: Specific fields to include
+
+    :param feature_class_name: Name or path of the feature class
+    :type feature_class_name: str
+    :param fields: Fields to include in the DataFrame. Can be None, "*", or a list of field names.
+        Default is None which includes only OBJECTID and SHAPE
+    :type fields: Optional[Union[List[str], str]]
+    :param where_clause: SQL where clause to filter features. Default is None (no filter)
+    :type where_clause: Optional[str]
+    :return: Spark DataFrame with the feature class data
+    :rtype: DataFrame
+
+    Example::
+
+        df = to_spark("my_feature_class")  # Only OBJECTID and SHAPE
+        df = to_spark("my_feature_class", fields="*")  # All fields
+        df = to_spark("my_feature_class", fields=["OBJECTID", "SHAPE", "Name"])
+        df = to_spark("my_feature_class", where_clause="Population > 100000")
     """
     import arcpy
 
@@ -1732,33 +2484,47 @@ def pairwise_dissolve(
         breaker: int = 10,
         geom_name: str = "geom",
 ) -> DataFrame:
+    """Dissolve the dataframe by cell using a progressive multi-resolution approach.
+
+    This function performs iterative spatial dissolve operations, progressively
+    increasing the cell size. It separates polygons that are fully contained in a QR
+    cell from those that span multiple cells, processing them separately for efficiency.
+
+    :param buf: A DataFrame with polygons to dissolve
+    :type buf: DataFrame
+    :param cell: The initial QR cell size in meters. Default is 100,000.0
+    :type cell: float
+    :param dist: The QR padding distance in meters. Default is 100.0
+    :type dist: float
+    :param wkid: The spatial reference WKID for the geometry. Default is 3857
+    :type wkid: int
+    :param cell_mul: The cell size multiplier for each iteration. Default is 10.0
+    :type cell_mul: float
+    :param breaker: Maximum number of iterations (circuit breaker). Default is 10
+    :type breaker: int
+    :param geom_name: The name of the geometry column. Default is "geom"
+    :type geom_name: str
+    :return: DataFrame with dissolved polygons
+    :rtype: DataFrame
+
+    Example::
+
+        dissolved = pairwise_dissolve(df, cell=100000.0, wkid=3857)
+        dissolved = buf.pairwise_dissolve(cell=50000.0, dist=50.0, breaker=15)
     """
-    Dissolve the dataframe by cell while keeping the polygons that are not in a QR and those that are
-    fully (by envelope) in a QR in separate lists.
 
-    Args:
-        buf: A dataframe with polygons to dissolve.
-        cell: The initial cell size.
-        dist: The padding distance.
-        wkid: The spatial reference identifier for the geometry.
-        cell_mul: The cell multiplier.
-        breaker: max number of iterations. Acting as a circuit breaker :-)
-        geom_name: The name of the geometry column.
+    def _dissolve(
+            df: DataFrame,
+            cell_: float,
+    ) -> DataFrame:
+        """Dissolve the polygons in a dataframe given a current cell size.
 
-    Returns:
-        Dataframe with dissolved polygons.
-    """
-
-    def _dissolve(df: DataFrame, cell_: float) -> DataFrame:
-        """
-        Dissolve the polygons in a dataframe given a current cell size.
-
-        Args:
-            df: A reference to a dataframe with polygons.
-            cell_: A cell size.
-
-        Returns:
-            A new dataframe with the dissolved polygons.
+        :param df: A reference to a dataframe with polygons
+        :type df: DataFrame
+        :param cell_: A QR cell size in meters
+        :type cell_: float
+        :return: A new dataframe with the dissolved polygons
+        :rtype: DataFrame
         """
         return (
             df

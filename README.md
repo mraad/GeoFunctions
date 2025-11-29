@@ -4,6 +4,8 @@ This is a small collection of PySpark functions useful for working with geospati
 It is typically used within an ArcGIS Pro conda environment, and the spark engine is exposed using the [Spark Esri]
 (https://github.com/mraad/spark-esri) package.
 
+NOTE: This works in Pro up to version 3.5. This does NOT work in Pro 3.6 (yet).
+
 ### Create New Conda Environment
 
 Using ArcGIS Python Command Prompt:
@@ -22,7 +24,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps <path-to>/geofunctions-0.26-py3-none-any.whl
+pip install --no-deps <path-to>/geofunctions-0.27-py3-none-any.whl
 ```
 
 Optional packages to install:

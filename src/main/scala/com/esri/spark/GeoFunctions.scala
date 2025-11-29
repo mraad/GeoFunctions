@@ -332,4 +332,15 @@ object GeoFunctions {
 
   def h3CellToBoundary(c1: Column): Column =
     new Column(H3CellToBoundary(Array(c1.expr)))
+
+  def clipLine(c1: Column,
+               c2: Column
+              ): Column =
+    new Column(ClipLine(c1.expr, c2.expr))
+
+  def clipLineDist(c1: Column,
+                   c2: Column,
+                   c3: Column
+                  ): Column =
+    new Column(ClipLineDist(c1.expr, c2.expr, c3.expr))
 }

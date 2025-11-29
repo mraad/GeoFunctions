@@ -78,5 +78,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_XY", STXY, "")
     funcReg.createOrReplaceTempFunction("ST_Y", STY, "")
     funcReg.createOrReplaceTempFunction("ST_YTOLAT", STYToLat, "")
+    //    funcReg.createOrReplaceTempFunction("ST_CLIPLINE", ClipLine, "")
+    //    funcReg.createOrReplaceTempFunction("ST_CLIPLINEDIST", ClipLineDist, "")
   }
 }
