@@ -35,9 +35,12 @@ pip install geopandas mapclassify folium xyzservices duckdb fastparquet
 
 ### Functions
 
-**Note:** Look at the notebooks for example usages of the functions.
+**Note:** Look at the notebooks for example usages of the functions. See [functions.md](functions.md) for the full reference.
 
+- clip_line(line, cell): Splits a line into per-cell segments, returning array of (q, r, l).
+- clip_line_dist(line, cell, dist=0.0): Same as clip_line with cell padding.
 - qr_asgeom(qr, cell, dist=0.0): Returns the rectangle geometry of the quad region.
+- qr_contains_geom(qr, cell, geom): True if the QR cell fully contains the geometry.
 - qr_envp(geom, cell, dist=0.0): Returns list of qr,envelope of the quad region.
 - qr_fromxy(x, y, cell): Returns the quad region containing the point (x, y).
 - qr_geom(geom, cell, dist=0.0): Returns the intersections of the quad regions and the geometry.

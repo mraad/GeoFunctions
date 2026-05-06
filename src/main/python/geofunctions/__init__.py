@@ -1311,7 +1311,7 @@ def qr_asgeom(
             _to_java_column(cell),
             _to_java_column(dist),
         )
-    )
+    ).alias("geom")
 
 
 def qr_contains_geom(
@@ -2203,7 +2203,7 @@ def st_clipline(
 
     Example:
 
-        df.withColumn("clipped\", st_clipline("geom\", 10000.0))
+        df.withColumn("clipped", st_clipline("geom", 10000.0))
     """
     return clip_line(line, cell)
 
@@ -2258,7 +2258,7 @@ def st_cliplinedist(
 
     Example:
 
-        df.withColumn("clipped\", st_cliplinedist("geom\", 10000.0, 100.0))
+        df.withColumn("clipped", st_cliplinedist("geom", 10000.0, 100.0))
     """
     return clip_line_dist(line, cell, dist)
 
