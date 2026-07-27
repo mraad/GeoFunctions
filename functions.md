@@ -186,22 +186,6 @@ Create a geometry from a WKT string representation.
 
 **Returns:** Column with geometry (alias: "geom")
 
-### st_dump(geom)
-Dump the parts of a multi-part geometry into an array of single-part geometries.
-
-**Parameters:**
-- `geom` (Union[Column, str]): Multi-part geometry or column name (default: "geom")
-
-**Returns:** Column with array of single-part geometries
-
-### st_dump_explode(geom)
-Explode the parts of a multi-part geometry into separate rows.
-
-**Parameters:**
-- `geom` (Union[Column, str]): Multi-part geometry or column name (default: "geom")
-
-**Returns:** Column with exploded single-part geometry (alias: "geom")
-
 ---
 
 ## Coordinate Transformations
@@ -240,27 +224,24 @@ Convert y coordinate in meters to latitude (Web Mercator projection).
 
 **Returns:** Column with latitude value (alias: "lat")
 
-### st_mercator(geom)
-Convert coordinates from WGS84 to Web Mercator projection (EPSG:3857).
-
-**Parameters:**
-- `geom` (Union[Column, str]): Geometry in WGS84 or column name (default: "geom")
-
-**Returns:** Column with projected geometry in Web Mercator (alias: "geom")
-
-### st_wgs84(geom)
-Convert coordinates from Web Mercator to WGS84 projection.
-
-**Parameters:**
-- `geom` (Union[Column, str]): Geometry in Web Mercator or column name (default: "geom")
-
-**Returns:** Column with projected geometry in WGS84 (alias: "geom")
-
 ---
 
 ## Quadtree Grid Operations
 
 Functions for quadtree-based spatial indexing and grid operations.
+
+A **QR** is a grid cell packed into a single `bigint`: the column index `q` in the high
+32 bits, the row index `r` in the low 32 bits. `q = floor(x / cell)`, `r = floor(y / cell)`.
+
+**The `dist` parameter inflates the cell, not the geometry.** Cell `(q, r)` spans
+`[q*cell - dist, (q+1)*cell + dist]` on each axis, so neighbouring cells overlap by
+`2 * dist` and a geometry near a boundary belongs to more than one cell. This is what
+makes a QR equi-join find pairs that straddle a cell edge — set `dist` to the largest
+search distance you care about.
+
+Every function that takes `dist` follows this convention, so `qr_count`, `qr_list`,
+`qr_envp`, `qr_geom` and `qr_envp_geom` agree on the candidate cell set for a given
+`(cell, dist)`.
 
 ### st_lontoq(lon, cell)
 Convert longitude to a q value (column index in quadtree grid).
@@ -770,17 +751,6 @@ Extracts the outer boundary ring of a polygon, discarding any holes.
 
 **Returns:** Column with exterior ring as polyline (alias: "geom")
 
-### st_union_col(coll, wkid)
-Get the union of a collection of geometries.
-
-Combines all geometries in the collection into a single geometry.
-
-**Parameters:**
-- `coll` (Union[Column, str]): Collection/array of geometries or column name
-- `wkid` (Union[Column, str, int]): Spatial reference WKID (default: -1)
-
-**Returns:** Column with union of all geometries (alias: "geom")
-
 ---
 
 ## Projection & Reference Systems
@@ -894,49 +864,47 @@ Convert a GDB shape column to a polygon with Z values.
 
 ## Line Clipping Operations
 
-Functions for clipping line geometries by cell size.
+Split a **single line segment** against the QR grid and report how much of it falls in
+each cell.
+
+Note the input type: `line` is an **array of four doubles** `[x1, y1, x2, y2]` — one
+segment, *not* a geometry column. To clip a polyline, explode it into segments first.
+The output is an **array of structs** `(q: int, r: int, l: double)`, one entry per cell
+the segment crosses, where `l` is the clipped length inside that cell.
+
+With `dist = 0` the cells tile the plane, so the returned lengths sum exactly to the
+segment length. With `dist > 0` the padded cells overlap, so the sum exceeds it.
 
 ### clip_line(line, cell)
-Clip a line geometry by a cell size.
+Split a segment across the QR grid.
 
 **Parameters:**
-- `line` (Union[Column, str]): Line geometry or column name
-- `cell` (Union[Column, str, float, int]): Cell size in meters or column name
+- `line` (Union[Column, str]): Array of 4 doubles `[x1, y1, x2, y2]`, or column name
+- `cell` (Union[Column, str, float, int]): Cell size or column name
 
-**Returns:** Column with clipped line geometry
+**Returns:** Column with `array<struct<q: int, r: int, l: double>>`
+
+**Raises:** `IllegalArgumentException` if `cell <= 0`, if the array does not hold exactly
+4 elements, or if the segment spans more cells than fit in an `int`.
 
 ### st_clipline(line, cell)
-Clip a line geometry by a cell size.
-
-Alias for `clip_line` function.
-
-**Parameters:**
-- `line` (Union[Column, str]): Line geometry or column name
-- `cell` (Union[Column, str, float, int]): Cell size in meters or column name
-
-**Returns:** Column with clipped line geometry
+Alias for `clip_line`.
 
 ### clip_line_dist(line, cell, dist)
-Clip a line geometry by a cell size with optional padding.
+Split a segment across the QR grid, with each cell inflated by `dist` on all four sides.
 
 **Parameters:**
-- `line` (Union[Column, str]): Line geometry or column name
-- `cell` (Union[Column, str, float, int]): Cell size in meters or column name
-- `dist` (Union[Column, str, float, int]): Cell padding/offset in meters (default: 0.0)
+- `line` (Union[Column, str]): Array of 4 doubles `[x1, y1, x2, y2]`, or column name
+- `cell` (Union[Column, str, float, int]): Cell size or column name
+- `dist` (Union[Column, str, float, int]): Cell padding (default: 0.0)
 
-**Returns:** Column with clipped line geometry
+**Returns:** Column with `array<struct<q: int, r: int, l: double>>`
+
+**Raises:** `IllegalArgumentException` if `cell <= 0`, `dist < 0`, if the array does not
+hold exactly 4 elements, or if the segment spans more cells than fit in an `int`.
 
 ### st_cliplinedist(line, cell, dist)
-Clip a line geometry by a cell size with optional padding.
-
-Alias for `clip_line_dist` function.
-
-**Parameters:**
-- `line` (Union[Column, str]): Line geometry or column name
-- `cell` (Union[Column, str, float, int]): Cell size in meters or column name
-- `dist` (Union[Column, str, float, int]): Cell padding/offset in meters (default: 0.0)
-
-**Returns:** Column with clipped line geometry
+Alias for `clip_line_dist`.
 
 ---
 
@@ -1029,3 +997,19 @@ Converts an ArcGIS feature class to a Spark DataFrame.
 - Numeric parameters can be Column references or literal values which will be converted to literals using `lit()`
 - The `wkid` parameter specifies spatial reference using EPSG/ESRI Well-Known IDs (-1 means unspecified)
 - Most functions work within a Spark SQL context and require an active SparkSession
+
+### Null inputs are the caller's responsibility
+
+**Never pass a null argument to a GeoFunction.** For speed these functions do not check
+for null on every row — filter or coalesce upstream instead:
+
+```python
+df.filter(F.col("lon").isNotNull() & F.col("lat").isNotNull()) \
+  .withColumn("geom", st_point("lon", "lat"))
+```
+
+A null that reaches a function does not raise. It is silently read as `0.0` / `0` /
+`-1.0` / `-1` depending on the type and the execution path, and you get a plausible but
+wrong answer: `st_point(NULL, 2.0)` yields `POINT (-1 2)`, and
+`h3_latlng_to_cell(NULL, lng, 7)` yields the cell on the equator. If you are seeing
+geometry at odd coordinates, look for an unfiltered null column.
