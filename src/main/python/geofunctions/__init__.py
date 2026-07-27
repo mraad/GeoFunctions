@@ -2166,14 +2166,25 @@ def clip_line(
         line: Union[Column, str],
         cell: Union[Column, str, float, int],
 ) -> Column:
-    """Clip a line geometry by a cell size.
+    """Split a line segment across the QR grid, one entry per cell it crosses.
 
-    :param line: The line geometry or column name
+    Takes a single segment as an array of 4 doubles, not a geometry. Explode a
+    polyline into segments first. Since the cells tile the plane, the returned
+    lengths sum to the length of the segment.
+
+    :param line: Array column of 4 doubles [x1, y1, x2, y2], or column name
     :type line: Union[Column, str]
-    :param cell: The cell size in meters or column name
+    :param cell: The cell size or column name
     :type cell: Union[Column, str, float, int]
-    :return: The clipped line geometry
+    :return: array<struct<q: int, r: int, l: double>> - the cell and the clipped
+        length of the segment inside it
     :rtype: Column
+    :raises IllegalArgumentException: if cell <= 0, if the array does not hold
+        exactly 4 elements, or if the segment spans more cells than fit in an int
+
+    Example::
+
+        df.withColumn("qrl", clip_line(array("x1", "y1", "x2", "y2"), 100.0))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -2190,20 +2201,20 @@ def st_clipline(
         line: Union[Column, str],
         cell: Union[Column, str, float, int],
 ) -> Column:
-    """Clip a line geometry by a cell size.
+    """Split a line segment across the QR grid, one entry per cell it crosses.
 
     Alias for clip_line function.
 
-    :param line: The line geometry or column name
+    :param line: Array column of 4 doubles [x1, y1, x2, y2], or column name
     :type line: Union[Column, str]
-    :param cell: The cell size in meters or column name
+    :param cell: The cell size or column name
     :type cell: Union[Column, str, float, int]
-    :return: The clipped line geometry
+    :return: array<struct<q: int, r: int, l: double>>
     :rtype: Column
 
-    Example:
+    Example::
 
-        df.withColumn("clipped", st_clipline("geom", 10000.0))
+        df.withColumn("qrl", st_clipline(array("x1", "y1", "x2", "y2"), 10000.0))
     """
     return clip_line(line, cell)
 
@@ -2213,16 +2224,29 @@ def clip_line_dist(
         cell: Union[Column, str, float, int],
         dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
-    """Clip a line geometry by a cell size with optional padding.
+    """Split a line segment across the QR grid, with each cell inflated by dist.
 
-    :param line: The line geometry or column name
+    Takes a single segment as an array of 4 doubles, not a geometry. Explode a
+    polyline into segments first. Cell (q, r) spans [q*cell - dist, (q+1)*cell +
+    dist] on each axis, so padded cells overlap and the returned lengths sum to
+    more than the length of the segment.
+
+    :param line: Array column of 4 doubles [x1, y1, x2, y2], or column name
     :type line: Union[Column, str]
-    :param cell: The cell size in meters or column name
+    :param cell: The cell size or column name
     :type cell: Union[Column, str, float, int]
-    :param dist: The cell padding/offset in meters. Default is 0.0
+    :param dist: The cell padding. Default is 0.0
     :type dist: Union[Column, str, float, int]
-    :return: The clipped line geometry
+    :return: array<struct<q: int, r: int, l: double>> - the cell and the clipped
+        length of the segment inside the padded cell
     :rtype: Column
+    :raises IllegalArgumentException: if cell <= 0, dist < 0, if the array does
+        not hold exactly 4 elements, or if the segment spans more cells than fit
+        in an int
+
+    Example::
+
+        df.withColumn("qrl", clip_line_dist(array("x1", "y1", "x2", "y2"), 100.0, 10.0))
     """
     sc = SparkContext._active_spark_context
     assert sc is not None and sc._jvm is not None
@@ -2243,22 +2267,22 @@ def st_cliplinedist(
         cell: Union[Column, str, float, int],
         dist: Union[Column, str, float, int] = 0.0,
 ) -> Column:
-    """Clip a line geometry by a cell size with optional padding.
+    """Split a line segment across the QR grid, with each cell inflated by dist.
 
     Alias for clip_line_dist function.
 
-    :param line: The line geometry or column name
+    :param line: Array column of 4 doubles [x1, y1, x2, y2], or column name
     :type line: Union[Column, str]
-    :param cell: The cell size in meters or column name
+    :param cell: The cell size or column name
     :type cell: Union[Column, str, float, int]
-    :param dist: The cell padding/offset in meters. Default is 0.0
+    :param dist: The cell padding. Default is 0.0
     :type dist: Union[Column, str, float, int]
-    :return: The clipped line geometry
+    :return: array<struct<q: int, r: int, l: double>>
     :rtype: Column
 
-    Example:
+    Example::
 
-        df.withColumn("clipped", st_cliplinedist("geom", 10000.0, 100.0))
+        df.withColumn("qrl", st_cliplinedist(array("x1", "y1", "x2", "y2"), 10000.0, 100.0))
     """
     return clip_line_dist(line, cell, dist)
 
