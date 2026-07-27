@@ -18,18 +18,20 @@ Run either through the repo venv (`source .venv/bin/activate`); both call `pytho
 Internals worth knowing:
 - `pom_to_pyproject.py` runs in the Maven `validate` phase and copies `<version>` from `pom.xml` into `pyproject.toml`. **Always edit the version in `pom.xml` only** — the pyproject value is overwritten on every build.
 - The default Maven build uses `<scope>provided</scope>` for `spark-core`/`spark-sql` (assumes a host Spark runtime). To produce a JAR that can run standalone, activate `-P spark-scope-compile`.
-- Spark profiles: `spark-3.3`, `spark-3.4`, `spark-3.5` (default — Spark 3.5.9, Java 11, Scala 2.12.21), `spark-4.0` (Java 17 + Scala 2.13). Activate with `mvn -P spark-4.0 package`.
+- Spark profiles: `spark-3.3`, `spark-3.4`, **`spark-3.5` (default and the one to use — Spark 3.5.9, Java 11, Scala 2.12.21)**, `spark-4.0` (Java 17 + Scala 2.13). Activate a non-default with `mvn -P spark-3.4 package`. The 3.3/3.4 profiles are kept for older hosts and are not exercised.
 - **`spark-4.0` does not build.** Three `com.esri` deps have no Scala 2.13 artifact published — `webmercator`, `spark-shp`, `filegdb` (the local `~/.m2` entries for these are `.lastUpdated` failure markers, not jars). `WebMercator/` in the workspace has a `scala-2.13` profile and could be built locally; `spark-shp/` has no `spark-4.0` profile; `filegdb` has no source in the workspace at all. On top of that, `QRScan` and `JoinQRInnerProcessor` use `.par`, which needs `scala-parallel-collections` on 2.13 — not currently a dependency. Don't attempt the profile until all four are resolved.
 - Tests are **skipped by default** (`<skipTests>true</skipTests>` property). Surefire cannot discover scalatest specs, so `scalatest-maven-plugin` runs them: `mvn -DskipTests=false test`, or one suite with `mvn -DskipTests=false -Dsuites=com.esri.spark.ClipLineDistSpec test`.
 - The shade plugin aggressively excludes ~15 transitive groups (jaxb, slf4j, log4j, scala-lang, geosolutions, ehcache, etc.) — when adding a dependency that pulls one of these, expect runtime `ClassNotFoundException` unless you remove the exclusion or relocate.
 - `.gitignore` ignores `*.sh`, `*.xml`, `*.zip`, `data/`, `docs/`. `pom.xml` and `gf.sh` are tracked only because they were force-added; `pw.sh` is untracked. A new script or XML file needs `git add -f` or it silently never gets committed.
-- `environment.yml` is stale (`python<3.10`, `pyspark==3.5.1`) and contradicts `pyproject.toml` (`requires-python = ">3.10"`). Trust `pyproject.toml`/`pom.xml`.
+- Four files pin the Spark/Python versions and must move together: `pom.xml` (`spark.version`), `pyproject.toml` (the `pyspark` dep), `environment.yml` (the conda env), and `.venv/`. All four are on Spark 3.5.9 / Python 3.11.
 
 ## Runtime target
 
 This library is built to run inside an **ArcGIS Pro conda environment** (`arcgispro-py3` clone) with the [`spark-esri`](https://github.com/mraad/spark-esri) package providing the SparkSession. Per README, **Pro 3.5 is the supported ceiling — Pro 3.6 is currently broken**. The notebooks under `notebooks/` are the primary usage examples and assume this environment.
 
-Standalone PySpark also works: `pyspark==3.5.9` (non-Windows) or `3.5.4` (Windows) is the only required runtime dep beyond the JAR. `.venv/` in the repo root has a working 3.11 + pyspark 3.5.7 for this — the JAR is `provided`-scope against Spark, so it runs on any 3.5.x.
+**Spark 3.5.9 is the version this project targets for now.** It is the default `spark-3.5` profile in `pom.xml`, the pin in `pyproject.toml` and `environment.yml`, and what `.venv/` has installed — keep all four in step when bumping. Spark 4.0 is not supported (see the profile note above).
+
+Standalone PySpark also works: `pyspark==3.5.9` (non-Windows) or `3.5.4` (Windows) is the only required runtime dep beyond the JAR. `.venv/` in the repo root has a working Python 3.11 + pyspark 3.5.9 for this — the JAR is `provided`-scope against Spark, so it runs on any 3.5.x.
 
 To exercise the library outside ArcGIS Pro, the shaded JAR bundles `com.esri:filegdb`, which registers a `gdb` Spark data source (options: `path`, `name`, `numPartitions`, `wkid`) — so a File Geodatabase reads directly:
 

@@ -5,6 +5,8 @@ It is typically used within an ArcGIS Pro conda environment, and the spark engin
 
 NOTE: This works in Pro up to version 3.5. This does NOT work in Pro 3.6 (yet).
 
+NOTE: This targets **Spark 3.5.9** for now (Java 11, Scala 2.12). Spark 4.0 is not supported yet.
+
 ### Create New Conda Environment
 
 Using ArcGIS Python Command Prompt:
@@ -34,11 +36,15 @@ pip install geopandas mapclassify folium xyzservices duckdb fastparquet
 
 ### Standalone PySpark
 
-The wheel also works outside ArcGIS Pro against a plain PySpark install:
+The wheel also works outside ArcGIS Pro against a plain PySpark install. Use 3.5.9 — it is
+what the jar is built and tested against:
 
 ```shell
 pip install pyspark==3.5.9   # 3.5.4 on Windows
 ```
+
+The jar is compiled with Spark `provided`-scope, so it will load on any 3.5.x host, but
+3.5.9 is the supported combination.
 
 Add the shaded jar to the session and register the SQL functions:
 
