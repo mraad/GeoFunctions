@@ -23,7 +23,7 @@ Internals worth knowing:
 - Tests are **skipped by default** (`<skipTests>true</skipTests>` property). Surefire cannot discover scalatest specs, so `scalatest-maven-plugin` runs them: `mvn -DskipTests=false test`, or one suite with `mvn -DskipTests=false -Dsuites=com.esri.spark.ClipLineDistSpec test`.
 - The shade plugin aggressively excludes ~15 transitive groups (jaxb, slf4j, log4j, scala-lang, geosolutions, ehcache, etc.) — when adding a dependency that pulls one of these, expect runtime `ClassNotFoundException` unless you remove the exclusion or relocate.
 - `.gitignore` ignores `*.sh`, `*.xml`, `*.zip`, `data/`, `docs/`. `pom.xml` and `gf.sh` are tracked only because they were force-added; `pw.sh` is untracked. A new script or XML file needs `git add -f` or it silently never gets committed.
-- Four files pin the Spark/Python versions and must move together: `pom.xml` (`spark.version`), `pyproject.toml` (the `pyspark` dep), `environment.yml` (the conda env), and `.venv/`. All four are on Spark 3.5.9 / Python 3.11.
+- Four files pin the Spark/Python versions and must move together: `pom.xml` (`spark.version`), `pyproject.toml` (the `pyspark` dep and `requires-python`), `environment.yml` (the conda env), and `.venv/`. All are on Spark 3.5.9; the Python floor is 3.10 in both `pyproject.toml` and `environment.yml`, and `.venv/` happens to run 3.11. Don't raise the floor to 3.11 without checking which Python the supported ArcGIS Pro releases ship — that narrows who can `pip install` the wheel.
 
 ## Runtime target
 

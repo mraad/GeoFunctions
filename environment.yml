@@ -10,7 +10,7 @@ name: geofunc
 channels:
   - conda-forge
 dependencies:
-  - python>=3.11
+  - python>=3.10
   #- jupyter>=1.0
   - jupyterlab>4.0
   #- nodejs>16.14
