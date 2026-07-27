@@ -7,9 +7,11 @@ import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputT
 import org.apache.spark.sql.types._
 
 object H3LatLngToCellObj extends Serializable {
+  // res is Int, not java.lang.Integer: codegen hands us a primitive and H3Core takes one,
+  // so the boxed type only added a round trip.
   final def eval(lat: Double,
                  lon: Double,
-                 res: Integer,
+                 res: Int,
                 ): Long = {
     H3Instance.h3.latLngToCell(lat, lon, res)
   }
@@ -32,15 +34,11 @@ final case class H3LatLngToCell(children: Seq[Expression])
 
   override def eval(inputRow: InternalRow): Any = {
     children match {
-      case Seq(
-      e1: Expression,
-      e2: Expression,
-      e3: Expression,
-      ) =>
+      case Seq(e1: Expression, e2: Expression, e3: Expression) =>
         H3LatLngToCellObj.eval(
           e1.eval(inputRow).asInstanceOf[Double],
           e2.eval(inputRow).asInstanceOf[Double],
-          e3.eval(inputRow).asInstanceOf[Integer],
+          e3.eval(inputRow).asInstanceOf[Int],
         )
       case _ => null
     }

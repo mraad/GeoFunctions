@@ -2,7 +2,7 @@ package com.esri.spark
 
 import org.apache.commons.math3.util.FastMath
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode, UnsafeRowWriter}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes, TernaryExpression}
 import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
@@ -13,48 +13,68 @@ object ClipLineDistObj extends Serializable {
   final def eval(arrData: ArrayData, cell: Double, dist: Double): ArrayData = {
     require(cell > 0.0, s"cell must be positive, got $cell")
     require(dist >= 0.0, s"dist must be non-negative, got $dist")
-    arrData.toDoubleArray() match {
-      case Array(x1, y1, x2, y2) =>
-        val qminL = FastMath.floor((x1 min x2) / cell).toLong
-        val qmaxL = FastMath.floor((x1 max x2) / cell).toLong + 1L
-        val rminL = FastMath.floor((y1 min y2) / cell).toLong
-        val rmaxL = FastMath.floor((y1 max y2) / cell).toLong + 1L
-        require(
-          qminL >= Int.MinValue && qmaxL <= Int.MaxValue &&
-            rminL >= Int.MinValue && rmaxL <= Int.MaxValue,
-          s"cell range out of Int bounds: q=[$qminL,$qmaxL) r=[$rminL,$rmaxL)"
-        )
-        val qmin = qminL.toInt
-        val qmax = qmaxL.toInt
-        val rmin = rminL.toInt
-        val rmax = rmaxL.toInt
-        val chip = cell + dist + dist
-        val arr = new ArrayBuffer[InternalRow]()
-        val writer = new UnsafeRowWriter(3)
-        var q = qmin
-        while (q < qmax) {
-          val xmin = q * cell - dist
-          var r = rmin
-          while (r < rmax) {
-            val ymin = r * cell - dist
-            val l = Rect(xmin, ymin, chip).clip(x1, y1, x2, y2)
-            if (l > 0.0) {
-              writer.resetRowWriter()
-              writer.write(0, q)
-              writer.write(1, r)
-              writer.write(2, l)
-              arr.append(writer.getRow.copy())
-            }
-            r += 1
-          }
-          q += 1
-        }
-        ArrayData.toArrayData(arr)
-      case other =>
-        throw new IllegalArgumentException(
-          s"expected array of 4 doubles (x1,y1,x2,y2), got ${other.length}: ${other.mkString(",")}"
-        )
+    if (arrData.numElements() != 4) {
+      throw new IllegalArgumentException(
+        s"expected array of 4 doubles (x1,y1,x2,y2), got ${arrData.numElements()}: ${arrData.toDoubleArray().mkString(",")}"
+      )
     }
+    val x1 = arrData.getDouble(0)
+    val y1 = arrData.getDouble(1)
+    val x2 = arrData.getDouble(2)
+    val y2 = arrData.getDouble(3)
+
+    // Cell (q,r) spans [q*cell-dist, (q+1)*cell+dist] on each axis, so the candidate
+    // range is the segment extent inflated by dist - same convention as QRList/QREnvp.
+    val qminL = FastMath.floor(((x1 min x2) - dist) / cell).toLong
+    val qmaxL = FastMath.floor(((x1 max x2) + dist) / cell).toLong + 1L
+    val rminL = FastMath.floor(((y1 min y2) - dist) / cell).toLong
+    val rmaxL = FastMath.floor(((y1 max y2) + dist) / cell).toLong + 1L
+    require(
+      qminL >= Int.MinValue && qmaxL <= Int.MaxValue &&
+        rminL >= Int.MinValue && rmaxL <= Int.MaxValue,
+      s"cell range out of Int bounds: q=[$qminL,$qmaxL) r=[$rminL,$rmaxL)"
+    )
+    val qmin = qminL.toInt
+    val qmax = qmaxL.toInt
+    val rmin = rminL.toInt
+    val rmax = rmaxL.toInt
+    val chip = cell + dist + dist
+    val dx = x2 - x1
+    val dy = y2 - y1
+    val arr = new ArrayBuffer[InternalRow]()
+    var q = qmin
+    while (q < qmax) {
+      val xmin = q * cell - dist
+      // Clip the r scan to the segment's y-extent inside this column's x-slab.
+      // Scanning the full bbox is O(dq*dr) and most of those cells miss the segment.
+      var rlo = rmin
+      var rhi = rmax
+      if (dx != 0.0) {
+        val t0 = (xmin - x1) / dx
+        val t1 = (xmin + chip - x1) / dx
+        val tlo = 0.0 max (t0 min t1)
+        val thi = 1.0 min (t0 max t1)
+        if (tlo > thi) {
+          rhi = rlo // x-slab misses the segment entirely
+        } else {
+          val ya = y1 + tlo * dy
+          val yb = y1 + thi * dy
+          rlo = rmin max FastMath.floor(((ya min yb) - dist) / cell).toInt
+          rhi = rmax min (FastMath.floor(((ya max yb) + dist) / cell).toInt + 1)
+        }
+      }
+      var r = rlo
+      while (r < rhi) {
+        val ymin = r * cell - dist
+        val l = Rect(xmin, ymin, chip).clip(x1, y1, x2, y2)
+        if (l > 0.0) {
+          arr.append(InternalRow(q, r, l))
+        }
+        r += 1
+      }
+      q += 1
+    }
+    ArrayData.toArrayData(arr)
   }
 }
 

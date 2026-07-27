@@ -1,9 +1,9 @@
 [project]
 name = "geofunctions"
-version = "0.27"
+version = "0.28"
 requires-python = ">3.10"
 readme = "README.md"
-dependencies = [ "pyspark==3.5.7; sys_platform != 'win32'", "pyspark==3.5.4; sys_platform == 'win32'", "toml",]
+dependencies = [ "pyspark==3.5.9; sys_platform != 'win32'", "pyspark==3.5.4; sys_platform == 'win32'", "toml",]
 [[project.authors]]
 name = "mraad"
 email = "mraad@esri.com"

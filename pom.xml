@@ -6,17 +6,18 @@
 
     <groupId>com.esri</groupId>
     <artifactId>geofunctions</artifactId>
-    <version>0.27</version>
+    <version>0.28</version>
     <packaging>jar</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>11</java.version>
         <scala.compact>2.12</scala.compact>
-        <scala.version>${scala.compact}.18</scala.version>
+        <scala.version>${scala.compact}.21</scala.version>
         <spark.compact>3.5</spark.compact>
-        <spark.version>${spark.compact}.6</spark.version>
+        <spark.version>${spark.compact}.9</spark.version>
         <spark.scope>provided</spark.scope>
+        <skipTests>true</skipTests>
     </properties>
 
     <repositories>
@@ -52,7 +53,7 @@
         <dependency>
             <groupId>com.github.plokhotnyuk.rtree2d</groupId>
             <artifactId>rtree2d-core_${scala.compact}</artifactId>
-            <version>0.11.15-SNAPSHOT</version>
+            <version>0.11.15</version>
         </dependency>
         <dependency>
             <groupId>com.esri</groupId>
@@ -113,20 +114,20 @@
         <dependency>
             <groupId>com.uber</groupId>
             <artifactId>h3</artifactId>
-            <version>4.1.1</version>
+            <version>4.4.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala.compact}</artifactId>
             <!--version>3.0.5</version-->
-            <version>3.2.9</version>
+            <version>3.2.19</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
             <artifactId>scalacheck_${scala.compact}</artifactId>
-            <version>1.14.3</version>
+            <version>1.19.0</version>
             <scope>test</scope>
         </dependency>
         <!--
@@ -182,6 +183,25 @@
                 <configuration>
                     <skipTests>true</skipTests>
                 </configuration>
+            </plugin>
+            <!-- Surefire does not discover scalatest specs; this runs them. Skipped by
+                 default like surefire - enable with mvn -DskipTests=false test -->
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <version>2.2.0</version>
+                <configuration>
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                    <skipTests>${skipTests}</skipTests>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -366,9 +386,9 @@
             </activation>
             <properties>
                 <scala.compact>2.12</scala.compact>
-                <scala.version>${scala.compact}.18</scala.version>
+                <scala.version>${scala.compact}.21</scala.version>
                 <spark.compact>3.5</spark.compact>
-                <spark.version>${spark.compact}.7</spark.version>
+                <spark.version>${spark.compact}.9</spark.version>
             </properties>
         </profile>
         <profile>

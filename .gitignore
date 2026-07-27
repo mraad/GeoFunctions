@@ -35,6 +35,9 @@ docs/
 *.sh
 MANIFEST
 
+# macOS
+.DS_Store
+
 # Jupyter Notebook
 .ipynb_checkpoints
 

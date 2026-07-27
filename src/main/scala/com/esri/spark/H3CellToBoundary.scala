@@ -7,21 +7,25 @@ import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, Codegen
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 
-import scala.jdk.CollectionConverters._
-
 object H3CellToBoundaryObj extends Serializable {
-  final def eval(
-                  cell: Long,
-                ): Array[Byte] = {
+  final def eval(cell: Long): Array[Byte] = {
+    // Index the java List directly: asScala.zipWithIndex allocated a wrapper, a tuple per
+    // vertex and a boxed Int per vertex, on every row, to find out which vertex was first.
+    val boundary = H3Instance.h3.cellToBoundary(cell)
+    val n = boundary.size()
     val polygon = new Polygon()
-    H3Instance.h3
-      .cellToBoundary(cell)
-      .asScala.zipWithIndex.foreach {
-        case (coord, i) => i match {
-          case 0 => polygon.startPath(coord.lng, coord.lat)
-          case _ => polygon.lineTo(coord.lng, coord.lat)
-        }
+    if (n > 0) {
+      val head = boundary.get(0)
+      polygon.startPath(head.lng, head.lat)
+      var i = 1
+      while (i < n) {
+        val coord = boundary.get(i)
+        polygon.lineTo(coord.lng, coord.lat)
+        i += 1
       }
+      // No closePathWithLine: Polygon rings are implicitly closed and WKB export emits the
+      // repeated first vertex already.
+    }
     polygon.bytes
   }
 }
@@ -41,12 +45,8 @@ final case class H3CellToBoundary(children: Seq[Expression])
 
   override def eval(inputRow: InternalRow): Any = {
     children match {
-      case Seq(
-      e1: Expression,
-      ) =>
-        H3CellToBoundaryObj.eval(
-          e1.eval(inputRow).asInstanceOf[Long],
-        )
+      case Seq(e1: Expression) =>
+        H3CellToBoundaryObj.eval(e1.eval(inputRow).asInstanceOf[Long])
       case _ => null
     }
   }
