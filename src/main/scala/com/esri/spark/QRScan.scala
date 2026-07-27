@@ -81,10 +81,21 @@ object QRScan extends Serializable {
     val rmin = ((envp.ymin - dist) / cell).floor.toLong
     val qmax = ((envp.xmax + dist) / cell).floor.toLong + 1L
     val rmax = ((envp.ymax + dist) / cell).floor.toLong + 1L
+    // qrOf packs q and r into the halves of a Long, so they must each fit in an Int or the
+    // key is not round-trippable by QRAsGeom. Bounding the cell count is not enough: a far
+    // from the origin geometry can cover few cells and still have a huge q or r.
+    require(
+      qmin >= Int.MinValue && qmax <= Int.MaxValue &&
+        rmin >= Int.MinValue && rmax <= Int.MaxValue,
+      s"cell range out of Int bounds: q=[$qmin,$qmax) r=[$rmin,$rmax) with cell=$cell dist=$dist"
+    )
+    val nq = qmax - qmin
     val nr = rmax - rmin
-    val count = (qmax - qmin) * nr
-    require(count > 0L && count <= Int.MaxValue,
-      s"$count cells for one geometry with cell=$cell dist=$dist - use a larger cell")
+    // Check the factors before multiplying: nq * nr overflows Long for a small cell over a
+    // large extent, and a wrapped positive product would slip past the count check below.
+    require(nq > 0L && nr > 0L && nq <= Int.MaxValue && nr <= Int.MaxValue && nq * nr <= Int.MaxValue,
+      s"${nq}x${nr} cells for one geometry with cell=$cell dist=$dist - use a larger cell")
+    val count = nq * nr
 
     if (accelerate) {
       operator.accelerateGeometry(geom, sr, Geometry.GeometryAccelerationDegree.enumMild)

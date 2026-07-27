@@ -39,7 +39,7 @@
         "editable" : true,
         "dataConnection" : {
           "type" : "CIMStandardDataConnection",
-          "workspaceConnectionString" : "DATABASE=..\\Users\\mraad\\Documents\\ArcGIS\\Projects\\ExxonMobile\\scratch.gdb",
+          "workspaceConnectionString" : "DATABASE=.\\scratch.gdb",
           "workspaceFactory" : "FileGDB",
           "dataset" : "Extent",
           "datasetType" : "esriDTFeatureClass"

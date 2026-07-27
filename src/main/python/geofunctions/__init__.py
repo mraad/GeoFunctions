@@ -2228,8 +2228,10 @@ def clip_line_dist(
 
     Takes a single segment as an array of 4 doubles, not a geometry. Explode a
     polyline into segments first. Cell (q, r) spans [q*cell - dist, (q+1)*cell +
-    dist] on each axis, so padded cells overlap and the returned lengths sum to
-    more than the length of the segment.
+    dist] on each axis, so padded cells overlap and the returned lengths sum to at
+    least the length of the segment - strictly more only where the segment
+    actually crosses into the overlap; a segment sitting well inside one cell
+    still sums to exactly its own length.
 
     :param line: Array column of 4 doubles [x1, y1, x2, y2], or column name
     :type line: Union[Column, str]

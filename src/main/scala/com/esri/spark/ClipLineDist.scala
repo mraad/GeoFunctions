@@ -59,8 +59,11 @@ object ClipLineDistObj extends Serializable {
         } else {
           val ya = y1 + tlo * dy
           val yb = y1 + thi * dy
-          rlo = rmin max FastMath.floor(((ya min yb) - dist) / cell).toInt
-          rhi = rmax min (FastMath.floor(((ya max yb) + dist) / cell).toInt + 1)
+          // One cell of slack on each end: ya/yb come out of two divisions and a multiply,
+          // so rounding can put the derived extent a hair past a cell edge and skip a cell
+          // holding a sliver of the segment. The extra cells clip to 0 and are not emitted.
+          rlo = rmin max (FastMath.floor(((ya min yb) - dist) / cell).toInt - 1)
+          rhi = rmax min (FastMath.floor(((ya max yb) + dist) / cell).toInt + 2)
         }
       }
       var r = rlo

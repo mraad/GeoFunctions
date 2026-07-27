@@ -32,10 +32,13 @@ object QRCountObj extends Serializable {
     val qmax = (xmax / cell).floor.toLong + 1L
     val rmax = (ymax / cell).floor.toLong + 1L
 
-    val count = (qmax - qmin) * (rmax - rmin)
-    require(count > 0L && count <= Int.MaxValue,
-      s"$count cells for one geometry with cell=$cell dist=$dist - use a larger cell")
-    count.toInt
+    // Check the factors before multiplying: the product itself overflows Long for a small
+    // cell over a large extent, and a wrapped positive value would slip past the check.
+    val nq = qmax - qmin
+    val nr = rmax - rmin
+    require(nq > 0L && nr > 0L && nq <= Int.MaxValue && nr <= Int.MaxValue && nq * nr <= Int.MaxValue,
+      s"${nq}x${nr} cells for one geometry with cell=$cell dist=$dist - use a larger cell")
+    (nq * nr).toInt
   }
 }
 
