@@ -40,7 +40,7 @@ The wheel also works outside ArcGIS Pro against a plain PySpark install. Use 3.5
 what the jar is built and tested against:
 
 ```shell
-pip install pyspark==3.5.9   # 3.5.4 on Windows
+pip install pyspark==3.5.9
 ```
 
 The jar is compiled with Spark `provided`-scope, so it will load on any 3.5.x host, but
