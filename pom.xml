@@ -62,21 +62,6 @@
         </dependency>
         <dependency>
             <groupId>com.esri</groupId>
-            <artifactId>grid-hex</artifactId>
-            <version>2.12-${scala.compact}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.scala-lang</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.beust</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.esri</groupId>
             <artifactId>spark-shp</artifactId>
             <version>0.31-${spark.compact}-${scala.compact}</version>
             <exclusions>
