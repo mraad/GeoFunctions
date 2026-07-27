@@ -13,6 +13,8 @@ object QRCountObj extends Serializable {
                  cell: Double,
                  dist: Double
                 ): Int = {
+    require(cell > 0.0, s"cell must be positive, got $cell")
+    require(dist >= 0.0, s"dist must be non-negative, got $dist")
     val geom = bytes.geom
 
     val envp = new Envelope2D()
@@ -23,12 +25,17 @@ object QRCountObj extends Serializable {
     val xmax = envp.xmax + dist
     val ymax = envp.ymax + dist
 
-    val qmin = (xmin / cell).floor.toInt
-    val rmin = (ymin / cell).floor.toInt
-    val qmax = (xmax / cell).floor.toInt + 1
-    val rmax = (ymax / cell).floor.toInt + 1
+    // Long math throughout: a small cell over a large extent overflows Int in the floor
+    // conversions and again in the product, which used to surface as a negative count.
+    val qmin = (xmin / cell).floor.toLong
+    val rmin = (ymin / cell).floor.toLong
+    val qmax = (xmax / cell).floor.toLong + 1L
+    val rmax = (ymax / cell).floor.toLong + 1L
 
-    (qmax - qmin) * (rmax - rmin)
+    val count = (qmax - qmin) * (rmax - rmin)
+    require(count > 0L && count <= Int.MaxValue,
+      s"$count cells for one geometry with cell=$cell dist=$dist - use a larger cell")
+    count.toInt
   }
 }
 

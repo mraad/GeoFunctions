@@ -111,11 +111,20 @@ object JoinQRInnerProcessor extends Serializable {
             }
           }
         } catch {
+          // Do not swallow: returning an empty iterator turns a failed partition into a
+          // silently short join result that looks like a successful run.
           case t: Throwable =>
-            logger.error(t.getMessage, t)
-            Iterator.empty
+            logger.error(s"QR join failed for group $qrGroup: ${t.getMessage}", t)
+            throw t
         }
       })(ExpressionEncoder(schema))
+  }
+
+  /** Row fields with the qr field dropped. */
+  @inline
+  private def dropField(row: Row, index: Int): Seq[Any] = {
+    val seq = row.toSeq
+    seq.take(index) ++ seq.drop(index + 1)
   }
 
   private def operNone(qrGroup: Long,
@@ -128,43 +137,30 @@ object JoinQRInnerProcessor extends Serializable {
         row => {
           val qr = row.getStruct(bv.value.qR)
           val ext = new Envelope2D(qr.getDouble(1), qr.getDouble(2), qr.getDouble(3), qr.getDouble(4))
-          val seq = row
-            .toSeq
-            .zipWithIndex
-            .withFilter { case (_, i) => i != bv.value.qR }
-            .map { case (f, _) => f }
           RTreeEntry(
             ext.xmin.toFloat,
             ext.ymin.toFloat,
             ext.xmax.toFloat,
             ext.ymax.toFloat,
-            JoinQRInnerElem(ext, seq))
+            JoinQRInnerElem(ext, dropField(row, bv.value.qR)))
         }
       }
       .toIterable
     val rtree = RTree(iter)
     lhsIter
-      //.toIterable
-      //.par
       .flatMap { lhsRow =>
         val lhsQR = lhsRow.getStruct(bv.value.qL)
         val ext = new Envelope2D(lhsQR.getDouble(1), lhsQR.getDouble(2), lhsQR.getDouble(3), lhsQR.getDouble(4))
+        // Hoisted: this is per lhs row, not per matched pair.
+        val lhsRowSeq = dropField(lhsRow, bv.value.qL)
         rtree.searchAll(
             ext.xmin.toFloat,
             ext.ymin.toFloat,
             ext.xmax.toFloat,
             ext.ymax.toFloat)
           .withFilter(entry => QRIntersectObj.eval(ext, entry.value.ext, bv.value.cell, qrGroup))
-          .map(entry => {
-            val lhsRowSeq = lhsRow
-              .toSeq
-              .zipWithIndex
-              .withFilter { case (_, i) => i != bv.value.qL }
-              .map { case (f, _) => f }
-            Row.fromSeq(lhsRowSeq ++ entry.value.seq)
-          })
+          .map(entry => Row.fromSeq(lhsRowSeq ++ entry.value.seq))
       }
-    // .toIterator
   }
 
   private def operLocal(qrGroup: Long,
@@ -191,18 +187,12 @@ object JoinQRInnerProcessor extends Serializable {
           operLocal.accelerateGeometry(geom, spRef, accel)
           val qr = row.getStruct(bv.value.qR)
           val ext = new Envelope2D(qr.getDouble(1), qr.getDouble(2), qr.getDouble(3), qr.getDouble(4))
-          val seq = row
-            .toSeq
-            .zipWithIndex
-            // Skip the qr field.
-            .withFilter { case (_, i) => i != bv.value.qR }
-            .map { case (f, _) => f }
           RTreeEntry(
             ext.xmin.toFloat,
             ext.ymin.toFloat,
             ext.xmax.toFloat,
             ext.ymax.toFloat,
-            JoinQRInnerGeom(ext, seq, geom))
+            JoinQRInnerGeom(ext, dropField(row, bv.value.qR), geom))
         }
       }
       .seq
@@ -214,6 +204,8 @@ object JoinQRInnerProcessor extends Serializable {
         val geom = lhsRow.getAs[Array[Byte]](bv.value.geomL).geom
         val lhsQR = lhsRow.getStruct(bv.value.qL)
         val ext = new Envelope2D(lhsQR.getDouble(1), lhsQR.getDouble(2), lhsQR.getDouble(3), lhsQR.getDouble(4))
+        // Hoisted: this is per lhs row, not per matched pair.
+        val lhsRowSeq = dropField(lhsRow, bv.value.qL)
         rtree.searchAll(
             ext.xmin.toFloat,
             ext.ymin.toFloat,
@@ -221,14 +213,7 @@ object JoinQRInnerProcessor extends Serializable {
             ext.ymax.toFloat)
           .withFilter(entry => QRIntersectObj.eval(ext, entry.value.ext, bv.value.cell, qrGroup))
           .withFilter(entry => operLocal.execute(geom, entry.value.geom, spRef, null))
-          .map(entry => {
-            val lhsRowSeq = lhsRow
-              .toSeq
-              .zipWithIndex
-              .withFilter { case (_, i) => i != bv.value.qL }
-              .map { case (f, _) => f }
-            Row.fromSeq(lhsRowSeq ++ entry.value.seq)
-          })
+          .map(entry => Row.fromSeq(lhsRowSeq ++ entry.value.seq))
       }
       .toIterator
   }
