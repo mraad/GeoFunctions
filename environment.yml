@@ -10,7 +10,7 @@ name: geofunc
 channels:
   - conda-forge
 dependencies:
-  - python<3.10
+  - python>=3.11
   #- jupyter>=1.0
   - jupyterlab>4.0
   #- nodejs>16.14
@@ -33,7 +33,7 @@ dependencies:
   - numpy>1.23.5
   - optuna>=3.2.0
   - statsmodels>=0.14.0
-  - pyspark==3.5.1
+  - pyspark==3.5.9
   - pip
   - pip:
       - pyspark-ai
