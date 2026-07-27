@@ -31,7 +31,7 @@ This library is built to run inside an **ArcGIS Pro conda environment** (`arcgis
 
 **Spark 3.5.9 is the version this project targets for now.** It is the default `spark-3.5` profile in `pom.xml`, the pin in `pyproject.toml` and `environment.yml`, and what `.venv/` has installed — keep all four in step when bumping. Spark 4.0 is not supported (see the profile note above).
 
-Standalone PySpark also works: `pyspark==3.5.9` (non-Windows) or `3.5.4` (Windows) is the only required runtime dep beyond the JAR. `.venv/` in the repo root has a working Python 3.11 + pyspark 3.5.9 for this — the JAR is `provided`-scope against Spark, so it runs on any 3.5.x.
+Standalone PySpark also works: `pyspark==3.5.9` is the only required runtime dep beyond the JAR, on every platform. `.venv/` in the repo root has a working Python 3.11 + pyspark 3.5.9 for this — the JAR is `provided`-scope against Spark, so it runs on any 3.5.x.
 
 To exercise the library outside ArcGIS Pro, the shaded JAR bundles `com.esri:filegdb`, which registers a `gdb` Spark data source (options: `path`, `name`, `numPartitions`, `wkid`) — so a File Geodatabase reads directly:
 
