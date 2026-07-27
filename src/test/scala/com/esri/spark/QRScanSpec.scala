@@ -106,4 +106,20 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy QRGeomPar.eval(rect(0, 0, 1, 1), 0.0, 0.0, NoSR)
     an[IllegalArgumentException] should be thrownBy QRGeomPar.eval(rect(0, 0, 1, 1), 1.0, -1.0, NoSR)
   }
+
+  it should "reject a geometry whose q/r do not fit in an Int" in {
+    // Small geometry (100 cells) but so far from the origin that q overflows the 32 bits
+    // qrOf packs it into. Bounding the cell count alone does not catch this.
+    val far = rect(1e15, 1e15, 1e15 + 10.0, 1e15 + 10.0)
+    an[IllegalArgumentException] should be thrownBy QRGeomPar.eval(far, 1.0, 0.0, NoSR)
+    an[IllegalArgumentException] should be thrownBy QREnvpGeomPar.eval(far, 1.0, 0.0, NoSR)
+  }
+
+  it should "reject a cell count whose factors overflow Long when multiplied" in {
+    // 1e12 x 1e12 cells: the true product is 1e24, which wraps. Guarding only the product
+    // would let a wrapped positive value through and run the scan with a truncated count.
+    val huge = rect(0.0, 0.0, 1e9, 1e9)
+    an[IllegalArgumentException] should be thrownBy QRGeomPar.eval(huge, 1e-3, 0.0, NoSR)
+    an[IllegalArgumentException] should be thrownBy QRCountObj.eval(huge, 1e-3, 0.0)
+  }
 }
