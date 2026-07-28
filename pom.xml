@@ -6,7 +6,7 @@
 
     <groupId>com.esri</groupId>
     <artifactId>geofunctions</artifactId>
-    <version>0.28</version>
+    <version>0.29</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -58,12 +58,12 @@
         <dependency>
             <groupId>com.esri</groupId>
             <artifactId>webmercator</artifactId>
-            <version>1.13-${scala.compact}</version>
+            <version>1.15-${scala.compact}</version>
         </dependency>
         <dependency>
             <groupId>com.esri</groupId>
             <artifactId>spark-shp</artifactId>
-            <version>0.31-${spark.compact}-${scala.compact}</version>
+            <version>0.32-${spark.compact}-${scala.compact}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -74,7 +74,7 @@
         <dependency>
             <groupId>com.esri</groupId>
             <artifactId>filegdb</artifactId>
-            <version>0.65-${spark.compact}-${scala.compact}</version>
+            <version>0.68-${spark.compact}-${scala.compact}</version>
         </dependency>
         <dependency>
             <groupId>com.esri.geometry</groupId>
