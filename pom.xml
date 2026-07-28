@@ -257,9 +257,10 @@
                              inlines from com.esri.** anyway. Not gated by -opt-warnings - the
                              message comes from the classfile reader, so msg= is the only lever.
                              Pinned to org.apache.spark so the same breakage in our own code, or
-                             in any other dependency, still surfaces. Dots stand in for the
-                             literal spaces to keep the filter a single whitespace-free token. -->
-                        <arg>-Wconf:msg=InlineInfoAttribute.from.org.apache.spark:s</arg>
+                             in any other dependency, still surfaces. \s rather than a literal
+                             space keeps the filter a single whitespace-free token; the package
+                             dots are escaped so they match a dot and not any character. -->
+                        <arg>-Wconf:msg=InlineInfoAttribute\sfrom\sorg\.apache\.spark:s</arg>
                     </args>
                 </configuration>
             </plugin>
