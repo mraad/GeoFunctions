@@ -13,8 +13,10 @@ object STMercatorObj extends Serializable {
   final def eval(bytes: Array[Byte]): Array[Byte] = {
     bytes.geom match {
       case pt: Point =>
-        pt.setX(pt.getX.toLongitude)
-        pt.setY(pt.getY.toLatitude)
+        // toMercatorX/Y, not toLongitude/toLatitude - this branch was a copy of STWGS84's
+        // and un-projected points instead of projecting them.
+        pt.setX(pt.getX.toMercatorX)
+        pt.setY(pt.getY.toMercatorY)
         pt.bytes
       case mv: MultiVertexGeometry =>
         val point2D = new Point2D()
