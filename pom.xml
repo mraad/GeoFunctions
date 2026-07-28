@@ -43,12 +43,29 @@
             <artifactId>spark-core_${scala.compact}</artifactId>
             <version>${spark.version}</version>
             <scope>${spark.scope}</scope>
+            <exclusions>
+                <!-- Pulled in via zookeeper-jute. Its POM declares a system-scoped jdk.tools
+                     pointing at ${java.home}/../lib/tools.jar, which no JDK has shipped since 8,
+                     so Maven warns on every build. Class-retention annotations only - nothing
+                     compiles or runs against them. -->
+                <exclusion>
+                    <groupId>org.apache.yetus</groupId>
+                    <artifactId>audience-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.compact}</artifactId>
             <version>${spark.version}</version>
             <scope>${spark.scope}</scope>
+            <exclusions>
+                <!-- Same broken jdk.tools POM as above; the collector walks this path too. -->
+                <exclusion>
+                    <groupId>org.apache.yetus</groupId>
+                    <artifactId>audience-annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.github.plokhotnyuk.rtree2d</groupId>
@@ -233,6 +250,12 @@
                         <arg>-opt:l:inline</arg>
                         <arg>-opt-inline-from:com.esri.**</arg>
                         <arg>-opt-warnings</arg>
+                        <!-- spark-catalyst 3.5.x ships a corrupt ScalaInlineInfo attribute on
+                             CodeGenerator$ (3 of its 94 entries index non-Utf8 constant-pool
+                             slots), so ASM overruns its string buffer when the inliner reads it.
+                             Upstream jar defect, nothing to fix on our side; the inliner only
+                             inlines from com.esri.** anyway. Not gated by -opt-warnings. -->
+                        <arg>-Wconf:msg=InlineInfoAttribute:s</arg>
                     </args>
                 </configuration>
             </plugin>
