@@ -254,8 +254,12 @@
                              CodeGenerator$ (3 of its 94 entries index non-Utf8 constant-pool
                              slots), so ASM overruns its string buffer when the inliner reads it.
                              Upstream jar defect, nothing to fix on our side; the inliner only
-                             inlines from com.esri.** anyway. Not gated by -opt-warnings. -->
-                        <arg>-Wconf:msg=InlineInfoAttribute:s</arg>
+                             inlines from com.esri.** anyway. Not gated by -opt-warnings - the
+                             message comes from the classfile reader, so msg= is the only lever.
+                             Pinned to org.apache.spark so the same breakage in our own code, or
+                             in any other dependency, still surfaces. Dots stand in for the
+                             literal spaces to keep the filter a single whitespace-free token. -->
+                        <arg>-Wconf:msg=InlineInfoAttribute.from.org.apache.spark:s</arg>
                     </args>
                 </configuration>
             </plugin>
