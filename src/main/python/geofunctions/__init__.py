@@ -1,5 +1,4 @@
 import os
-import pyarrow as pa
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.column import Column, _to_java_column
@@ -2389,6 +2388,7 @@ def to_feature_table(
         to_feature_table(df, "my_table", workspace="/path/to/my.gdb")
     """
     import arcpy
+    import pyarrow as pa
 
     if workspace == "scratch":
         workspace = arcpy.env.scratchGDB
@@ -2431,6 +2431,7 @@ def to_feature_class(
         to_feature_class(df, "my_fc", workspace="/path/to/my.gdb")
     """
     import arcpy
+    import pyarrow as pa
 
     if workspace == "scratch":
         workspace = arcpy.env.scratchGDB
