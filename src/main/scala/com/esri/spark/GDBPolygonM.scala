@@ -21,9 +21,13 @@ object GDBPolygonMObj extends Serializable {
     parts.foreach(nPoint => {
       var n = 0
       while (n < nPoint) {
+        // Point(x, y, z) is the only 3-arg ctor - it sets Z. The measure has to go through
+        // setM, or it lands in Z and the real Z is dropped (which is what this used to do).
+        val point = new Point(coords(x), coords(y), coords(z))
+        point.setM(coords(m))
         n match {
-          case 0 => mp.startPath(new Point(coords(x), coords(y), coords(m)))
-          case _ => mp.lineTo(new Point(coords(x), coords(y), coords(m)))
+          case 0 => mp.startPath(point)
+          case _ => mp.lineTo(point)
         }
         x += 4
         y += 4

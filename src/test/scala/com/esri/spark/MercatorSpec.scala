@@ -1,6 +1,6 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{Point, Polyline}
+import com.esri.core.geometry.{Envelope, MultiVertexGeometry, Point, Polygon, Polyline}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -70,5 +70,28 @@ class MercatorSpec extends AnyFlatSpec with Matchers {
     poly.getPoint(0).getY shouldBe 20.0 +- 1e-9
     poly.getPoint(1).getX shouldBe 30.0 +- 1e-9
     poly.getPoint(1).getY shouldBe 40.0 +- 1e-9
+  }
+
+  // An audit flagged the `case _ => bytes` fall-through as silently returning envelopes
+  // unprojected, on the grounds that Envelope extends Geometry and not MultiVertexGeometry.
+  // That is true of the class hierarchy but unreachable here: WKB has no envelope type, so
+  // an Envelope exports as a Polygon and comes back through the MultiVertexGeometry branch.
+  // These two pin that, so nobody adds a dead `case env: Envelope` branch to "fix" it.
+  "An Envelope" should "arrive at ST_MERCATOR as a Polygon, never as an Envelope" in {
+    val env = new Envelope(-10.0, -20.0, 10.0, 20.0)
+    val roundTripped = env.bytes.geom
+    roundTripped shouldBe a[Polygon]
+    roundTripped shouldBe a[MultiVertexGeometry]
+  }
+
+  it should "therefore be projected, not passed through untouched" in {
+    val env = new Envelope(-10.0, -20.0, 10.0, 20.0)
+    val out = STMercatorObj.eval(env.bytes).geom
+    val extent = new Envelope()
+    out.queryEnvelope(extent)
+    extent.getXMin shouldBe STLonToXObj.eval(-10.0) +- 1e-6
+    extent.getXMax shouldBe STLonToXObj.eval(10.0) +- 1e-6
+    extent.getYMin shouldBe STLatToYObj.eval(-20.0) +- 1e-6
+    extent.getYMax shouldBe STLatToYObj.eval(20.0) +- 1e-6
   }
 }

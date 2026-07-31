@@ -30,6 +30,8 @@ object STMercatorObj extends Serializable {
         }
         mv.bytes
       case _ =>
+        // Envelope does not reach here: WKB has no envelope type, so an Envelope exports as
+        // a Polygon and is handled by the MultiVertexGeometry branch above. See MercatorSpec.
         bytes
     }
 

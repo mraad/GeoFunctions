@@ -28,6 +28,7 @@ object STWGS84Obj extends Serializable {
         }
         mv.bytes
       case _ =>
+        // See the note in STMercator - an Envelope arrives here as a Polygon.
         bytes
     }
 
