@@ -963,9 +963,9 @@ Performs iterative spatial dissolve operations with progressively increasing cel
 
 Functions for integration with ArcGIS and geodatabase operations.
 
-These are the only functions that require `arcpy`, `pyarrow` and `pandas`. None of the three
-is a declared dependency of this package (`pyarrow` and `pandas` come in via the `jupyter`
-extra); ArcGIS Pro ships all three. Every `import arcpy` here is function-local, as is the
+These are the only functions that require `arcpy`, `pyarrow` and `pandas`. None of the three is
+a *required* dependency: `pyarrow` and `pandas` are optional, declared only in the `jupyter`
+extra, and `arcpy` is not declared at all. ArcGIS Pro ships all three. Every `import arcpy` here is function-local, as is the
 `import pyarrow` in `to_feature_table` and `to_feature_class` (`to_spark` reaches pyarrow only
 through the table `arcpy.da.TableToArrowTable` hands back); pandas arrives through
 `df.toPandas()` and `tab.to_pandas()`. So the module still imports cleanly outside Pro and a

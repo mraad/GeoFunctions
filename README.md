@@ -35,9 +35,10 @@ pip install geopandas mapclassify folium xyzservices duckdb fastparquet
 ```
 
 The arcpy bridge (`to_spark`, `to_feature_class`, `to_feature_table`) additionally needs
-`pyarrow` and `pandas`. Both ship with ArcGIS Pro, so there is nothing to install there — but
-neither is a declared dependency of this package, and those three functions are the only ones
-that need them. Everything else works without them.
+`pyarrow` and `pandas`. Both ship with ArcGIS Pro, so there is nothing to install there. They
+are **optional** dependencies of this package — declared only in the `jupyter` extra, so a
+base `pip install` omits them — and those three functions are the only ones that need them.
+Everything else works without them.
 
 ### Standalone PySpark
 
@@ -71,20 +72,26 @@ executors, so a driver-only classpath entry works under `local` and then fails e
 Without the jar the session starts fine and only fails once an H3 function actually runs, with
 `NoClassDefFoundError: com/uber/h3core/H3Core`.
 
-Use the version `pom.xml` pins (`4.4.0` at the time of writing). Download it directly — no
-build tool needed:
+`pom.xml` owns the version — read it out of the `com.uber:h3` dependency rather than trusting
+a number copied into this file, then download the jar directly (no build tool needed):
 
 ```shell
-curl -O https://repo1.maven.org/maven2/com/uber/h3/4.4.0/h3-4.4.0.jar
+# whatever <version> sits under the com.uber:h3 dependency in pom.xml
+H3_VER=4.4.0
+curl -O "https://repo1.maven.org/maven2/com/uber/h3/${H3_VER}/h3-${H3_VER}.jar"
 ```
 
-With Maven installed, `mvn dependency:get -Dartifact=com.uber:h3:4.4.0` is equivalent and
-leaves it under `~/.m2/repository/com/uber/h3/4.4.0/`. Either way, list it next to the shaded
-jar — `spark.jars` covers the driver and the executors in one go:
+With Maven installed, `mvn dependency:get -Dartifact=com.uber:h3:${H3_VER}` is equivalent and
+leaves it under `~/.m2/repository/com/uber/h3/${H3_VER}/`. Either way, list it next to the
+shaded jar — `spark.jars` covers the driver and the executors in one go:
 
 ```python
+import os
+from glob import glob
+
 gf_jar = os.path.expanduser("~/geofunctions-0.30.jar")
-h3_jar = os.path.expanduser("~/.m2/repository/com/uber/h3/4.4.0/h3-4.4.0.jar")  # only expanduser expands ~
+# glob, so the h3 version stays wherever pom.xml put it
+h3_jar = glob(os.path.expanduser("~/.m2/repository/com/uber/h3/*/h3-*.jar"))[0]
 spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()
 ```
 
