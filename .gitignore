@@ -81,3 +81,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Manual backups of tracked guidance files — git already holds the originals
+CLAUDE_.md
+.claude_/

@@ -27,7 +27,7 @@ object SpatialReferenceObj extends Serializable {
       case "-1" =>
         null
       case text =>
-        srMap.getOrElse(text, if (Character.isDigit(text(0))) SpatialReference.create(text.toInt) else SpatialReference.create(text))
+        srMap.getOrElseUpdate(text, if (Character.isDigit(text(0))) SpatialReference.create(text.toInt) else SpatialReference.create(text))
     }
   }
 
