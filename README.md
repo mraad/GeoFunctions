@@ -25,7 +25,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps <path-to>/geofunctions-0.29-py3-none-any.whl
+pip install --no-deps <path-to>/geofunctions-0.30-py3-none-any.whl
 ```
 
 Optional packages to install:
@@ -35,9 +35,9 @@ pip install geopandas mapclassify folium xyzservices duckdb fastparquet
 ```
 
 The arcpy bridge (`to_spark`, `to_feature_class`, `to_feature_table`) additionally needs
-`pyarrow`. It ships with ArcGIS Pro, so there is nothing to install there — but it is not a
-declared dependency of this package, and those three functions are the only ones that need
-it. Everything else works without it.
+`pyarrow` and `pandas`. Both ship with ArcGIS Pro, so there is nothing to install there — but
+neither is a declared dependency of this package, and those three functions are the only ones
+that need them. Everything else works without them.
 
 ### Standalone PySpark
 
@@ -54,7 +54,7 @@ The jar is compiled with Spark `provided`-scope, so it will load on any 3.5.x ho
 Add the shaded jar to the session and register the SQL functions:
 
 ```python
-spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.29.jar").getOrCreate()
+spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.30.jar").getOrCreate()
 
 from geofunctions import st_register_functions
 st_register_functions()   # only needed for the ST_*/QR_* SQL names
@@ -62,22 +62,50 @@ st_register_functions()   # only needed for the ST_*/QR_* SQL names
 
 The DataFrame API (`from geofunctions import st_point, ...`) does not need registration.
 
-H3 functions additionally need the Uber `h3` jar on the classpath — it is a `provided`
-dependency and is not bundled. Without it the session starts fine and only fails once an
-H3 function actually runs, with `NoClassDefFoundError: com/uber/h3core/H3Core`:
+### H3
+
+H3 functions additionally need the Uber `h3` jar — it is a `provided` dependency, is not
+bundled in the shaded jar, and ArcGIS Pro does not ship it either, so every environment has to
+add it. It has to reach **both the driver and the executors**: the expressions evaluate on the
+executors, so a driver-only classpath entry works under `local` and then fails everywhere else.
+Without the jar the session starts fine and only fails once an H3 function actually runs, with
+`NoClassDefFoundError: com/uber/h3core/H3Core`.
+
+Use the version `pom.xml` pins (`4.4.0` at the time of writing). Download it directly — no
+build tool needed:
 
 ```shell
-mvn dependency:get -Dartifact=com.uber:h3:4.4.0
+curl -O https://repo1.maven.org/maven2/com/uber/h3/4.4.0/h3-4.4.0.jar
 ```
 
-then put `~/.m2/repository/com/uber/h3/4.4.0/h3-4.4.0.jar` on the classpath alongside the
-shaded jar.
+With Maven installed, `mvn dependency:get -Dartifact=com.uber:h3:4.4.0` is equivalent and
+leaves it under `~/.m2/repository/com/uber/h3/4.4.0/`. Either way, list it next to the shaded
+jar — `spark.jars` covers the driver and the executors in one go:
 
-Two gotchas when wiring this up by hand via `PYSPARK_SUBMIT_ARGS`: `--driver-class-path` is
-separated by `os.pathsep` while `--jars` is comma-separated (using colons for `--jars`
-fails the launch with `Java gateway process exited before sending its port number`), and
-`PYSPARK_PYTHON` should point at your interpreter or the worker picks whatever `python3` is
-first on `PATH` and fails with `PYTHON_VERSION_MISMATCH`.
+```python
+gf_jar = os.path.expanduser("~/geofunctions-0.30.jar")
+h3_jar = os.path.expanduser("~/.m2/repository/com/uber/h3/4.4.0/h3-4.4.0.jar")  # only expanduser expands ~
+spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()
+```
+
+`os.path.expanduser` is not decoration: nothing in the Python or Spark launch path expands
+`~`, so a literal tilde is resolved against the working directory and the jar silently is not
+found.
+
+### If you wire the session up by hand
+
+Prefer the `spark.jars` recipe above. If you set `PYSPARK_SUBMIT_ARGS` yourself, three things
+bite:
+
+- `--driver-class-path` is separated by `os.pathsep`, `--jars` is comma-separated. Using
+  colons for `--jars` fails the launch with `Java gateway process exited before sending its
+  port number`.
+- pyspark parses the variable with `shlex.split()` in POSIX mode, which **eats backslashes**.
+  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.30.jar` reaches the JVM
+  as `C:Usersmegeofunctions-0.30.jar`, and a path containing a space splits into two
+  arguments. Use forward slashes (`Path(p).as_posix()`) or `shlex.quote`.
+- `PYSPARK_PYTHON` should point at your interpreter, or the worker picks whatever `python3`
+  is first on `PATH` and fails with `PYTHON_VERSION_MISMATCH`.
 
 ### Functions
 

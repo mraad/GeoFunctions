@@ -39,12 +39,15 @@ Registers all ST_XXX SQL functions with the active Spark context, making them av
 
 Hierarchical hexagonal indexing for global spatial coverage.
 
-**Requires the Uber `h3` jar on the classpath.** It is a `provided` dependency and is not
-bundled in the shaded jar. ArcGIS Pro environments supply it; elsewhere fetch it with
-`mvn dependency:get -Dartifact=com.uber:h3:4.4.0` and add
-`~/.m2/repository/com/uber/h3/4.4.0/h3-4.4.0.jar` to the driver classpath. Missing, it does
-not fail at session start — only when an H3 function first executes, with
-`NoClassDefFoundError: com/uber/h3core/H3Core`.
+**Requires the Uber `h3` jar on the driver *and* the executors.** It is a `provided`
+dependency, is not bundled in the shaded jar, and ArcGIS Pro does not ship it either — every
+environment has to add it. See [the README](README.md#standalone-pyspark) for how to obtain it
+and put it on both classpaths.
+
+Missing, it does not fail at session start — only when an H3 function first executes, with
+`NoClassDefFoundError: com/uber/h3core/H3Core`. `H3Instance` is a lazy `val` evaluated inside
+expression `eval`, which runs on the executors, so a driver-only classpath entry is not enough
+on any master other than `local`.
 
 ### h3_cell_to_boundary(cell)
 Convert an H3 cell identifier to its boundary geometry.
@@ -960,12 +963,13 @@ Performs iterative spatial dissolve operations with progressively increasing cel
 
 Functions for integration with ArcGIS and geodatabase operations.
 
-These are the only functions that require `arcpy` and `pyarrow`. Neither is a declared
-dependency of this package — ArcGIS Pro supplies both. Every `import arcpy` here is
-function-local, as is the `import pyarrow` in `to_feature_table` and `to_feature_class`
-(`to_spark` reaches pyarrow only through the table `arcpy.da.TableToArrowTable` hands
-back), so the module still imports cleanly outside Pro and a missing package surfaces as
-`ModuleNotFoundError` at call time rather than at import time.
+These are the only functions that require `arcpy`, `pyarrow` and `pandas`. None of the three
+is a declared dependency of this package (`pyarrow` and `pandas` come in via the `jupyter`
+extra); ArcGIS Pro ships all three. Every `import arcpy` here is function-local, as is the
+`import pyarrow` in `to_feature_table` and `to_feature_class` (`to_spark` reaches pyarrow only
+through the table `arcpy.da.TableToArrowTable` hands back); pandas arrives through
+`df.toPandas()` and `tab.to_pandas()`. So the module still imports cleanly outside Pro and a
+missing package surfaces at call time rather than at import time.
 
 `to_feature_class` stamps `{"esri.encoding": "WKB", "esri.sr_wkt": ...}` field metadata on
 the `SHAPE` column before writing, which is what lets ArcGIS read the WKB back as geometry.
