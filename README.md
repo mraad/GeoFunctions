@@ -1,11 +1,29 @@
 # GeoFunctions
 
-This is a small collection of PySpark functions useful for working with geospatial data using the [Esri Geometry Library](https://github.com/Esri/geometry-api-java).
+This is a small collection of PySpark functions useful for working with geospatial data using the [Esri Geometry API for Java](https://github.com/Esri/geometry-api-java.git).
 It is typically used within an ArcGIS Pro conda environment, and the spark engine is exposed using the [Spark Esri](https://github.com/mraad/spark-esri) package.
 
 NOTE: This works in Pro up to version 3.5. This does NOT work in Pro 3.6 (yet).
 
-NOTE: This targets **Spark 3.5.9** for now (Java 11, Scala 2.12). Spark 4.0 is not supported yet.
+NOTE: This targets **Spark 3.5.9** and Scala 2.12. Java 11 is the build baseline;
+Java 17 is also supported and smoke-tested. Java 21 and Spark 4.0 are not supported yet.
+
+### Core Geometry Dependency
+
+The Scala implementation depends on
+[`com.esri.geometry:esri-geometry-api:2.2.5-SNAPSHOT`](https://github.com/Esri/geometry-api-java.git).
+The dependency is shaded into the GeoFunctions JAR, so runtime users do not install it
+separately. A source build needs the snapshot in its Maven repository; install it once if
+Maven cannot resolve it:
+
+```shell
+git clone https://github.com/Esri/geometry-api-java.git
+cd geometry-api-java
+mvn install
+```
+
+Keep the source checkout and the coordinate in `pom.xml` aligned when updating this
+dependency.
 
 ### Create New Conda Environment
 
@@ -25,7 +43,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps <path-to>/geofunctions-0.30-py3-none-any.whl
+pip install --no-deps <path-to>/geofunctions-0.31-py3-none-any.whl
 ```
 
 Optional packages to install:
@@ -52,10 +70,29 @@ pip install pyspark==3.5.9
 The jar is compiled with Spark `provided`-scope, so it will load on any 3.5.x host, but
 3.5.9 is the supported combination.
 
+### Java compatibility
+
+Java 11 and Java 17 both pass the QR processor smoke tests and produce identical join
+results. The project continues to compile for Java 11 so the same artifact can run on either
+JVM. When Spark is embedded directly in Maven on Java 17, open Spark's required JDK module:
+
+```shell
+JAVA_TOOL_OPTIONS=--add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
+  mvn -DskipTests=false test
+```
+
+The normal PySpark launcher supplies its Java 17 module options. On Java 11, Arrow workloads
+may additionally need `-Dio.netty.tryReflectionSetAccessible=true`, as described in the
+[Spark 3.5.9 requirements](https://spark.apache.org/docs/3.5.9/).
+
+Java 21 is not supported by Spark 3.5.9. Official Java 21 support starts with Spark 4.0,
+which also requires Scala 2.13; adopting it therefore needs a coordinated Spark/Scala
+migration rather than only changing `JAVA_HOME`.
+
 Add the shaded jar to the session and register the SQL functions:
 
 ```python
-spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.30.jar").getOrCreate()
+spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.31.jar").getOrCreate()
 
 from geofunctions import st_register_functions
 st_register_functions()   # only needed for the ST_*/QR_* SQL names
@@ -89,7 +126,7 @@ shaded jar — `spark.jars` covers the driver and the executors in one go:
 import os
 from glob import glob
 
-gf_jar = os.path.expanduser("~/geofunctions-0.30.jar")
+gf_jar = os.path.expanduser("~/geofunctions-0.31.jar")
 # glob, so the h3 version stays wherever pom.xml put it
 h3_jar = glob(os.path.expanduser("~/.m2/repository/com/uber/h3/*/h3-*.jar"))[0]
 spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()
@@ -108,8 +145,8 @@ bite:
   colons for `--jars` fails the launch with `Java gateway process exited before sending its
   port number`.
 - pyspark parses the variable with `shlex.split()` in POSIX mode, which **eats backslashes**.
-  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.30.jar` reaches the JVM
-  as `C:Usersmegeofunctions-0.30.jar`, and a path containing a space splits into two
+  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.31.jar` reaches the JVM
+  as `C:Usersmegeofunctions-0.31.jar`, and a path containing a space splits into two
   arguments. Use forward slashes (`Path(p).as_posix()`) or `shlex.quote`.
 - `PYSPARK_PYTHON` should point at your interpreter, or the worker picks whatever `python3`
   is first on `PATH` and fails with `PYTHON_VERSION_MISMATCH`.
@@ -118,14 +155,21 @@ bite:
 
 **Note:** Look at the notebooks for example usages of the functions. See [functions.md](functions.md) for the full reference.
 
-**Null inputs are the caller's responsibility.** These functions skip per-row null checks
-for speed, so filter nulls out before calling — a null is silently read as `0`/`-1` and
-produces a plausible but wrong result rather than an error. See
+**Null inputs are generally the caller's responsibility.** Most functions skip per-row null
+checks for speed, so filter or coalesce nulls before calling; otherwise a null may be read as
+`0`/`-1` and produce a plausible but wrong result. `qr_list` and `qr_intersect` are explicit
+exceptions: they propagate a null required argument, and `join_qr` excludes rows whose QR or
+required geometry fields are null. See
 [functions.md](functions.md#null-inputs-are-the-callers-responsibility).
 
 **`dist` inflates the cell, not the geometry.** Cell `(q, r)` spans
 `[q*cell - dist, (q+1)*cell + dist]` on each axis, so adjacent cells overlap by `2 * dist`
 and a geometry near a boundary lands in more than one cell.
+
+**QR arguments are checked before allocation.** `cell` must be finite and positive, and
+`dist` must be finite and non-negative. A QR key stores signed 32-bit `q` and `r` indices;
+requests outside that range, or requests producing more cells than a Spark array can hold,
+fail with an actionable error instead of wrapping to another key.
 
 - clip_line(line, cell): Splits a line into per-cell segments, returning array of (q, r, l).
 - clip_line_dist(line, cell, dist=0.0): Same as clip_line with cell padding.
@@ -134,7 +178,7 @@ and a geometry near a boundary lands in more than one cell.
 - qr_envp(geom, cell, dist=0.0): Returns list of qr,envelope of the quad region.
 - qr_fromxy(x, y, cell): Returns the quad region containing the point (x, y).
 - qr_geom(geom, cell, dist=0.0, wkid=-1): Returns the intersections of the quad regions and the geometry.
-- qr_intersect(lhs, rhs, cell): Returns the lower left status of two quad regions.
+- qr_intersect(lhs, rhs, cell): Returns true when matching QR groups overlap in their canonical lower-left cell.
 - qr_list(geom, cell, dist=0.0): Returns a list of quad regions.
 - st_astext(geom): Returns the WKT representation of the geometry.
 - st_box(x, y, h, v=None): Returns a rectangle centered on x/y, width 2*h and height 2*v (v defaults to h).
