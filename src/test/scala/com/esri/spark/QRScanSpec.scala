@@ -1,7 +1,10 @@
 package com.esri.spark
 
 import com.esri.core.geometry.Polygon
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Literal, UnsafeProjection}
 import org.apache.spark.sql.catalyst.util.ArrayData
+import org.apache.spark.sql.types.{BinaryType, DoubleType}
 import org.apache.spark.unsafe.types.UTF8String
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -39,6 +42,58 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
 
   private def areaOf(bytes: Array[Byte]): Double =
     bytes.geom.calculateArea2D()
+
+  "QR_LIST" should "return no cells for an empty geometry" in {
+    QRListObj.eval(new Polygon().bytes, 1.0, 0.0).numElements() shouldBe 0
+  }
+
+  it should "reject non-finite or out-of-domain cell and distance values" in {
+    val g = rect(0, 0, 1, 1)
+    Seq(0.0, -1.0, Double.NaN, Double.PositiveInfinity).foreach { cell =>
+      an[IllegalArgumentException] should be thrownBy QRListObj.eval(g, cell, 0.0)
+    }
+    Seq(-1.0, Double.NaN, Double.PositiveInfinity).foreach { dist =>
+      an[IllegalArgumentException] should be thrownBy QRListObj.eval(g, 1.0, dist)
+    }
+  }
+
+  it should "reject cell indices that cannot be packed into a QR key" in {
+    val far = rect(1e15, 1e15, 1e15 + 10.0, 1e15 + 10.0)
+    an[IllegalArgumentException] should be thrownBy QRListObj.eval(far, 1.0, 0.0)
+  }
+
+  it should "reject an array whose candidate count exceeds Int" in {
+    // Each axis fits in Int, but their product does not. Without the preflight check this
+    // starts filling billions of boxed Longs and fails with an unhelpful OOM.
+    val tooMany = rect(0.0, 0.0, 50000.0, 50000.0)
+    an[IllegalArgumentException] should be thrownBy QRListObj.eval(tooMany, 1.0, 0.0)
+  }
+
+  it should "propagate null inputs in interpreted and generated evaluation" in {
+    val nullExpressions = Seq(
+      QRList(Seq(Literal.create(null, BinaryType), Literal(1.0), Literal(0.0))),
+      QRList(Seq(Literal.create(rect(0, 0, 1, 1), BinaryType),
+        Literal.create(null, DoubleType), Literal(0.0))),
+      QRList(Seq(Literal.create(rect(0, 0, 1, 1), BinaryType),
+        Literal(1.0), Literal.create(null, DoubleType))),
+    )
+
+    nullExpressions.foreach { expression =>
+      Option(expression.eval(InternalRow.empty)) shouldBe None
+      UnsafeProjection.create(Seq(expression))(InternalRow.empty).isNullAt(0) shouldBe true
+    }
+  }
+
+  it should "reject an incorrect argument count during analysis" in {
+    val args = Seq(
+      Literal.create(rect(0, 0, 1, 1), BinaryType),
+      Literal(1.0),
+      Literal(0.0),
+    )
+    QRList(args).checkInputDataTypes().isSuccess shouldBe true
+    QRList(args.take(2)).checkInputDataTypes().isFailure shouldBe true
+    QRList(args :+ Literal(0.0)).checkInputDataTypes().isFailure shouldBe true
+  }
 
   "QR_COUNT" should "equal the number of candidate cells QR_LIST emits" in {
     for {

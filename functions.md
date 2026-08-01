@@ -933,11 +933,15 @@ Performs an efficient spatial join between two DataFrames using a quadtree (QR) 
 - `cell` (float): QR cell size in meters
 - `dist` (float): QR offset/padding distance in meters (default: 0.0)
 - `qr` (str): Name of the QR field in dataframes (default: "qr")
-- `oper` (str): Spatial operation ("none", "intersection", etc.) (default: "none")
+- `oper` (str): Spatial operation ("none", "contains", "crosses", "equals",
+  "intersects"/"intersection", "overlaps", "touches", or "within") (default: "none")
 - `wkid` (Union[str, int]): Spatial reference WKID (default: -1)
 - `lhs_geom` (str): Name of left geometry field (default: "geom")
 - `rhs_geom` (str): Name of right geometry field (default: "geom")
 - `acceleration` (str): Geometry acceleration mode ("mild", "medium", "hot") (default: "mild")
+
+`disjoint` is intentionally unsupported: a QR overlap join only enumerates
+envelope-overlapping candidates and therefore cannot produce every disjoint pair.
 
 **Returns:** DataFrame with joined results
 
