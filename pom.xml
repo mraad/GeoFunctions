@@ -93,6 +93,7 @@
             <artifactId>filegdb</artifactId>
             <version>0.68-${spark.compact}-${scala.compact}</version>
         </dependency>
+        <!-- Source: https://github.com/Esri/geometry-api-java.git -->
         <dependency>
             <groupId>com.esri.geometry</groupId>
             <artifactId>esri-geometry-api</artifactId>
