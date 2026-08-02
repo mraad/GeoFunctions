@@ -1,0 +1,5 @@
+# Require the repository owner to review every change.
+* @mraad
+
+# Keep the ownership policy owner-controlled.
+/.github/CODEOWNERS @mraad
