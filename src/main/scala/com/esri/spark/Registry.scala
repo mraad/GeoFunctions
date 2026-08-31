@@ -4,7 +4,7 @@ import org.apache.spark.sql.SparkSession
 
 object Registry extends Serializable {
   final def registerFunctions(): Unit = {
-    val ss = SparkSession.builder.getOrCreate()
+    val ss = SparkSession.builder().getOrCreate()
     val funcReg = ss.sessionState.functionRegistry
     funcReg.createOrReplaceTempFunction("GDB_POLYGON2", GDBPolygon2, "")
     funcReg.createOrReplaceTempFunction("GDB_POLYGONM", GDBPolygonM, "")

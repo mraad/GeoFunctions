@@ -25,7 +25,7 @@ object QRScan extends Serializable {
   private lazy val accelerate: Boolean =
     conf.forall(_.getBoolean("spark.esri.accelerate", defaultValue = true))
 
-  /** Cell count above which one geometry's scan fans out over the parallel collection pool. */
+  /** Cell count above which one geometry's scan fans out over the common ForkJoin pool. */
   private lazy val parallel: Int =
     conf.map(_.getInt("spark.esri.parallel", 64)).getOrElse(64)
 
@@ -105,11 +105,14 @@ object QRScan extends Serializable {
       // Index the cells rather than materializing a Seq of (q,r) tuples up front.
       // Each thread needs its own scratch envelope.
       val nrInt = nr.toInt
-      val rows = (0 until count.toInt).par
-        .map(i => clip(geom, sr, qmin + i / nrInt, rmin + i % nrInt, cell, dist, new Envelope())(row))
-        .filter(_ != null)
-        .seq
-      ArrayData.toArrayData(rows)
+      // A Java parallel stream rather than `.par`: on 2.13 `.par` needs an import that does
+      // not exist on 2.12, and this source tree cross-builds both. Each index is written once
+      // by one thread, so the shared array needs no synchronization.
+      val scratch = new Array[InternalRow](count.toInt)
+      java.util.stream.IntStream.range(0, count.toInt).parallel().forEach((i: Int) =>
+        scratch(i) = clip(geom, sr, qmin + i / nrInt, rmin + i % nrInt, cell, dist, new Envelope())(row)
+      )
+      ArrayData.toArrayData(scratch.filter(_ != null).toSeq)
     } else {
       val arr = new ArrayBuffer[InternalRow](count.toInt)
       val cellEnvp = new Envelope()

@@ -170,6 +170,31 @@
                     </execution>
                 </executions>
             </plugin-->
+            <!--
+            Spark 4.0 rewrote the Column API, so the Expression <-> Column bridge cannot be
+            written once for both. src/main/scala-2.12 and src/main/scala-2.13 each hold one
+            ColumnCompat.scala, and this puts whichever matches the active profile on the
+            compile source path. Nothing else in the tree is version-specific.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>add-scala-version-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/main/scala-${scala.compact}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -196,6 +221,37 @@
                 <configuration>
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                     <skipTests>${skipTests}</skipTests>
+                    <!--
+                    Bind the driver to loopback. Spark 4.0 gives each session an artifact
+                    class loader and fetches unknown classes over RPC from the driver's own
+                    address; Janino probes <generated package>.Object on every codegen
+                    compile, so a host that refuses the self-connection on its LAN address
+                    (the macOS firewall does) turns each probe into a RemoteClassLoaderError
+                    and kills the task. Spark 3.x never used that loader, so it did not care.
+                    -->
+                    <!--
+                    Spark reaches into JDK internals; required on JDK 17+, which the spark-4.0
+                    profile mandates and which the spark-3.x profiles are built with here too.
+                    Without it every suite that starts a SparkContext aborts in StorageUtils
+                    with IllegalAccessError on sun.nio.ch.DirectBuffer.
+                    -->
+                    <argLine>
+                        -XX:+IgnoreUnrecognizedVMOptions
+                        --add-opens=java.base/java.lang=ALL-UNNAMED
+                        --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                        --add-opens=java.base/java.io=ALL-UNNAMED
+                        --add-opens=java.base/java.net=ALL-UNNAMED
+                        --add-opens=java.base/java.nio=ALL-UNNAMED
+                        --add-opens=java.base/java.util=ALL-UNNAMED
+                        --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                        --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+                        --add-opens=java.base/sun.security.action=ALL-UNNAMED
+                        --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+                    </argLine>
+                    <systemProperties>
+                        <spark.driver.bindAddress>127.0.0.1</spark.driver.bindAddress>
+                        <spark.driver.host>127.0.0.1</spark.driver.host>
+                    </systemProperties>
                 </configuration>
                 <executions>
                     <execution>

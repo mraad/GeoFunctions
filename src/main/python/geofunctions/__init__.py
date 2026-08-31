@@ -4,7 +4,16 @@ from typing import List, Optional, Union
 
 from pyspark import SparkContext
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.column import Column, _to_java_column as _spark_to_java_column
+try:
+    # PySpark 4.0 split Column into an abstract base plus a "classic" implementation and
+    # took _to_java_column with it. Only the classic Column wraps a JVM column, which is
+    # what every wrapper below builds.
+    from pyspark.sql.classic.column import (
+        Column,
+        _to_java_column as _spark_to_java_column,
+    )
+except ImportError:  # PySpark 3.x
+    from pyspark.sql.column import Column, _to_java_column as _spark_to_java_column
 from pyspark.sql.functions import lit, array, explode, col, collect_list
 
 

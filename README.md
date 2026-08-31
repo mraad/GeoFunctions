@@ -6,7 +6,8 @@ It is typically used within an ArcGIS Pro conda environment, and the spark engin
 NOTE: This works in Pro up to version 3.5. This does NOT work in Pro 3.6 (yet).
 
 NOTE: This targets **Spark 3.5.9** and Scala 2.12. Java 11 is the build baseline;
-Java 17 is also supported and smoke-tested. Java 21 and Spark 4.0 are not supported yet.
+Java 17 is also supported and smoke-tested. A **Spark 4.0.0 / Scala 2.13 / Java 17** build
+also exists behind `-P spark-4.0`; see [Spark 4.0](#spark-40). Releases remain 3.5.9.
 
 ### Core Geometry Dependency
 
@@ -60,15 +61,21 @@ Everything else works without them.
 
 ### Standalone PySpark
 
-The wheel also works outside ArcGIS Pro against a plain PySpark install. Use 3.5.9 — it is
-what the jar is built and tested against:
+The wheel also works outside ArcGIS Pro against a plain PySpark install. It declares
+`pyspark>=3.5.9,<5`, so it installs against either supported line:
 
 ```shell
-pip install pyspark==3.5.9
+pip install pyspark==3.5.9   # pairs with the default -P spark-3.5 jar
+pip install pyspark==4.0.0   # pairs with the -P spark-4.0 jar; see Spark 4.0 below
 ```
 
-The jar is compiled with Spark `provided`-scope, so it will load on any 3.5.x host, but
-3.5.9 is the supported combination.
+**The jar is not interchangeable between them.** It is compiled with Spark `provided`-scope
+so it loads on any host of its own line, but a Scala 2.12 jar on PySpark 4.0 fails with
+`NoClassDefFoundError: scala/collection/SeqOps`. Match the jar to the PySpark major version.
+
+If `SPARK_HOME` is set (sdkman installs one, for instance) PySpark uses those jars instead of
+its own bundled ones, and a mismatched Spark there produces the same class-loading failures.
+Unset it when running against a pip-installed PySpark.
 
 ### Java compatibility
 
@@ -85,9 +92,37 @@ The normal PySpark launcher supplies its Java 17 module options. On Java 11, Arr
 may additionally need `-Dio.netty.tryReflectionSetAccessible=true`, as described in the
 [Spark 3.5.9 requirements](https://spark.apache.org/docs/3.5.9/).
 
-Java 21 is not supported by Spark 3.5.9. Official Java 21 support starts with Spark 4.0,
-which also requires Scala 2.13; adopting it therefore needs a coordinated Spark/Scala
-migration rather than only changing `JAVA_HOME`.
+Java 21 is not supported by Spark 3.5.9. Official Java 21 support starts with Spark 4.0
+— see below.
+
+### Spark 4.0
+
+`mvn -P spark-4.0 clean package` builds against Spark 4.0.0, Scala 2.13.16 and Java 17.
+Tests are skipped by default, so ask for them explicitly to run the suite:
+
+```shell
+mvn -P spark-4.0 -DskipTests=false clean package
+```
+
+This is not what releases ship: ArcGIS Pro 3.5 supplies Spark 3.5 through `spark-esri`, and
+3.5.9 is the release and test baseline. Use the 4.0 jar only against a standalone Spark 4.0
+cluster, with `pip install pyspark==4.0.0` in place of 3.5.9 above.
+
+Maven Central carries no Scala 2.13 build of the three `com.esri` dependencies, so install
+them locally first — from [WebMercator](https://github.com/mraad/WebMercator),
+[spark-shp](https://github.com/mraad/spark-shp) and
+[FileGDB](https://github.com/mraad/FileGDB):
+
+```shell
+# from the directory holding the sibling checkouts
+(cd WebMercator && mvn -P scala-2.13 clean install)
+(cd spark-shp   && mvn -P spark-4.0,esri-geometry-github clean install)
+(cd FileGDB     && mvn -P spark-4.0 clean install)
+```
+
+`esri-geometry-github` has to be named explicitly: Maven deactivates every `activeByDefault`
+profile the moment `-P` selects one, and that is the profile supplying the geometry API
+coordinates.
 
 Add the shaded jar to the session and register the SQL functions:
 
@@ -153,7 +188,7 @@ bite:
 
 ### Functions
 
-**Note:** Look at the notebooks for example usages of the functions. See [functions.md](functions.md) for the full reference.
+**Note:** Look at the notebooks for example usages of the functions. See [functions.md](functions.md) for the full reference. The reproducible [QR cell-size benchmark](benchmarks/README.md) selects and times a grid for the 5-million-point world time-zone join.
 
 **Null inputs are generally the caller's responsibility.** Most functions skip per-row null
 checks for speed, so filter or coalesce nulls before calling; otherwise a null may be read as

@@ -286,8 +286,17 @@ object JoinQRInnerProcessor extends Serializable {
         ext.ymax.toFloat,
         JoinQRInnerGeom(ext, dropField(row, args.qR), geom))
     }
+    // Java parallel streams rather than `.par` throughout: on 2.13 `.par` needs an import
+    // that does not exist on 2.12, and this source tree cross-builds both. Every index is
+    // written once by one thread, so the shared arrays need no synchronization.
     val entries =
-      if (rhsRows.length > args.parallelThreshold) rhsRows.par.map(rhsEntry).seq
+      if (rhsRows.length > args.parallelThreshold) {
+        val scratch = new Array[RTreeEntry[JoinQRInnerGeom]](rhsRows.length)
+        java.util.stream.IntStream.range(0, rhsRows.length).parallel().forEach((i: Int) =>
+          scratch(i) = rhsEntry(rhsRows(i))
+        )
+        scratch.toSeq
+      }
       else rhsRows.map(rhsEntry)
     val rtree = RTree(entries)
 
@@ -316,7 +325,11 @@ object JoinQRInnerProcessor extends Serializable {
 
     val lhsRows = lhsIter.toVector
     if (lhsRows.length > args.parallelThreshold) {
-      lhsRows.par.flatMap(matches).seq.iterator
+      val scratch = new Array[Vector[Row]](lhsRows.length)
+      java.util.stream.IntStream.range(0, lhsRows.length).parallel().forEach((i: Int) =>
+        scratch(i) = matches(lhsRows(i)).toVector
+      )
+      scratch.iterator.flatten
     } else {
       lhsRows.iterator.flatMap(matches)
     }
