@@ -15,8 +15,8 @@ object STMercatorObj extends Serializable {
       case pt: Point =>
         // toMercatorX/Y, not toLongitude/toLatitude - this branch was a copy of STWGS84's
         // and un-projected points instead of projecting them.
-        pt.setX(pt.getX.toMercatorX)
-        pt.setY(pt.getY.toMercatorY)
+        pt.setX(pt.getX.toMercatorX())
+        pt.setY(pt.getY.toMercatorY())
         pt.bytes
       case mv: MultiVertexGeometry =>
         val point2D = new Point2D()
@@ -24,7 +24,7 @@ object STMercatorObj extends Serializable {
         var i = 0
         while (i < n) {
           mv.getXY(i, point2D)
-          point2D.setCoords(point2D.x.toMercatorX, point2D.y.toMercatorY)
+          point2D.setCoords(point2D.x.toMercatorX(), point2D.y.toMercatorY())
           mv.setXY(i, point2D)
           i += 1
         }

@@ -35,7 +35,7 @@ class ClipLineDistSpec extends AnyFlatSpec with Matchers {
       val l = Rect(q * cell - dist, r * cell - dist, chip).clip(x1, y1, x2, y2)
       if (l > 0.0) out.append((q, r, l))
     }
-    out.sorted
+    out.toSeq.sorted
   }
 
   "ClipLineDistObj" should "match a brute-force scan of the inflated bbox" in {

@@ -11,8 +11,8 @@ import org.apache.spark.sql.types._
 object GDBPolygonMObj extends Serializable {
   final def eval(row: InternalRow): Array[Byte] = {
     val mp = new Polygon()
-    val parts = row.getArray(4).toIntArray
-    val coords = row.getArray(5).toDoubleArray
+    val parts = row.getArray(4).toIntArray()
+    val coords = row.getArray(5).toDoubleArray()
 
     var x = 0
     var y = 1

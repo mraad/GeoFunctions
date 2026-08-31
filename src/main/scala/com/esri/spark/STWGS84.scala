@@ -13,8 +13,8 @@ object STWGS84Obj extends Serializable {
   final def eval(bytes: Array[Byte]): Array[Byte] = {
     bytes.geom match {
       case pt: Point =>
-        pt.setX(pt.getX.toLongitude)
-        pt.setY(pt.getY.toLatitude)
+        pt.setX(pt.getX.toLongitude())
+        pt.setY(pt.getY.toLatitude())
         pt.bytes
       case mv: MultiVertexGeometry =>
         val point2D = new Point2D()
