@@ -99,6 +99,66 @@ class Recommendation:
     strategy: str
     trials: int
     median_total_seconds: float
+    # False when the timed cells never cleared the quality floor: the fallback path
+    # and --timing-cells both time cells the quality filter did not select, and the
+    # recommendation is chosen on median time alone. Without this the JSON output
+    # cannot tell a qualifying recommendation from a non-qualifying one.
+    meets_quality_minima: bool = True
+
+
+def select_benchmark_cells(
+    quality: Sequence[QualityResult],
+    all_cells: Sequence[float],
+    min_internal_uniformity: float,
+    min_point_count_variety: float,
+    timing_cells: Sequence[float] | None,
+) -> tuple[tuple[float, ...], bool, str | None]:
+    """Choose which cells to time, and say whether they cleared the quality floor.
+
+    Returns (cells, meets_quality_minima, notice). The flag is what keeps a
+    recommendation honest: both the fallback and an explicit --timing-cells time
+    cells the quality filter did not select, and the winner is picked on median
+    time alone, so without it a non-qualifying cell is indistinguishable from a
+    qualifying one in the printed and JSON output.
+    """
+    cells = tuple(all_cells)
+    qualified = True
+    notice: str | None = None
+
+    if quality:
+        passing = tuple(
+            result.cell
+            for result in quality
+            if result.internal_uniformity >= min_internal_uniformity
+            and result.point_count_variety >= min_point_count_variety
+        )
+        if passing:
+            cells = passing
+            notice = (
+                "Benchmarking cells with internal uniformity at or above "
+                f"{min_internal_uniformity:.4f} and point-count variety at or above "
+                f"{min_point_count_variety:.4f}: "
+                + ", ".join(f"{cell:g}" for cell in cells)
+            )
+        else:
+            best = max(quality, key=lambda result: result.quality_score)
+            cells = (best.cell,)
+            qualified = False
+            notice = (
+                "No candidate met both quality minima; falling back to the best "
+                f"quality score at {best.cell:g}. The recommendation below is the "
+                "fastest of a set that failed the quality floor, not a qualifying cell."
+            )
+
+    if timing_cells:
+        cells = tuple(timing_cells)
+        qualified = False
+        notice = (
+            "Using explicit timing cells, which bypass the quality filter: "
+            + ", ".join(f"{cell:g}" for cell in cells)
+        )
+
+    return cells, qualified, notice
 
 
 def _parse_cells(raw: str) -> tuple[float, ...]:
@@ -597,33 +657,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 quality.append(result)
                 _print_quality([result])
 
-        benchmark_cells = args.cells
-        if quality:
-            benchmark_cells = tuple(
-                result.cell
-                for result in quality
-                if result.internal_uniformity >= args.min_internal_uniformity
-                and result.point_count_variety >= args.min_point_count_variety
-            )
-            if not benchmark_cells:
-                best = max(quality, key=lambda result: result.quality_score)
-                benchmark_cells = (best.cell,)
-                print(
-                    "\nNo candidate met both quality minima; "
-                    f"falling back to the best quality score at {best.cell:g}."
-                )
-            print(
-                "\nBenchmarking cells with internal uniformity at or above "
-                f"{args.min_internal_uniformity:.4f} and point-count variety "
-                f"at or above {args.min_point_count_variety:.4f}: "
-                + ", ".join(f"{cell:g}" for cell in benchmark_cells)
-            )
-        if args.timing_cells:
-            benchmark_cells = args.timing_cells
-            print(
-                "\nUsing explicit timing cells: "
-                + ", ".join(f"{cell:g}" for cell in benchmark_cells)
-            )
+        benchmark_cells, qualified, notice = select_benchmark_cells(
+            quality,
+            args.cells,
+            args.min_internal_uniformity,
+            args.min_point_count_variety,
+            args.timing_cells,
+        )
+        if notice:
+            print("\n" + notice)
 
         if not args.skip_join:
             assert polygon_parts is not None
@@ -677,12 +719,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                     strategy=strategy,
                     trials=len(totals),
                     median_total_seconds=statistics.median(totals),
+                    meets_quality_minima=qualified,
                 )
                 print(
                     f"\nRecommended cell: {recommendation.cell:g} degrees "
                     f"using {recommendation.strategy} "
                     f"({recommendation.median_total_seconds:.2f} seconds median "
                     f"over {recommendation.trials} trial(s))."
+                    + ("" if qualified else " [did NOT meet the quality minima]")
                 )
 
         if args.output:
