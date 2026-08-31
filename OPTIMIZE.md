@@ -1,0 +1,6 @@
+optimize QR code by spatially joining 5 million randon lat lon points with the polygons in data/world/tz_world.shp.  Lowest execution time with the an optimized cell bin size. An appropriate bin size is one that is large enough to produce a
+  wide variety of stable values but still small enough that local patterns of points are preserved in the resulting bins (rather than being aggregated away). We are looking for  Internal Uniformity and Point Count Variety Across Bin Sizes. The
+  internal uniformity metric measures whether the points are uniformly distributed within the resulting bins. The point count variety metric quantifies the diversity of point counts across bins and favors bin sizes that result in a wide
+  variety of count values, avoiding bin sizes that have large proportions of empty bins along with a small number of bins with large counts. Conceptually, this encourages informational richness, reflecting the idea that aggregations should
+  produce meaningful variation and diversity in the point counts, which is particularly desirable when you intend to perform an analysis (such as hot spot analysis) on the point counts. In practice, this metric tends to increase with bin size,
+  as larger bins tend to accumulate more diverse and evenly distributed counts.
