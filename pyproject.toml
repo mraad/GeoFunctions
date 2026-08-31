@@ -1,6 +1,6 @@
 [project]
 name = "geofunctions"
-version = "0.31"
+version = "0.32"
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [ "pyspark>=3.5.9,<5", "toml",]

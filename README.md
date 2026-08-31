@@ -44,7 +44,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps <path-to>/geofunctions-0.31-py3-none-any.whl
+pip install --no-deps <path-to>/geofunctions-0.32-py3-none-any.whl
 ```
 
 Optional packages to install:
@@ -108,10 +108,25 @@ This is not what releases ship: ArcGIS Pro 3.5 supplies Spark 3.5 through `spark
 3.5.9 is the release and test baseline. Use the 4.0 jar only against a standalone Spark 4.0
 cluster, with `pip install pyspark==4.0.0` in place of 3.5.9 above.
 
-Maven Central carries no Scala 2.13 build of the three `com.esri` dependencies, so install
-them locally first — from [WebMercator](https://github.com/mraad/WebMercator),
-[spark-shp](https://github.com/mraad/spark-shp) and
-[FileGDB](https://github.com/mraad/FileGDB):
+The three `com.esri` dependencies have **never been published to Maven Central** — the
+`com.esri` group there holds only Esri's own artifacts. Get them from their releases:
+
+| Dependency | Release | Scala 2.13 jar |
+|---|---|---|
+| [WebMercator](https://github.com/mraad/WebMercator/releases/tag/v1.15) | 1.15 | `webmercator-1.15-2.13.jar` |
+| [spark-shp](https://github.com/mraad/spark-shp/releases/tag/v0.32) | 0.32 | `spark-shp-0.32-4.0-2.13.jar` |
+| [FileGDB](https://github.com/mraad/FileGDB/releases/tag/v0.68) | 0.68 | `filegdb-0.68-4.0-2.13.jar` |
+
+```shell
+mvn install:install-file -Dfile=webmercator-1.15-2.13.jar \
+  -DgroupId=com.esri -DartifactId=webmercator -Dversion=1.15-2.13 -Dpackaging=jar
+mvn install:install-file -Dfile=spark-shp-0.32-4.0-2.13.jar \
+  -DgroupId=com.esri -DartifactId=spark-shp -Dversion=0.32-4.0-2.13 -Dpackaging=jar
+mvn install:install-file -Dfile=filegdb-0.68-4.0-2.13.jar \
+  -DgroupId=com.esri -DartifactId=filegdb -Dversion=0.68-4.0-2.13 -Dpackaging=jar
+```
+
+Building them from source works too:
 
 ```shell
 # from the directory holding the sibling checkouts
@@ -127,7 +142,7 @@ coordinates.
 Add the shaded jar to the session and register the SQL functions:
 
 ```python
-spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.31.jar").getOrCreate()
+spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.32.jar").getOrCreate()
 
 from geofunctions import st_register_functions
 st_register_functions()   # only needed for the ST_*/QR_* SQL names
@@ -161,7 +176,7 @@ shaded jar — `spark.jars` covers the driver and the executors in one go:
 import os
 from glob import glob
 
-gf_jar = os.path.expanduser("~/geofunctions-0.31.jar")
+gf_jar = os.path.expanduser("~/geofunctions-0.32.jar")
 # glob, so the h3 version stays wherever pom.xml put it
 h3_jar = glob(os.path.expanduser("~/.m2/repository/com/uber/h3/*/h3-*.jar"))[0]
 spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()
@@ -180,8 +195,8 @@ bite:
   colons for `--jars` fails the launch with `Java gateway process exited before sending its
   port number`.
 - pyspark parses the variable with `shlex.split()` in POSIX mode, which **eats backslashes**.
-  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.31.jar` reaches the JVM
-  as `C:Usersmegeofunctions-0.31.jar`, and a path containing a space splits into two
+  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.32.jar` reaches the JVM
+  as `C:Usersmegeofunctions-0.32.jar`, and a path containing a space splits into two
   arguments. Use forward slashes (`Path(p).as_posix()`) or `shlex.quote`.
 - `PYSPARK_PYTHON` should point at your interpreter, or the worker picks whatever `python3`
   is first on `PATH` and fails with `PYTHON_VERSION_MISMATCH`.
