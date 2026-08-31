@@ -44,21 +44,37 @@ Repos live in `/Volumes/LaCie/GWorkspace/` (not `~/GWorkspace`).
 - [x] `agent/spark-4.0-scala-2.13` pushed in GeoFunctions, spark-shp, FileGDB
 - [x] `agent/readme-1.15-scala-2.13` pushed in WebMercator (docs only)
 
+## Merged 2026-08-31
+- [x] mraad/WebMercator#6 — README: version 1.15, non-deprecated Scala sample, profile list
+- [x] mraad/spark-shp#8 — spark-4.0 profile
+- [x] mraad/FileGDB#12 — spark-4.0 profile
+- [x] mraad/FileGDB#13 — GPS/Elastic notebooks, absolute paths scrubbed
+- [x] mraad/GeoFunctions#12 — the Spark 4.0 port
+- [x] mraad/GeoFunctions#13 — QR cell-size benchmark
+
+GeoFunctions #12 and #13 were merged with `--admin`. The `main` ruleset "Protect main:
+owner-reviewed pull requests" requires a code-owner approval and GitHub does not let an
+author approve their own PR, so there was no path to merge them without the bypass.
+
+CodeRabbit caught four real defects across two rounds, all in prose rather than code, all
+fixed before merge:
+- `mvn -P scala-2.10 clean install` in the WebMercator README named a profile that is
+  commented out. Maven only warns and then builds the 2.12 default, so the command handed
+  back a `webmercator-1.15-2.12.jar` while claiming to be 2.10.
+- The GeoFunctions Spark 4.0 build command omitted `-DskipTests=false`, directly under the
+  claim that it passes the full suite, in a repo that skips tests by default.
+- "the wheel pins `pyspark==3.5.9`" was stale inside the very diff that changed it.
+- The three dependency-build commands used bare relative `cd`s, so only the first ever ran.
+
 ## Outstanding
-- [ ] **Open and merge the three PRs.** All three branches are pushed but unmerged;
-      GeoFunctions has CODEOWNERS requiring owner review.
 - [ ] **Publish the Scala 2.13 dependency artifacts.** `webmercator-1.15-2.13`,
       `spark-shp-0.32-4.0-2.13` and `filegdb-0.68-4.0-2.13` exist only in the local `~/.m2`.
-      Until they are published, `-P spark-4.0` works only on a machine that has built all
-      three by hand. Needs a decision on where they go.
+      The source now builds them on any checkout, but until the artifacts are published
+      `-P spark-4.0` still needs all three built by hand first. Needs a decision on where
+      they go.
 - [ ] **Decide whether releases ship a 2.13 artifact.** `gf.sh` builds one zip from the
       default 3.5 profile. A Spark 4.0 user currently has to build the jar themselves.
       Nothing in the release process is wired for two Scala lines.
-- [ ] **Merge the WebMercator README fix** (`agent/readme-1.15-scala-2.13`). Not a profile
-      change — its `scala-2.13` profile was already correct, and `spark-4.0` naming would be
-      wrong for a Spark-independent build. The README was stale instead: it pinned 1.14
-      (project is at 1.15), used the postfix argument-less Scala form that 2.13 deprecates,
-      and never said `scala-2.13` targets Java 17.
 
 ## Not doing
 - Raising the `spark-3.3`/`spark-3.4` profiles or testing them. Untouched and unverified
