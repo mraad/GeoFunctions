@@ -122,7 +122,9 @@ def select_benchmark_cells(
     qualifying one in the printed and JSON output.
     """
     cells = tuple(all_cells)
-    qualified = True
+    # Start false: "qualified" means measured and passing. With --skip-quality nothing
+    # is measured at all, which is not the same as clearing the floor.
+    qualified = False
     notice: str | None = None
 
     if quality:
@@ -134,6 +136,7 @@ def select_benchmark_cells(
         )
         if passing:
             cells = passing
+            qualified = True
             notice = (
                 "Benchmarking cells with internal uniformity at or above "
                 f"{min_internal_uniformity:.4f} and point-count variety at or above "

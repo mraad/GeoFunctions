@@ -57,10 +57,12 @@ def test_explicit_timing_cells_bypass_the_filter_and_are_not_qualified():
     assert "bypass the quality filter" in notice
 
 
-def test_no_quality_run_leaves_cells_untouched():
+def test_skip_quality_leaves_cells_untouched_but_unqualified():
+    # --skip-quality means nothing was measured. Unmeasured is not "meets the floor":
+    # reporting True here would put a qualifying stamp on cells never evaluated.
     cells, qualified, notice = select_benchmark_cells([], (1.0, 2.0), 0.5, 0.5, None)
     assert cells == (1.0, 2.0), cells
-    assert qualified is True
+    assert qualified is False
     assert notice is None
 
 
