@@ -97,10 +97,16 @@ Java 21 is not supported by Spark 3.5.9. Official Java 21 support starts with Sp
 
 ### Spark 4.0
 
-`mvn -P spark-4.0 clean package` builds against Spark 4.0.0, Scala 2.13.16 and Java 17, and
-passes the full test suite. It is not what releases ship: ArcGIS Pro 3.5 supplies Spark 3.5
-through `spark-esri`, and the wheel pins `pyspark==3.5.9`. Use it only against a standalone
-Spark 4.0 cluster, with `pip install pyspark==4.0.0` in place of the 3.5.9 pin above.
+`mvn -P spark-4.0 clean package` builds against Spark 4.0.0, Scala 2.13.16 and Java 17.
+Tests are skipped by default, so ask for them explicitly to run the suite:
+
+```shell
+mvn -P spark-4.0 -DskipTests=false clean package
+```
+
+This is not what releases ship: ArcGIS Pro 3.5 supplies Spark 3.5 through `spark-esri`, and
+3.5.9 is the release and test baseline. Use the 4.0 jar only against a standalone Spark 4.0
+cluster, with `pip install pyspark==4.0.0` in place of 3.5.9 above.
 
 Maven Central carries no Scala 2.13 build of the three `com.esri` dependencies, so install
 them locally first — from [WebMercator](https://github.com/mraad/WebMercator),
@@ -108,9 +114,10 @@ them locally first — from [WebMercator](https://github.com/mraad/WebMercator),
 [FileGDB](https://github.com/mraad/FileGDB):
 
 ```shell
-cd WebMercator && mvn -P scala-2.13 clean install
-cd spark-shp   && mvn -P spark-4.0,esri-geometry-github clean install
-cd FileGDB     && mvn -P spark-4.0 clean install
+# from the directory holding the sibling checkouts
+(cd WebMercator && mvn -P scala-2.13 clean install)
+(cd spark-shp   && mvn -P spark-4.0,esri-geometry-github clean install)
+(cd FileGDB     && mvn -P spark-4.0 clean install)
 ```
 
 `esri-geometry-github` has to be named explicitly: Maven deactivates every `activeByDefault`
