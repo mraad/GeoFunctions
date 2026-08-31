@@ -91,10 +91,11 @@ trip, codegen, an `*_explode` helper, the DataFrame monkey-patch, the SQL regist
 2.12 jar on pyspark 4.0.0 fails with `NoClassDefFoundError: scala/collection/SeqOps` exactly
 as the release notes warn.
 
-## Still manual, if it ever matters
-- `gf.sh` builds only the 2.12 zip. The 2.13 jar was built by hand with `-P spark-4.0` and
-  attached separately. If two-line releases become routine, teach `gf.sh` to do both rather
-  than repeating that step from memory.
+## Automated 2026-08-31
+- [x] `gf.sh` builds both Scala lines and stages `release/` with the zip and both shaded
+      jars, then prints the `gh release create` line. `verify_jar` rejects the unshaded
+      classifier jar and a jar from the wrong Scala line, so the two ways of shipping the
+      wrong artifact both fail the build rather than the release.
 
 ## Not doing
 - Raising the `spark-3.3`/`spark-3.4` profiles or testing them. Untouched and unverified
