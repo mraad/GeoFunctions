@@ -66,15 +66,35 @@ fixed before merge:
 - "the wheel pins `pyspark==3.5.9`" was stale inside the very diff that changed it.
 - The three dependency-build commands used bare relative `cd`s, so only the first ever ran.
 
-## Outstanding
-- [ ] **Publish the Scala 2.13 dependency artifacts.** `webmercator-1.15-2.13`,
-      `spark-shp-0.32-4.0-2.13` and `filegdb-0.68-4.0-2.13` exist only in the local `~/.m2`.
-      The source now builds them on any checkout, but until the artifacts are published
-      `-P spark-4.0` still needs all three built by hand first. Needs a decision on where
-      they go.
-- [ ] **Decide whether releases ship a 2.13 artifact.** `gf.sh` builds one zip from the
-      default 3.5 profile. A Spark 4.0 user currently has to build the jar themselves.
-      Nothing in the release process is wired for two Scala lines.
+## Released 2026-08-31 — nothing outstanding
+
+First published release for all four repositories. Maven Central was never an option:
+the `com.esri` group there holds only Esri's own artifacts and the namespace needs
+esri.com domain verification, and there is no GPG key or Sonatype credential here. So
+the artifacts ship as GitHub release assets, installed with `mvn install:install-file`.
+
+| Repo | Release | Assets |
+|---|---|---|
+| WebMercator | [v1.15](https://github.com/mraad/WebMercator/releases/tag/v1.15) | `webmercator-1.15-{2.12,2.13}.jar` |
+| spark-shp | [v0.32](https://github.com/mraad/spark-shp/releases/tag/v0.32) | `spark-shp-0.32-{3.5-2.12,4.0-2.13}.jar` |
+| FileGDB | [v0.68](https://github.com/mraad/FileGDB/releases/tag/v0.68) | `filegdb-0.68-{3.5-2.12,4.0-2.13}.jar` |
+| GeoFunctions | [v0.32](https://github.com/mraad/GeoFunctions/releases/tag/v0.32) | zip + `geofunctions-0.32.jar` + `geofunctions-0.32-2.13.jar` |
+
+- [x] **Publish the Scala 2.13 dependency artifacts.** Done, and the 2.12 ones too — they
+      had never been published either, which the README used to imply otherwise.
+- [x] **Decide whether releases ship a 2.13 artifact.** Yes. `gf.sh` still builds the 2.12
+      zip for ArcGIS Pro; the 2.13 shaded jar is attached to the release alongside it.
+
+Verified against the **published** assets, not local builds: the 2.13 jar on pyspark 4.0.0
+and the 2.12 jar on pyspark 3.5.9 both pass the smoke path (point construction, WKT round
+trip, codegen, an `*_explode` helper, the DataFrame monkey-patch, the SQL registry), and the
+2.12 jar on pyspark 4.0.0 fails with `NoClassDefFoundError: scala/collection/SeqOps` exactly
+as the release notes warn.
+
+## Still manual, if it ever matters
+- `gf.sh` builds only the 2.12 zip. The 2.13 jar was built by hand with `-P spark-4.0` and
+  attached separately. If two-line releases become routine, teach `gf.sh` to do both rather
+  than repeating that step from memory.
 
 ## Not doing
 - Raising the `spark-3.3`/`spark-3.4` profiles or testing them. Untouched and unverified
