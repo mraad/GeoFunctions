@@ -2,9 +2,7 @@ package com.esri.spark
 
 import com.esri.core.geometry.Polygon
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Literal, UnsafeProjection}
-import org.apache.spark.sql.catalyst.util.ArrayData
-import org.apache.spark.sql.types.{BinaryType, DoubleType}
+import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes, Literal, UnsafeProjection}
 import org.apache.spark.unsafe.types.UTF8String
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -27,9 +25,6 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
     p.bytes
   }
 
-  private def qrsOf(arr: ArrayData): Set[Long] =
-    (0 until arr.numElements()).map(i => arr.getStruct(i, arr.numElements()).getLong(0)).toSet
-
   private def listQrs(bytes: Array[Byte], cell: Double, dist: Double): Set[Long] = {
     val arr = QRListObj.eval(bytes, cell, dist)
     (0 until arr.numElements()).map(arr.getLong).toSet
@@ -43,56 +38,92 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
   private def areaOf(bytes: Array[Byte]): Double =
     bytes.geom.calculateArea2D()
 
-  "QR_LIST" should "return no cells for an empty geometry" in {
-    QRListObj.eval(new Polygon().bytes, 1.0, 0.0).numElements() shouldBe 0
-  }
+  private val expressions: Seq[Seq[Expression] => Expression with ImplicitCastInputTypes] = Seq(
+    QRCount.apply, QRList.apply, QREnvp.apply, QRGeom.apply, QREnvpGeom.apply)
 
-  it should "reject non-finite or out-of-domain cell and distance values" in {
-    val g = rect(0, 0, 1, 1)
-    Seq(0.0, -1.0, Double.NaN, Double.PositiveInfinity).foreach { cell =>
-      an[IllegalArgumentException] should be thrownBy QRListObj.eval(g, cell, 0.0)
+  "QR functions" should "propagate every null argument in interpreted and generated evaluation" in {
+    expressions.foreach { build =>
+      val args = Seq(Literal(rect(0, 0, 1, 1)), Literal(1.0), Literal(0.0), Literal("-1"))
+        .take(build(Seq.empty).inputTypes.length)
+      args.indices.foreach { nullIndex =>
+        val expression = build(args.updated(nullIndex, Literal.create(null, args(nullIndex).dataType)))
+        withClue(s"${expression.prettyName} argument $nullIndex: ") {
+          Option(expression.eval(InternalRow.empty)) shouldBe None
+          UnsafeProjection.create(Seq(expression))(InternalRow.empty).isNullAt(0) shouldBe true
+        }
+      }
     }
-    Seq(-1.0, Double.NaN, Double.PositiveInfinity).foreach { dist =>
-      an[IllegalArgumentException] should be thrownBy QRListObj.eval(g, 1.0, dist)
+  }
+
+  it should "return zero candidates and no clipped rows for empty geometry" in {
+    val bytes = new Polygon().bytes
+    QRCountObj.eval(bytes, 1.0, 0.0) shouldBe 0
+    QRListObj.eval(bytes, 1.0, 0.0).numElements() shouldBe 0
+    QREnvpObj.eval(bytes, 1.0, 0.0).numElements() shouldBe 0
+    QRGeomPar.eval(bytes, 1.0, 0.0, NoSR).numElements() shouldBe 0
+    QREnvpGeomPar.eval(bytes, 1.0, 0.0, NoSR).numElements() shouldBe 0
+  }
+
+  it should "accept both signed Int boundary cells" in {
+    Seq(Int.MinValue.toDouble, Int.MaxValue.toDouble).foreach { edge =>
+      val bytes = rect(edge + 0.1, edge + 0.1, edge + 0.9, edge + 0.9)
+      val expected = Set((edge.toLong << 32) | (edge.toLong & 0xFFFFFFFFL))
+      listQrs(bytes, 1.0, 0.0) shouldBe expected
+      geomQrs(bytes, 1.0, 0.0) shouldBe expected
     }
   }
 
-  it should "reject cell indices that cannot be packed into a QR key" in {
-    val far = rect(1e15, 1e15, 1e15 + 10.0, 1e15 + 10.0)
-    an[IllegalArgumentException] should be thrownBy QRListObj.eval(far, 1.0, 0.0)
-  }
-
-  it should "reject an array whose candidate count exceeds Int" in {
-    // Each axis fits in Int, but their product does not. Without the preflight check this
-    // starts filling billions of boxed Longs and fails with an unhelpful OOM.
-    val tooMany = rect(0.0, 0.0, 50000.0, 50000.0)
-    an[IllegalArgumentException] should be thrownBy QRListObj.eval(tooMany, 1.0, 0.0)
-  }
-
-  it should "propagate null inputs in interpreted and generated evaluation" in {
-    val nullExpressions = Seq(
-      QRList(Seq(Literal.create(null, BinaryType), Literal(1.0), Literal(0.0))),
-      QRList(Seq(Literal.create(rect(0, 0, 1, 1), BinaryType),
-        Literal.create(null, DoubleType), Literal(0.0))),
-      QRList(Seq(Literal.create(rect(0, 0, 1, 1), BinaryType),
-        Literal(1.0), Literal.create(null, DoubleType))),
-    )
-
-    nullExpressions.foreach { expression =>
-      Option(expression.eval(InternalRow.empty)) shouldBe None
-      UnsafeProjection.create(Seq(expression))(InternalRow.empty).isNullAt(0) shouldBe true
+  it should "reject invalid inputs before scanning or allocating candidates" in {
+    val evaluators: Seq[(Array[Byte], Double, Double) => Any] = Seq(
+      QRCountObj.eval, QRListObj.eval, QREnvpObj.eval,
+      (bytes, cell, dist) => QRGeomPar.eval(bytes, cell, dist, NoSR),
+      (bytes, cell, dist) => QREnvpGeomPar.eval(bytes, cell, dist, NoSR))
+    evaluators.foreach { evaluate =>
+      val g = rect(0, 0, 1, 1)
+      Seq(0.0, -1.0, Double.NaN, Double.NegativeInfinity, Double.PositiveInfinity).foreach { cell =>
+        an[IllegalArgumentException] should be thrownBy evaluate(g, cell, 0.0)
+      }
+      Seq(-1.0, Double.NaN, Double.NegativeInfinity, Double.PositiveInfinity).foreach { dist =>
+        an[IllegalArgumentException] should be thrownBy evaluate(g, 1.0, dist)
+      }
+      // Small extents outside the packed-key range, too many cells, and saturated conversions.
+      Seq(
+        rect(Int.MaxValue.toDouble + 1, 0, Int.MaxValue.toDouble + 2, 1),
+        rect(Int.MinValue.toDouble - 2, 0, Int.MinValue.toDouble - 1, 1),
+        rect(0, Int.MaxValue.toDouble + 1, 1, Int.MaxValue.toDouble + 2),
+        rect(0, Int.MinValue.toDouble - 2, 1, Int.MinValue.toDouble - 1),
+        rect(0, 0, 50000, 50000),
+        rect(-2e9, -2e9, 2e9, 2e9),
+        rect(1e20, 1e20, 2e20, 2e20),
+      ).foreach { bytes =>
+        an[IllegalArgumentException] should be thrownBy evaluate(bytes, 1.0, 0.0)
+      }
     }
   }
 
   it should "reject an incorrect argument count during analysis" in {
-    val args = Seq(
-      Literal.create(rect(0, 0, 1, 1), BinaryType),
-      Literal(1.0),
-      Literal(0.0),
-    )
-    QRList(args).checkInputDataTypes().isSuccess shouldBe true
-    QRList(args.take(2)).checkInputDataTypes().isFailure shouldBe true
-    QRList(args :+ Literal(0.0)).checkInputDataTypes().isFailure shouldBe true
+    expressions.foreach { build =>
+      val args = Seq(Literal(rect(0, 0, 1, 1)), Literal(1.0), Literal(0.0), Literal("-1"))
+        .take(build(Seq.empty).inputTypes.length)
+      build(args).checkInputDataTypes().isSuccess shouldBe true
+      build(args.dropRight(1)).checkInputDataTypes().isFailure shouldBe true
+      build(args :+ Literal(0.0)).checkInputDataTypes().isFailure shouldBe true
+    }
+  }
+
+  it should "produce identical interpreted and generated results" in {
+    for {
+      build <- expressions
+      bytes <- Seq(rect(-1.5, -0.5, 2.5, 1.5), new Polygon().bytes)
+    } {
+      val args = Seq(Literal(bytes), Literal(1.0), Literal(0.25), Literal("-1"))
+        .take(build(Seq.empty).inputTypes.length)
+      val expression = build(args)
+      val interpreted = UnsafeProjection.create(Array(expression.dataType))(
+        InternalRow(expression.eval(InternalRow.empty))).copy()
+      val generated = UnsafeProjection.create(Seq(expression))(InternalRow.empty)
+      generated shouldBe interpreted
+    }
   }
 
   "QR_COUNT" should "equal the number of candidate cells QR_LIST emits" in {
@@ -101,7 +132,11 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
       dist <- Seq(0.0, 0.05, 0.4 * cell)
     } {
       val g = rect(-3.2, 1.4, 11.9, 8.6)
-      QRCountObj.eval(g, cell, dist) shouldBe listQrs(g, cell, dist).size
+      val keys = listQrs(g, cell, dist)
+      QRCountObj.eval(g, cell, dist) shouldBe keys.size
+      val envps = QREnvpObj.eval(g, cell, dist)
+      envps.numElements() shouldBe keys.size
+      (0 until envps.numElements()).map(i => envps.getStruct(i, 5).getLong(0)).toSet shouldBe keys
     }
   }
 

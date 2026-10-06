@@ -1,8 +1,9 @@
 package com.esri.spark
 
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
@@ -38,15 +39,31 @@ final case class QRGeom(children: Seq[Expression])
       StructField("geom", BinaryType, nullable = false)
     )), containsNull = false)
 
+  override def checkInputDataTypes(): TypeCheckResult = {
+    if (children.length != inputTypes.length) {
+      TypeCheckResult.TypeCheckFailure(
+        s"QR_GEOM requires exactly ${inputTypes.length} arguments, got ${children.length}")
+    } else {
+      super.checkInputDataTypes()
+    }
+  }
+
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression, e4: Expression) =>
-        QRGeomPar.eval(
-          e1.eval(inputRow).asInstanceOf[Array[Byte]],
-          e2.eval(inputRow).asInstanceOf[Double],
-          e3.eval(inputRow).asInstanceOf[Double],
-          e4.eval(inputRow).asInstanceOf[UTF8String],
-        )
+        val v1 = e1.eval(inputRow)
+        val v2 = e2.eval(inputRow)
+        val v3 = e3.eval(inputRow)
+        val v4 = e4.eval(inputRow)
+        if (v1 == null || v2 == null || v3 == null || v4 == null) null
+        else {
+          QRGeomPar.eval(
+            v1.asInstanceOf[Array[Byte]],
+            v2.asInstanceOf[Double],
+            v3.asInstanceOf[Double],
+            v4.asInstanceOf[UTF8String],
+          )
+        }
       case _ => null
     }
   }
@@ -72,8 +89,12 @@ final case class QRGeom(children: Seq[Expression])
         ${c2.code}
         ${c3.code}
         ${c4.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull} || ${c2.isNull} || ${c3.isNull} || ${c4.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = null;
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =
