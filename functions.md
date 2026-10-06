@@ -253,6 +253,12 @@ Every function that takes `dist` follows this convention, so `qr_count`, `qr_lis
 `qr_envp`, `qr_geom` and `qr_envp_geom` agree on the candidate cell set for a given
 `(cell, dist)`.
 
+These five functions require a finite positive `cell` and a finite non-negative
+`dist`. Candidate indices must fit in signed 32-bit integers, and the candidate
+count must fit in a signed 32-bit integer; invalid ranges fail before allocation.
+Empty geometries yield zero candidates (empty arrays, or `0` for `qr_count`).
+A null argument produces null.
+
 ### st_lontoq(lon, cell)
 Convert longitude to a q value (column index in quadtree grid).
 
