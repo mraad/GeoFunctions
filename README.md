@@ -266,3 +266,11 @@ The list above is a subset. Other areas covered in [functions.md](functions.md):
 - **GDB decoding**: gdb_polyline2, gdb_polygon2, gdb_polygonM, gdb_polygonZ — turn the `Shape` struct from the `gdb`/`shp` readers into WKB.
 - **ArcGIS bridge**: to_spark, to_feature_class, to_feature_table.
 - **SQL**: st_register_functions() registers the `ST_*`/`QR_*`/`H3_*` names for Spark SQL.
+
+### Known notebook issues
+
+Running all 63 notebooks outside ArcGIS Pro (local PySpark 3.5.9, shapely 2.1.2, geopandas 1.1.1) shows three open problems. They are not yet fixed.
+
+- **`TypeError: Expected bytes or string, got bytearray`.** `toPandas()` returns a `BinaryType` column as `bytearray`, and shapely 2.1's `from_wkb` rejects that, so `gp.GeoSeries.from_wkb(pdf.geometry)` fails. Workaround: convert first, e.g. `pdf.geometry.map(bytes)`. Affects GeoPandas, H3_LatLngToCell, HotSpotAnalysis, Miami, PointNearPoint1, QR_AsGeom, QR_Geom, ST_Buffer, ST_Convexhull, ST_Convexhull_group, ST_FromText, ST_Multipoint, ST_Polygon and ST_Polyline. The shapely version ArcGIS Pro ships has not been checked.
+- **PointNearPoint2: ``UNRESOLVED_COLUMN `lgeom` ``.** `join_qr` keeps each side's geometry column under its input name (`geom` and `geom`). `st_distance()` defaults to `lgeom`/`rgeom`, so the notebook's call has nothing to resolve.
+- **PointInTimeZone1, PointInTimeZone2: `SQL_CONF_NOT_FOUND` for `spark.esri.parallel`.** The notebooks call `spark.conf.get("spark.esri.parallel")` with no default. The library reads it with default 64, but nothing sets it outside the notebook's own (commented-out) `spark.conf.set`, so the bare `get` fails.
