@@ -12,7 +12,7 @@ also exists behind `-P spark-4.0`; see [Spark 4.0](#spark-40). Releases remain 3
 ### Core Geometry Dependency
 
 The Scala implementation depends on
-[`com.esri.geometry:esri-geometry-api:2.2.5-SNAPSHOT`](https://github.com/Esri/geometry-api-java.git).
+[`com.esri.geometry:esri-geometry-api:2.3.1`](https://github.com/Esri/geometry-api-java.git).
 The dependency is shaded into the GeoFunctions JAR, so runtime users do not install it
 separately. A source build needs the snapshot in its Maven repository; install it once if
 Maven cannot resolve it:

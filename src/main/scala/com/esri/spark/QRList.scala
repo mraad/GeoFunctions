@@ -16,54 +16,16 @@ object QRListObj extends Serializable {
                  cell: Double,
                  dist: Double
                 ): ArrayData = {
-    require(java.lang.Double.isFinite(cell) && cell > 0.0,
-      s"cell must be finite and positive, got $cell")
-    require(java.lang.Double.isFinite(dist) && dist >= 0.0,
-      s"dist must be finite and non-negative, got $dist")
-
     val envp = new Envelope2D()
     bytes.geom.queryEnvelope2D(envp)
-    if (envp.isEmpty) {
-      return UnsafeArrayData.fromPrimitiveArray(Array.empty[Long])
-    }
-
-    val xmin = envp.xmin - dist
-    val ymin = envp.ymin - dist
-    val xmax = envp.xmax + dist
-    val ymax = envp.ymax + dist
-
-    // Validate the floored doubles before converting them. Double.toLong saturates and
-    // adding one to Long.MaxValue wraps, which can otherwise turn an invalid extent into
-    // an empty scan. QR keys only retain the low 32 bits of q and r, so both indices must
-    // fit in an Int to remain round-trippable by QR_ASGEOM.
-    val qminD = (xmin / cell).floor
-    val rminD = (ymin / cell).floor
-    val qmaxD = (xmax / cell).floor
-    val rmaxD = (ymax / cell).floor
-    require(
-      qminD >= Int.MinValue && qmaxD <= Int.MaxValue &&
-        rminD >= Int.MinValue && rmaxD <= Int.MaxValue,
-      s"cell range out of Int bounds: q=[$qminD,$qmaxD] r=[$rminD,$rmaxD] with cell=$cell dist=$dist"
-    )
-
-    val qmin = qminD.toLong
-    val rmin = rminD.toLong
-    val qmax = qmaxD.toLong + 1L
-    val rmax = rmaxD.toLong + 1L
-    val nq = qmax - qmin
-    val nr = rmax - rmin
-    // Check each factor before multiplying so the product cannot overflow Long. The
-    // result must fit in an Int because both JVM arrays and Spark ArrayData are Int-sized.
-    require(nq > 0L && nr > 0L && nq <= Int.MaxValue && nr <= Int.MaxValue && nq * nr <= Int.MaxValue,
-      s"${nq}x${nr} cells for one geometry with cell=$cell dist=$dist - use a larger cell")
-
-    val arr = new Array[Long]((nq * nr).toInt)
+    val range = QRRange(envp, cell, dist)
+    val arr = new Array[Long](range.count)
     var i = 0
-    var q = qmin
-    while (q < qmax) {
+    var q = range.qmin
+    while (q < range.qmax) {
       val q32 = q << 32
-      var r = rmin
-      while (r < rmax) {
+      var r = range.rmin
+      while (r < range.rmax) {
         arr(i) = q32 | (r & 0xFFFFFFFFL)
         i += 1
         r += 1L

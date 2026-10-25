@@ -1,6 +1,7 @@
 package com.esri.spark
 
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
@@ -37,6 +38,15 @@ final case class QRGeom(children: Seq[Expression])
       StructField("qr", LongType, nullable = false),
       StructField("geom", BinaryType, nullable = false)
     )), containsNull = false)
+
+  override def checkInputDataTypes(): TypeCheckResult = {
+    if (children.length != inputTypes.length) {
+      TypeCheckResult.TypeCheckFailure(
+        s"QR_GEOM requires exactly ${inputTypes.length} arguments, got ${children.length}")
+    } else {
+      super.checkInputDataTypes()
+    }
+  }
 
   override def eval(inputRow: InternalRow): Any = {
     children match {

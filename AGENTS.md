@@ -4,7 +4,7 @@
 
 Core Spark Catalyst expressions live in `src/main/scala/com/esri/spark/`, generally one class per spatial function. The PySpark/py4j API is the single module `src/main/python/geofunctions/__init__.py`. ScalaTest suites belong in `src/test/scala/com/esri/spark/` and use the `*Spec.scala` suffix. Usage examples are in `notebooks/`; `functions.md` is the function reference, and `README.md` covers installation and runtime setup. ArcGIS toolbox files live in `toolbox/`. Treat `build/`, `target/`, and `.ipynb_checkpoints/` as generated output; `data/` and `docs/` are generally ignored.
 
-The geometry engine is the [Esri Geometry API for Java](https://github.com/Esri/geometry-api-java.git). `pom.xml` currently consumes `com.esri.geometry:esri-geometry-api:2.2.5-SNAPSHOT` and shades it into the project JAR. If Maven cannot resolve that snapshot, clone the linked repository and run `mvn install` there before building GeoFunctions.
+The geometry engine is the [Esri Geometry API for Java](https://github.com/Esri/geometry-api-java.git). `pom.xml` currently consumes `com.esri.geometry:esri-geometry-api:2.3.1` and shades it into the project JAR. 2.3.1 is not on Maven Central, so clone the linked repository, check out tag `v2.3.1` and run `mvn install -Dmaven.javadoc.skip=true` there before building GeoFunctions.
 
 ## Build, Test, and Development Commands
 

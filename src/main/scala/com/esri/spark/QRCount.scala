@@ -2,6 +2,7 @@ package com.esri.spark
 
 import com.esri.core.geometry.Envelope2D
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
@@ -13,32 +14,9 @@ object QRCountObj extends Serializable {
                  cell: Double,
                  dist: Double
                 ): Int = {
-    require(cell > 0.0, s"cell must be positive, got $cell")
-    require(dist >= 0.0, s"dist must be non-negative, got $dist")
-    val geom = bytes.geom
-
     val envp = new Envelope2D()
-    geom.queryEnvelope2D(envp)
-
-    val xmin = envp.xmin - dist
-    val ymin = envp.ymin - dist
-    val xmax = envp.xmax + dist
-    val ymax = envp.ymax + dist
-
-    // Long math throughout: a small cell over a large extent overflows Int in the floor
-    // conversions and again in the product, which used to surface as a negative count.
-    val qmin = (xmin / cell).floor.toLong
-    val rmin = (ymin / cell).floor.toLong
-    val qmax = (xmax / cell).floor.toLong + 1L
-    val rmax = (ymax / cell).floor.toLong + 1L
-
-    // Check the factors before multiplying: the product itself overflows Long for a small
-    // cell over a large extent, and a wrapped positive value would slip past the check.
-    val nq = qmax - qmin
-    val nr = rmax - rmin
-    require(nq > 0L && nr > 0L && nq <= Int.MaxValue && nr <= Int.MaxValue && nq * nr <= Int.MaxValue,
-      s"${nq}x${nr} cells for one geometry with cell=$cell dist=$dist - use a larger cell")
-    (nq * nr).toInt
+    bytes.geom.queryEnvelope2D(envp)
+    QRRange(envp, cell, dist).count
   }
 }
 
@@ -56,6 +34,15 @@ final case class QRCount(children: Seq[Expression])
   )
 
   override def dataType: DataType = IntegerType
+
+  override def checkInputDataTypes(): TypeCheckResult = {
+    if (children.length != inputTypes.length) {
+      TypeCheckResult.TypeCheckFailure(
+        s"QR_COUNT requires exactly ${inputTypes.length} arguments, got ${children.length}")
+    } else {
+      super.checkInputDataTypes()
+    }
+  }
 
   override def eval(inputRow: InternalRow): Any = {
     children match {
