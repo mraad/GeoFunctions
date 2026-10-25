@@ -3,7 +3,7 @@ package com.esri.spark
 import com.esri.core.geometry.Envelope2D
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 
@@ -53,13 +53,21 @@ final case class STIntersectsBox(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression, e4: Expression, e5: Expression) =>
-        STIntersectsBoxObj.eval(
-          e1.eval(inputRow).asInstanceOf[Array[Byte]],
-          e2.eval(inputRow).asInstanceOf[Double],
-          e3.eval(inputRow).asInstanceOf[Double],
-          e4.eval(inputRow).asInstanceOf[Double],
-          e5.eval(inputRow).asInstanceOf[Double]
-        )
+        val v1 = e1.eval(inputRow)
+        val v2 = e2.eval(inputRow)
+        val v3 = e3.eval(inputRow)
+        val v4 = e4.eval(inputRow)
+        val v5 = e5.eval(inputRow)
+        if (v1 == null || v2 == null || v3 == null || v4 == null || v5 == null) null
+        else {
+          STIntersectsBoxObj.eval(
+            v1.asInstanceOf[Array[Byte]],
+            v2.asInstanceOf[Double],
+            v3.asInstanceOf[Double],
+            v4.asInstanceOf[Double],
+            v5.asInstanceOf[Double]
+          )
+        }
       case _ => null
     }
   }
@@ -81,7 +89,6 @@ final case class STIntersectsBox(children: Seq[Expression])
 
     val obj = STIntersectsBoxObj.getClass.getName.stripSuffix("$")
     val objEval = s"$obj.eval($a1,$a2,$a3,$a4,$a5)"
-    // s to code, ctx to CodeGenerator, false to FalseLiteral
     ev.copy(code =
       code"""
         ${c1.code}
@@ -89,8 +96,12 @@ final case class STIntersectsBox(children: Seq[Expression])
         ${c3.code}
         ${c4.code}
         ${c5.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull} || ${c2.isNull} || ${c3.isNull} || ${c4.isNull} || ${c5.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =

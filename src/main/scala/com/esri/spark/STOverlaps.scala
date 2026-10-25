@@ -3,7 +3,7 @@ package com.esri.spark
 import com.esri.core.geometry.OperatorOverlaps
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -43,11 +43,17 @@ final case class STOverlaps(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression) =>
-        STOverlapsObj.eval(
-          e1.eval(inputRow).asInstanceOf[Array[Byte]],
-          e2.eval(inputRow).asInstanceOf[Array[Byte]],
-          e3.eval(inputRow).asInstanceOf[UTF8String],
-        )
+        val v1 = e1.eval(inputRow)
+        val v2 = e2.eval(inputRow)
+        val v3 = e3.eval(inputRow)
+        if (v1 == null || v2 == null || v3 == null) null
+        else {
+          STOverlapsObj.eval(
+            v1.asInstanceOf[Array[Byte]],
+            v2.asInstanceOf[Array[Byte]],
+            v3.asInstanceOf[UTF8String],
+          )
+        }
       case _ => null
     }
   }
@@ -70,8 +76,12 @@ final case class STOverlaps(children: Seq[Expression])
         ${c1.code}
         ${c2.code}
         ${c3.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull} || ${c2.isNull} || ${c3.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =

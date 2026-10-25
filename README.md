@@ -205,12 +205,9 @@ bite:
 
 **Note:** Look at the notebooks for example usages of the functions. See [functions.md](functions.md) for the full reference. The reproducible [QR cell-size benchmark](benchmarks/README.md) selects and times a grid for the 5-million-point world time-zone join.
 
-**Null inputs are generally the caller's responsibility.** Most functions skip per-row null
-checks for speed, so filter or coalesce nulls before calling; otherwise a null may be read as
-`0`/`-1` and produce a plausible but wrong result. `qr_list` and `qr_intersect` are explicit
-exceptions: they propagate a null required argument, and `join_qr` excludes rows whose QR or
-required geometry fields are null. See
-[functions.md](functions.md#null-inputs-are-the-callers-responsibility).
+**Null inputs produce null.** Every function returns null when any argument is null, except
+`st_isempty`, which treats a null geometry as empty. See
+[functions.md](functions.md#null-inputs-produce-null).
 
 **`dist` inflates the cell, not the geometry.** Cell `(q, r)` spans
 `[q*cell - dist, (q+1)*cell + dist]` on each axis, so adjacent cells overlap by `2 * dist`

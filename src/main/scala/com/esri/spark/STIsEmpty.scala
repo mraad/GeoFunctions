@@ -21,7 +21,8 @@ final case class STIsEmpty(children: Seq[Expression])
 
   override def foldable: Boolean = children.forall(_.foldable)
 
-  override def nullable: Boolean = children.exists(_.nullable)
+  // Null counts as empty, so ST_ISEMPTY never returns null.
+  override def nullable: Boolean = false
 
   override def inputTypes: Seq[DataType] = Seq(
     BinaryType,
@@ -57,7 +58,7 @@ final case class STIsEmpty(children: Seq[Expression])
     ev.copy(code =
       code"""
         ${c1.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${c1.isNull} || $objEval;
         """, isNull = FalseLiteral)
   }
 

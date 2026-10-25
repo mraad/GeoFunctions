@@ -3,7 +3,7 @@ package com.esri.spark
 import com.esri.core.geometry.Polyline
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
@@ -46,9 +46,13 @@ final case class STPolyline2(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression) =>
-        STPolyline2Obj.eval(
-          e1.eval(inputRow).asInstanceOf[ArrayData],
-        )
+        val v1 = e1.eval(inputRow)
+        if (v1 == null) null
+        else {
+          STPolyline2Obj.eval(
+            v1.asInstanceOf[ArrayData],
+          )
+        }
       case _ => null
     }
   }
@@ -63,8 +67,12 @@ final case class STPolyline2(children: Seq[Expression])
     ev.copy(code =
       code"""
         ${c1.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =
