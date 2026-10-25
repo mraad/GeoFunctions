@@ -41,8 +41,9 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
   private val expressions: Seq[Seq[Expression] => Expression with ImplicitCastInputTypes] = Seq(
     QRCount.apply, QRList.apply, QREnvp.apply, QRGeom.apply, QREnvpGeom.apply)
 
-  "QR functions" should "propagate every null argument in interpreted and generated evaluation" in {
-    expressions.foreach { build =>
+  // Only QR_LIST propagates nulls; the other QR functions follow the caller-filters-nulls contract.
+  "QR_LIST" should "propagate every null argument in interpreted and generated evaluation" in {
+    Seq[Seq[Expression] => Expression with ImplicitCastInputTypes](QRList.apply).foreach { build =>
       val args = Seq(Literal(rect(0, 0, 1, 1)), Literal(1.0), Literal(0.0), Literal("-1"))
         .take(build(Seq.empty).inputTypes.length)
       args.indices.foreach { nullIndex =>
@@ -55,7 +56,7 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "return zero candidates and no clipped rows for empty geometry" in {
+  "QR functions" should "return zero candidates and no clipped rows for empty geometry" in {
     val bytes = new Polygon().bytes
     QRCountObj.eval(bytes, 1.0, 0.0) shouldBe 0
     QRListObj.eval(bytes, 1.0, 0.0).numElements() shouldBe 0

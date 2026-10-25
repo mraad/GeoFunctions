@@ -4,7 +4,7 @@ import com.esri.core.geometry.Envelope2D
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
@@ -71,17 +71,11 @@ final case class QREnvp(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression) =>
-        val v1 = e1.eval(inputRow)
-        val v2 = e2.eval(inputRow)
-        val v3 = e3.eval(inputRow)
-        if (v1 == null || v2 == null || v3 == null) null
-        else {
-          QREnvpObj.eval(
-            v1.asInstanceOf[Array[Byte]],
-            v2.asInstanceOf[Double],
-            v3.asInstanceOf[Double],
-          )
-        }
+        QREnvpObj.eval(
+          e1.eval(inputRow).asInstanceOf[Array[Byte]],
+          e2.eval(inputRow).asInstanceOf[Double],
+          e3.eval(inputRow).asInstanceOf[Double],
+        )
       case _ => null
     }
   }
@@ -102,12 +96,8 @@ final case class QREnvp(children: Seq[Expression])
         ${c1.code}
         ${c2.code}
         ${c3.code}
-        boolean ${ev.isNull} = ${c1.isNull} || ${c2.isNull} || ${c3.isNull};
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = null;
-        if (!${ev.isNull}) {
-          ${ev.value} = $objEval;
-        }
-        """)
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
+        """, isNull = FalseLiteral)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =
