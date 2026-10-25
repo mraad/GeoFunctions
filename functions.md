@@ -1028,18 +1028,10 @@ Converts an ArcGIS feature class to a Spark DataFrame.
 - The `wkid` parameter specifies spatial reference using EPSG/ESRI Well-Known IDs (-1 means unspecified)
 - Most functions work within a Spark SQL context and require an active SparkSession
 
-### Null inputs are the caller's responsibility
+### Null inputs produce null
 
-**Never pass a null argument to a GeoFunction.** For speed these functions do not check
-for null on every row — filter or coalesce upstream instead:
-
-```python
-df.filter(F.col("lon").isNotNull() & F.col("lat").isNotNull()) \
-  .withColumn("geom", st_point("lon", "lat"))
-```
-
-A null that reaches a function does not raise. It is silently read as `0.0` / `0` /
-`-1.0` / `-1` depending on the type and the execution path, and you get a plausible but
-wrong answer: `st_point(NULL, 2.0)` yields `POINT (-1 2)`, and
-`h3_latlng_to_cell(NULL, lng, 7)` yields the cell on the equator. If you are seeing
-geometry at odd coordinates, look for an unfiltered null column.
+Every GeoFunction returns null when any argument is null, in both interpreted and
+generated execution: `st_point(NULL, 2.0)` is `NULL`. The one exception is `st_isempty`,
+which treats a null geometry as empty and returns `true`. A `*_explode` helper yields no
+rows for a null input, and `join_qr` excludes rows whose QR or required geometry fields
+are null.

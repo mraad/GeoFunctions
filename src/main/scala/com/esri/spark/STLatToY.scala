@@ -3,7 +3,7 @@ package com.esri.spark
 import com.esri.webmercator._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 
@@ -29,9 +29,13 @@ final case class STLatToY(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression) =>
-        STLatToYObj.eval(
-          e1.eval(inputRow).asInstanceOf[Double],
-        )
+        val v1 = e1.eval(inputRow)
+        if (v1 == null) null
+        else {
+          STLatToYObj.eval(
+            v1.asInstanceOf[Double],
+          )
+        }
       case _ => null
     }
   }
@@ -46,8 +50,12 @@ final case class STLatToY(children: Seq[Expression])
     ev.copy(code =
       code"""
         ${c1.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =

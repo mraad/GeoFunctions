@@ -4,7 +4,7 @@ import com.esri.core.geometry.Envelope2D
 import org.apache.commons.math3.util.FastMath
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 
@@ -41,10 +41,15 @@ final case class QRFromGeom(children: Seq[Expression])
       exprH: Expression,
       exprL: Expression
       ) =>
-        QRFromGeomObj.eval(
-          exprH.eval(inputRow).asInstanceOf[Array[Byte]],
-          exprL.eval(inputRow).asInstanceOf[Double],
-        )
+        val vH = exprH.eval(inputRow)
+        val vL = exprL.eval(inputRow)
+        if (vH == null || vL == null) null
+        else {
+          QRFromGeomObj.eval(
+            vH.asInstanceOf[Array[Byte]],
+            vL.asInstanceOf[Double],
+          )
+        }
       case _ => null
     }
   }
@@ -64,8 +69,12 @@ final case class QRFromGeom(children: Seq[Expression])
       code"""
         ${codeH.code}
         ${codeL.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${codeH.isNull} || ${codeL.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =

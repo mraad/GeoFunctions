@@ -3,7 +3,7 @@ package com.esri.spark
 import com.esri.core.geometry.OperatorExportToGeoJson
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -31,9 +31,13 @@ final case class STAsGeoJSON(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression) =>
-        STAsGeoJSONObj.eval(
-          e1.eval(inputRow).asInstanceOf[Array[Byte]],
-        )
+        val v1 = e1.eval(inputRow)
+        if (v1 == null) null
+        else {
+          STAsGeoJSONObj.eval(
+            v1.asInstanceOf[Array[Byte]],
+          )
+        }
       case _ => null
     }
   }
@@ -50,8 +54,12 @@ final case class STAsGeoJSON(children: Seq[Expression])
     ev.copy(code =
       code"""
         ${c1.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =

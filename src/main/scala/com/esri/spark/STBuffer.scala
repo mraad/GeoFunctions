@@ -3,7 +3,7 @@ package com.esri.spark
 import com.esri.core.geometry.OperatorBuffer
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -54,12 +54,19 @@ final case class STBuffer(children: Seq[Expression])
       e3: Expression,
       e4: Expression,
       ) =>
-        STBufferObj.eval(
-          e1.eval(inputRow).asInstanceOf[Array[Byte]],
-          e2.eval(inputRow).asInstanceOf[Double],
-          e3.eval(inputRow).asInstanceOf[Int],
-          e4.eval(inputRow).asInstanceOf[UTF8String],
-        )
+        val v1 = e1.eval(inputRow)
+        val v2 = e2.eval(inputRow)
+        val v3 = e3.eval(inputRow)
+        val v4 = e4.eval(inputRow)
+        if (v1 == null || v2 == null || v3 == null || v4 == null) null
+        else {
+          STBufferObj.eval(
+            v1.asInstanceOf[Array[Byte]],
+            v2.asInstanceOf[Double],
+            v3.asInstanceOf[Int],
+            v4.asInstanceOf[UTF8String],
+          )
+        }
       case _ => null
     }
   }
@@ -85,8 +92,12 @@ final case class STBuffer(children: Seq[Expression])
         ${c2.code}
         ${c3.code}
         ${c4.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull} || ${c2.isNull} || ${c3.isNull} || ${c4.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =

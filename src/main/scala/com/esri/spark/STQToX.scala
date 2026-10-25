@@ -2,7 +2,7 @@ package com.esri.spark
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode, FalseLiteral}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.types._
 
@@ -30,11 +30,17 @@ final case class STQToX(children: Seq[Expression])
   override def eval(inputRow: InternalRow): Any = {
     children match {
       case Seq(e1: Expression, e2: Expression, e3: Expression) =>
-        STQToXObj.eval(
-          e1.eval(inputRow).asInstanceOf[Int],
-          e2.eval(inputRow).asInstanceOf[Double],
-          e3.eval(inputRow).asInstanceOf[Double],
-        )
+        val v1 = e1.eval(inputRow)
+        val v2 = e2.eval(inputRow)
+        val v3 = e3.eval(inputRow)
+        if (v1 == null || v2 == null || v3 == null) null
+        else {
+          STQToXObj.eval(
+            v1.asInstanceOf[Int],
+            v2.asInstanceOf[Double],
+            v3.asInstanceOf[Double],
+          )
+        }
       case _ => null
     }
   }
@@ -55,8 +61,12 @@ final case class STQToX(children: Seq[Expression])
         ${c1.code}
         ${c2.code}
         ${c3.code}
-        ${CodeGenerator.javaType(dataType)} ${ev.value} = $objEval;
-        """, isNull = FalseLiteral)
+        boolean ${ev.isNull} = ${c1.isNull} || ${c2.isNull} || ${c3.isNull};
+        ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+        if (!${ev.isNull}) {
+          ${ev.value} = $objEval;
+        }
+        """)
   }
 
   protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =
