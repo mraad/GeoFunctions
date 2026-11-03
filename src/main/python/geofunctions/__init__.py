@@ -2484,7 +2484,8 @@ def _join_qr_broadcast(lhs, rhs, cell, qr, oper, wkid, lhs_geom, rhs_geom, side)
     condition = (lqr.getField("qr") == rqr.getField("qr")) & qr_intersect(lqr, rqr, cell)
     predicate = _BROADCAST_PREDICATES[oper]
     if predicate is not None:
-        condition = condition & predicate(field("_qr_l", lhs_geom), field("_qr_r", rhs_geom), wkid)
+        # lit: a str wkid such as "4326" would otherwise be read as a column name
+        condition = condition & predicate(field("_qr_l", lhs_geom), field("_qr_r", rhs_geom), lit(str(wkid)))
     return lhs.join(rhs, condition).select(
         *[field("_qr_l", c) for c in lhs.columns if c != qr],
         *[field("_qr_r", c) for c in rhs.columns if c != qr],

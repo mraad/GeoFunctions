@@ -77,9 +77,18 @@ class STRelationSpec extends AnyFlatSpec with Matchers {
       val two = make(Seq(lhsCol, rhsCol))
       val three = make(Seq(lhsCol, rhsCol, Literal(wkid)))
       two.checkInputDataTypes().isSuccess shouldBe true
-      points.take(200).foreach { pt =>
+      // every grid point plus the origin (inside) and the (10, 0) vertex (boundary)
+      points.foreach { pt =>
         withClue(name) {
           run(two, star, pt, null) shouldBe run(three, star, pt, null)
+          run(two, pt, star, null) shouldBe run(three, pt, star, null)
+        }
+      }
+      withClue(s"$name null: ") {
+        Seq((null, star), (star, null)).foreach { case (l, r) =>
+          val row = InternalRow(l, r, null)
+          Option(two.eval(row)) shouldBe None
+          UnsafeProjection.create(Seq(two))(row).isNullAt(0) shouldBe true
         }
       }
       make(Seq(lhsCol, rhsCol, Literal(wkid), Literal(wkid))).checkInputDataTypes().isFailure shouldBe true

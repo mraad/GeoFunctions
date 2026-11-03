@@ -58,8 +58,10 @@ abstract class STRelation extends Expression with ImplicitCastInputTypes {
 
   override def nullable: Boolean = children.exists(_.nullable)
 
+  // One type per child even for a bad arity: the analyzer zips children with inputTypes during
+  // implicit casting, before checkInputDataTypes can report the arity.
   override def inputTypes: Seq[DataType] =
-    if (children.length == 2) Seq(BinaryType, BinaryType) else Seq(BinaryType, BinaryType, StringType)
+    children.indices.map(i => if (i == 2) StringType else BinaryType)
 
   override def checkInputDataTypes(): TypeCheckResult = {
     if (children.length != 2 && children.length != 3) {

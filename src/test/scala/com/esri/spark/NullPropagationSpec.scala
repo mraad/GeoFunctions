@@ -41,12 +41,17 @@ class NullPropagationSpec extends AnyFlatSpec with Matchers {
 
   private def inputTypes(c: Class[_]): Seq[DataType] = {
     val arity = c.getConstructors.map(_.getParameterCount).max
-    build(c, Seq.fill(if (arity == 1) 5 else arity)(Literal(0.0))) match {
+    val types = build(c, Seq.fill(if (arity == 1) 5 else arity)(Literal(0.0))) match {
       case e: ImplicitCastInputTypes => e.inputTypes.map {
         case StructType => StructType(Nil) // GDB shape: any struct is accepted
         case t: DataType => t
       }
     }
+    // A Seq-constructed expression may size inputTypes to its children (STRelation does, for the
+    // analyzer); keep the longest prefix it actually accepts.
+    (types.length to 1 by -1).map(types.take)
+      .find(ts => build(c, ts.map(t => Literal.default(t))).checkInputDataTypes().isSuccess)
+      .getOrElse(types)
   }
 
   "GeoFunction expressions" should "be discovered" in {

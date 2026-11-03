@@ -142,13 +142,19 @@ else:
         "Q4": run_q4,
     }
 
+def q3_summary(rows):
+    """Month, count and all three averages, normalized so both engines compare equal."""
+    return [(str(m)[:7], n, round(float(d), 9), round(dur.total_seconds(), 3), round(float(f), 9))
+            for m, n, d, dur, f in rows]
+
+
 for name, run in queries.items():
     t = time.perf_counter(); result = run(); first = time.perf_counter() - t
     times = []
     for _ in range(runs):
         t = time.perf_counter(); run(); times.append(time.perf_counter() - t)
     summary = {"Q1": lambda r: [x[0] for x in r], "Q2": lambda r: r[0][0],
-               "Q3": lambda r: [(str(x[0])[:7], x[1]) for x in r], "Q4": lambda r: [(x[0], x[2]) for x in r]}[name](result)
+               "Q3": q3_summary, "Q4": lambda r: [(x[0], x[2]) for x in r]}[name](result)
     print(json.dumps({"engine": engine, "version": version, "label": label, "cell": cell, "query": name,
                       "first": round(first, 3), "runs": [round(x, 3) for x in times],
                       "median": round(statistics.median(times), 3), "result": summary}), flush=True)

@@ -99,12 +99,18 @@ else:
     queries, execute = DUCK, lambda q: con.execute(q).fetchall()
     version = duckdb.__version__
 
+def q3_summary(rows):
+    """Month, count and all three averages, normalized so both engines compare equal."""
+    return [(str(m)[:7], n, round(float(d), 9), round(dur.total_seconds(), 3), round(float(f), 9))
+            for m, n, d, dur, f in rows]
+
+
 for name, sql in queries.items():
     t = time.perf_counter(); result = execute(sql); first = time.perf_counter() - t  # cold-ish: JIT/plan cache
     times = []
     for _ in range(runs):
         t = time.perf_counter(); execute(sql); times.append(time.perf_counter() - t)
-    summary = {"Q1": lambda r: [x[0] for x in r], "Q3": lambda r: [(str(x[0])[:7], x[1]) for x in r],
+    summary = {"Q1": lambda r: [x[0] for x in r], "Q3": q3_summary,
                "Q4": lambda r: [(x[0], x[2]) for x in r]}.get(name, lambda r: r[0][0])(result)
     print(json.dumps({"engine": engine, "version": version, "label": label, "query": name, "first": round(first, 3),
                       "runs": [round(x, 3) for x in times], "median": round(statistics.median(times), 3),
