@@ -187,6 +187,15 @@ zone 113 s).
   tip over every trip, carrying the geometry column, plus a full read of the zones. Neither part
   is spatially selective. DuckDB reads the geometry only for the 1000 winning rows (late
   materialization); Spark reads it for every row.
+- **Keys-first Q4 helps at SF100 only.** Sort just `(t_tip, t_tripkey)` for the top 1000
+  keys, collect them, then fetch their geometry with `t_tripkey IN (<1000 keys>)` (needs
+  `spark.sql.parquet.pushdown.inFilterThreshold` ≥ 1000). The published trip files are sorted by
+  `t_tripkey` and carry Parquet page indexes, so the fetch skips most pages. Interleaved A/B on
+  as-is data, 4 rounds: SF100 4.00 s vs 5.01 s (−20%), SF10 0.86 s vs 0.87 s (no change). At
+  SF10 the fetch costs 0.20 s, more than a full geometry read (0.14 s), because 1000 random keys
+  touch nearly every row group; 1–100 keys cost 0.08 s. Keeping the key subquery in one SQL
+  statement (`IN (SELECT ...)`) is slower (7.6 s at SF100): it becomes a semi-join and nothing
+  reaches Parquet. `bench.py` keeps the one-statement Q4.
 - **Cell size (SF10 sweep, 0.25°, 1°, 4°).** Q1 and Q3 sit at Spark's floor at every size. Q2 was
   0.43 / 0.195 / 0.21 s at 4° / 1° / 0.25°, because a big cell holds more trips per county piece.
   Q4 was 0.70–0.83 s at every size once each piece carried its envelope (1.49 s at 4° without
