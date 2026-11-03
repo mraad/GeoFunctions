@@ -939,6 +939,45 @@ def st_within(
     )
 
 
+def st_within_mask(
+        points: Union[Column, str],
+        polygon: Union[Column, str],
+        wkid: Union[Column, str, int] = -1,
+) -> Column:
+    """Test many points against one polygon: element i is st_within(points[i], polygon).
+
+    Use it when many rows would test against the same large polygon. Per-row ``st_within``
+    copies and parses the polygon on every row; here it is read, parsed and accelerated once.
+    Group a polygon's candidate points with ``collect_list``, call this once per polygon, then
+    explode ``arrays_zip(points, mask)``.
+
+    :param points: Array of point (or other) geometries, or column name
+    :type points: Union[Column, str]
+    :param polygon: The polygon geometry, or column name
+    :type polygon: Union[Column, str]
+    :param wkid: The spatial reference WKID. Default is -1
+    :type wkid: Union[Column, str, int]
+    :return: Array of booleans, null where the point is null
+    :rtype: Column
+
+    Example::
+
+        cand.groupBy("zonekey").agg(collect_list("pt").alias("pts")) \
+            .join(zones, "zonekey") \
+            .select("zonekey", "pts", st_within_mask("pts", "boundary").alias("mask"))
+    """
+    sc = _get_active_spark_context()
+    if isinstance(wkid, int):
+        wkid = lit(str(wkid))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stWithinMask(
+            _to_java_column(points),
+            _to_java_column(polygon),
+            _to_java_column(wkid),
+        )
+    )
+
+
 def st_touches(
         lhs: Union[Column, str] = "lgeom",
         rhs: Union[Column, str] = "rgeom",

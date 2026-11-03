@@ -738,6 +738,31 @@ Check if lhs geometry is within rhs geometry (inverse of st_contains).
 
 **Returns:** Boolean column indicating if lhs is within rhs
 
+### st_within_mask(points, polygon, wkid)
+Test many points against one polygon: element `i` of the result is `st_within(points[i], polygon)`.
+SQL: `ST_WITHIN_MASK`.
+
+Use it for a point-in-polygon join against large polygons. Spark gives every row its own copy
+of a binary value, so per-row `st_within(point, polygon)` copies and parses the polygon once
+per candidate pair. On SpatialBench Q10 (6M trips × 156k zones, SF1) that was about 1 TB of
+copies and took 20 s. Group each polygon's candidate points into one array instead, and the
+polygon is copied, parsed and accelerated once: 3.6 s. Points outside the polygon's envelope
+are rejected without the exact test.
+
+```python
+cand.groupBy("zonekey").agg(collect_list(struct("pt", "dur")).alias("ps")) \
+    .join(zones, "zonekey") \
+    .select("zonekey", "ps", st_within_mask(col("ps.pt"), "boundary").alias("mask")) \
+    .select("zonekey", explode(arrays_zip("ps", "mask")).alias("e")).where("e.mask")
+```
+
+**Parameters:**
+- `points` (Union[Column, str]): Array of geometries (usually points)
+- `polygon` (Union[Column, str]): The polygon geometry
+- `wkid` (Union[Column, str, int]): Spatial reference WKID (default: -1)
+
+**Returns:** Array of booleans; an element is null where its point is null
+
 ### st_touches(lhs, rhs, wkid)
 Check if lhs geometry touches rhs geometry.
 

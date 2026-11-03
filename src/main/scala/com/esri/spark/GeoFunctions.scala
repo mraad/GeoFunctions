@@ -125,6 +125,12 @@ object GeoFunctions {
               ): Column =
     toColumn(STWithin(Seq(c1.expr, c2.expr, c3.expr)))
 
+  def stWithinMask(c1: Column,
+                   c2: Column,
+                   c3: Column,
+                  ): Column =
+    toColumn(STWithinMask(Seq(c1.expr, c2.expr, c3.expr)))
+
   def stDisjoint(c1: Column,
                  c2: Column,
                  c3: Column,
