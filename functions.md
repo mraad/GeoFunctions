@@ -388,6 +388,33 @@ Compute the qr list of a geometry.
 
 **Returns:** Column with array of qr values
 
+### qr_cells(geom, cell, dist)
+List the QR cells of one geometry on the driver, without a Spark job. Returns the same values as
+`qr_list`.
+
+Use it to read only part of a table that was written **sorted by a QR column** (see
+`benchmarks/spatialbench/prepare.py`). Rows outside the listed cells are then skipped by whole
+Parquet row groups:
+
+```python
+spark.conf.set("spark.sql.parquet.pushdown.inFilterThreshold", "1000000")
+cells = qr_cells("POINT (-111.761 34.8697)", 0.5, 0.45)   # cells within 0.45 of the point
+trips.where(col("t_pickup_qr").isin(cells)).where(st_dwithin("t_pickuploc", center, 0.45))
+```
+
+Raise `spark.sql.parquet.pushdown.inFilterThreshold` above the number of cells. Above it, Spark
+pushes only the minimum and maximum of the list, and that range covers every row in between.
+The cell filter only narrows the candidates, so keep the exact predicate. It pays off when the
+cells cover one compact area (SpatialBench Q1 and Q3: 2–3× faster). A list of hundreds of cells
+spread over the world can cost more than it saves.
+
+**Parameters:**
+- `geom` (Union[str, bytes]): Geometry as WKT (str) or WKB (bytes)
+- `cell` (float): Cell size
+- `dist` (float): Cell padding (default: 0.0)
+
+**Returns:** List[int] of qr values
+
 ### qr_list_explode(geom, cell, dist)
 Explode the qr list of a geometry into separate rows.
 
@@ -507,12 +534,12 @@ Get the centroid XY coordinates of a geometry.
 **Returns:** Column with centroid as XY array (alias: "xy")
 
 ### st_extent(geom)
-Get the extent (bounding box) of a geometry as [xmin, ymin, xmax, ymax].
+Get the extent (bounding box) of a geometry as a struct with fields `xmin`, `ymin`, `xmax`, `ymax`.
 
 **Parameters:**
 - `geom` (Union[Column, str]): Geometry or column name (default: "geom")
 
-**Returns:** Column with array of [xmin, ymin, xmax, ymax] (alias: "extent")
+**Returns:** Column of struct<xmin, ymin, xmax, ymax> (alias: "extent"); read a field with `col("extent.xmin")`
 
 ---
 
@@ -618,12 +645,18 @@ Check if a geometry is empty.
 
 Functions for testing spatial relationships between geometries.
 
+In SQL the six predicates (`ST_INTERSECTS`, `ST_CONTAINS`, `ST_WITHIN`, `ST_TOUCHES`,
+`ST_OVERLAPS`, `ST_DISJOINT`) take two or three arguments. The `wkid` defaults to `'-1'`
+(planar), as in Python.
+
 **A repeated geometry is parsed once.** In `st_intersects`, `st_contains`, `st_within`,
-`st_touches`, `st_overlaps`, `st_disjoint` and `st_dwithin`, a geometry that is the same on every
-row is parsed once per task, not once per row. This applies to a literal (for example a polygon
-collected to the driver and passed as `lit(bytes(wkb))`) and to a SQL scalar subquery. The six
-predicates (not `st_dwithin`) also accelerate that geometry, unless `spark.esri.accelerate` is
-`false`. A geometry from a column is still parsed per row.
+`st_touches`, `st_overlaps`, `st_disjoint` and `st_dwithin`, the last parsed geometry of each
+argument is kept. When the next row brings the same bytes, it is reused instead of parsed again.
+This covers a literal (for example a polygon collected to the driver and passed as
+`lit(bytes(wkb))`), a SQL scalar subquery, and a join that repeats one side's geometry on
+consecutive rows. The six predicates (not `st_dwithin`) also accelerate a reused geometry,
+unless `spark.esri.accelerate` is `false`. A geometry that differs from row to row is parsed per
+row, as before; the byte compare that detects reuse stops at the first difference.
 
 On the SpatialBench SF1 data, 6M pickup points against the 10,583-vertex Coconino County polygon
 went from about 66 s to 0.2–0.4 s (local mode). Almost all of the gain comes from parsing once.
@@ -967,7 +1000,7 @@ Alias for `clip_line_dist`.
 
 Functions for performing spatial operations on DataFrames.
 
-### join_qr(lhs, rhs, cell, dist, qr, oper, wkid, lhs_geom, rhs_geom, acceleration)
+### join_qr(lhs, rhs, cell, dist, qr, oper, wkid, lhs_geom, rhs_geom, acceleration, broadcast)
 Spatially join two DataFrames using quadtree-based spatial indexing.
 
 Performs an efficient spatial join between two DataFrames using a quadtree (QR) indexing strategy for improved performance on large datasets.
@@ -984,6 +1017,33 @@ Performs an efficient spatial join between two DataFrames using a quadtree (QR) 
 - `lhs_geom` (str): Name of left geometry field (default: "geom")
 - `rhs_geom` (str): Name of right geometry field (default: "geom")
 - `acceleration` (str): Geometry acceleration mode ("mild", "medium", "hot") (default: "mild")
+- `broadcast` (Optional[str]): `"lhs"` or `"rhs"` to broadcast that side (default: None)
+
+**How the join works.** Each geometry's envelope, grown by `dist`, is cut into `cell`-sized
+grid cells, one row per cell (`qr_envp_explode`). Rows meet only when they share a cell. Inside a
+cell, `qr_intersect` keeps a pair only in the *canonical* cell (the one holding the lower-left
+corner of the overlap of the two envelopes), so a pair that shares many cells is returned once.
+Then the exact `oper` test runs.
+
+**Two ways to execute it.** By default both sides are shuffled by cell and each cell builds an
+R-tree (`JoinQRInnerProcessor`). This suits two large sides. When one side is small (a few
+thousand rows), pass `broadcast` with that side: the small side is copied to every task and the
+large side is streamed without a shuffle. Both return the same rows and columns. `broadcast`
+supports `"none"`, `"contains"`, `"intersects"`, `"overlaps"`, `"touches"` and `"within"`.
+
+On SpatialBench Q4 (1000 points within 156,095 zone polygons, SF1), the shuffle join took 1.9–44 s
+depending on the cell, because it shuffles 1.4 GB of polygons. The broadcast join took 0.42 s.
+
+**Choosing `cell`.** A small cell replicates large polygons into many rows; at 0.5° the shuffle
+join above took 44 s. A large cell puts more polygons into each cell, so more exact tests run.
+With a broadcast join the cell matters little (0.42–0.57 s for 2°–45°). For a shuffle join,
+pick a cell near the size of the typical large-side geometry.
+
+```python
+top = trips.orderBy(desc("t_tip")).limit(1000).select(col("t_pickuploc").alias("geom"))
+zones = zone.select("z_zonekey", col("z_boundary").alias("zgeom"))
+join_qr(top, zones, 10.0, oper="within", rhs_geom="zgeom", broadcast="lhs")
+```
 
 `disjoint` is intentionally unsupported: a QR overlap join only enumerates
 envelope-overlapping candidates and therefore cannot produce every disjoint pair.
