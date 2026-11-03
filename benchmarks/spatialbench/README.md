@@ -35,7 +35,8 @@ already uses WKB as its geometry type.
 ```shell
 pip install huggingface-hub duckdb pyspark==4.3.0
 hf download apache-sedona/spatialbench --repo-type dataset \
-  --include "v0.1.0/sf10/trip/*" --include "v0.1.0/sf10/zone/*" --local-dir spatialbench-data
+  --include "v0.1.0/sf10/trip/*" --include "v0.1.0/sf10/zone/*" \
+  --include "v0.1.0/sf10/customer/*" --include "v0.1.0/sf10/building/*" --local-dir spatialbench-data
 
 mvn -P spark-4.3 clean package          # Spark 4.3 jar; pair with pyspark==4.3.0
 pip install .                           # the geofunctions Python package, from the repo root
@@ -237,9 +238,10 @@ it. At SF10, broadcast is flat at 0.71–0.84 s for 1°–20°.
 SF1 and SF10, warm medians in seconds (5 runs), Spark 4.3 vs DuckDB 2.0, same run as the
 re-measured Q1–Q4. QR-prepared at 1° cells. Q5 groups by customer, so the QR layout does not
 apply to it. Every engine and layout returned the same rows. The one exception is Q6's
-`avg_duration` at SF10: 6159.64 s on Spark vs 6159.65 s on DuckDB, a difference under 1 µs.
-Spark truncates an interval average to whole microseconds while DuckDB rounds, and this value
-sits on a rounding boundary.
+`avg_duration` at SF10, shown rounded to 0.01 s: 6159.64 s on Spark vs 6159.65 s on DuckDB.
+The unrounded averages differ by less than 1 µs (Spark truncates an interval average to whole
+microseconds, DuckDB rounds); they sit on either side of a rounding boundary, so the displayed
+values differ by 0.01 s.
 
 | SF | query | DuckDB as-is | Spark as-is | Spark ÷ DuckDB | DuckDB QR | Spark QR | Spark ÷ DuckDB |
 |---|---|---|---|---|---|---|---|
@@ -268,8 +270,8 @@ sits on a rounding boundary.
 
 Latest run, same jar for every query (with the point fast path below), warm medians in seconds
 (5 runs). QR-prepared at 1° cells; "—" where the layout cannot prune (see `bench_qr.py`). All
-rows agree across engines and layouts, except Q6's sub-microsecond `avg_duration` rounding at
-SF10 (see above).
+rows agree across engines and layouts, except Q6's `avg_duration` at SF10, where unrounded
+values less than 1 µs apart round to 0.01 s apart (see above).
 
 | SF | query | DuckDB | Spark | Spark ÷ DuckDB | DuckDB QR | Spark QR | Spark ÷ DuckDB |
 |---|---|---|---|---|---|---|---|

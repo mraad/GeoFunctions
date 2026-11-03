@@ -12,6 +12,11 @@ import com.esri.core.geometry.Geometry
  * bytes, so `ST_WITHIN(pickup, <county>)` parses each county once, not once per row. The byte
  * compare is a vectorized intrinsic that stops at a length mismatch or the first differing
  * byte, so distinct column values cost a few short compares.
+ *
+ * Contract: callers never modify an array after passing it in. Entries keep the caller's array,
+ * and the same-instance check is what makes a constant 170 KB polygon cost O(1) per row; a
+ * defensive copy would turn that into a full compare per row. Spark satisfies the contract:
+ * `getBinary` returns a fresh copy and literal or subquery values are never written.
  */
 final class WkbCache {
 
