@@ -35,6 +35,7 @@ object KnnJoinProcessor extends Serializable {
     (1e-5 * (1.0 + math.max(math.abs(x), math.abs(y)))).toFloat
 
   private[spark] final class Index(rhs: Array[Array[Byte]]) {
+    private var indexed = 0
     private val tree: RTree[Entry] = {
       val entries = rhs.indices.flatMap { i =>
         val g = rhs(i).geom
@@ -46,24 +47,31 @@ object KnnJoinProcessor extends Serializable {
           Some(RTreeEntry(x0, y0, x1, y1, Entry(i, g)))
         }
       }
+      indexed = entries.size
       RTree(entries)
     }
 
-    /** (rhs index, distance) of the k nearest, nearest first; fewer when rhs has fewer. */
-    def nearest(point: Geometry, k: Int): Array[(Int, Double)] = {
+    /**
+     * (rhs index, distance) of the k nearest, nearest first; fewer when rhs has fewer. The tree
+     * measures from the lhs envelope centre; a lhs geometry with an extent (line, polygon) can be
+     * up to half its envelope diagonal closer to an entry than the centre is, so that half
+     * diagonal joins the slack (it is 0 for a point).
+     */
+    def nearest(geom: Geometry, kRequested: Int): Array[(Int, Double)] = {
       val env = new Envelope2D()
-      point.queryEnvelope2D(env)
+      geom.queryEnvelope2D(env)
       if (env.isEmpty || tree.isEmpty) return Array.empty
+      val k = math.min(kRequested, indexed)
       val x = env.getCenterX
       val y = env.getCenterY
-      val pad = slack(x, y)
+      val pad = slack(x, y) + (0.5 * math.hypot(env.getWidth, env.getHeight)).toFloat
       // max-heap on (distance, index): the root is the current k-th best
       val heap = new java.util.PriorityQueue[(Double, Int)](k + 1, (a: (Double, Int), b: (Double, Int)) => {
         val c = java.lang.Double.compare(b._1, a._1)
         if (c != 0) c else Integer.compare(b._2, a._2)
       })
       def offer(e: Entry): Unit = {
-        val d = OperatorDistance.local.execute(point, e.geom, null)
+        val d = OperatorDistance.local.execute(geom, e.geom, null)
         val top = heap.peek()
         if (heap.size < k) heap.add((d, e.index))
         else if (d < top._1 || (d == top._1 && e.index < top._2)) { heap.poll(); heap.add((d, e.index)) }

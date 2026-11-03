@@ -74,6 +74,22 @@ class KnnJoinSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
     }
   }
 
+  it should "be exact for lhs geometries with an extent, not only points" in {
+    // long thin rectangles: their centres are far from the polygons they nearly touch
+    val strips = (0 until 60).map(i => (i.toLong, {
+      val p = new Polygon(); val x = rnd.nextDouble() * 10; val y = rnd.nextDouble() * 10
+      p.startPath(x - 6, y); p.lineTo(x + 6, y); p.lineTo(x + 6, y + 0.01); p.lineTo(x - 6, y + 0.01); p.bytes
+    }))
+    val out = KnnJoinProcessor(df(strips, "sid", "sgeom"), df(polygons, "bid", "bgeom"), 5, "sgeom", "bgeom")
+    val got = out.collect().groupBy(_.getLong(0)).map { case (sid, rs) => sid -> rs.map(_.getDouble(4)).sorted.toSeq }
+    strips.foreach { case (sid, g) => withClue(s"strip $sid: ") { got(sid) shouldBe bruteForce(g, 5) } }
+  }
+
+  it should "accept any k, clamped to the number of polygons" in {
+    val out = KnnJoinProcessor(df(points.take(3), "pid", "pgeom"), df(polygons, "bid", "bgeom"), Int.MaxValue, "pgeom", "bgeom")
+    out.count() shouldBe 3L * polygons.size
+  }
+
   it should "reject a non-positive k and a non-binary geometry column" in {
     an[IllegalArgumentException] should be thrownBy KnnJoinProcessor(df(points, "pid", "pgeom"), df(polygons, "bid", "bgeom"), 0, "pgeom", "bgeom")
     an[IllegalArgumentException] should be thrownBy KnnJoinProcessor(df(points, "pid", "pgeom"), df(polygons, "bid", "bgeom"), 5, "pid", "bgeom")
