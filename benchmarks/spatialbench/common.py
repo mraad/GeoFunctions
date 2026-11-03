@@ -34,6 +34,9 @@ SUMMARY = {
     "Q6": lambda r: [(x[0], x[2], round(float(x[3]), 9), round(x[4].total_seconds(), 2)) for x in r],
     "Q7": lambda r: [(x[0], float(x[1]), round(x[2], 6), float(f"{x[3]:.12g}")) for x in r],
     "Q8": _top_counts,
+    "Q9": lambda r: [(x[0], x[1], round(x[5], 9)) for x in r],
+    "Q10": lambda r: [(x[0], None if x[2] is None else round(x[2].total_seconds(), 2),
+                       None if x[3] is None else round(float(x[3]), 9), x[4]) for x in r],
 }
 
 
