@@ -39,9 +39,12 @@ class STRelationSpec extends AnyFlatSpec with Matchers {
   private val rhsCol = BoundReference(1, BinaryType, nullable = true)
   private val wkidCol = BoundReference(2, StringType, nullable = true)
 
+  // One projection per expression, so the generated path keeps its WkbCache across rows.
+  private val projections = scala.collection.mutable.Map.empty[Expression, UnsafeProjection]
+
   private def run(e: Expression, lhs: Array[Byte], rhs: Array[Byte], third: Any): (Any, Any) = {
     val row = InternalRow(lhs, rhs, third)
-    (e.eval(row), UnsafeProjection.create(Seq(e))(row).getBoolean(0))
+    (e.eval(row), projections.getOrElseUpdate(e, UnsafeProjection.create(Seq(e)))(row).getBoolean(0))
   }
 
   private val predicates: Seq[(String, Seq[Expression] => Expression)] = Seq(

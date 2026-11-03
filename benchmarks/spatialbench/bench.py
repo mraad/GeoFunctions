@@ -61,8 +61,9 @@ else:
     import duckdb
     con = duckdb.connect()
     con.execute("INSTALL spatial; LOAD spatial;")
-    con.execute(f"CREATE VIEW trip AS SELECT * FROM '{data}/trip/*.parquet'")
-    con.execute(f"CREATE VIEW zone AS SELECT * FROM '{data}/zone/*.parquet'")
+    lit = lambda path: "'" + path.replace("'", "''") + "'"  # SQL string literal; paths may hold quotes
+    con.execute(f"CREATE VIEW trip AS SELECT * FROM {lit(f'{data}/trip/*.parquet')}")
+    con.execute(f"CREATE VIEW zone AS SELECT * FROM {lit(f'{data}/zone/*.parquet')}")
     queries, execute = DUCK, lambda q: con.execute(q).fetchall()
     version = duckdb.__version__
 

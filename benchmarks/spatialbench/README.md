@@ -17,7 +17,7 @@ already uses WKB as its geometry type.
 ## Reproduce
 
 ```shell
-pip install huggingface-hub
+pip install huggingface-hub duckdb pyspark==4.3.0
 hf download apache-sedona/spatialbench --repo-type dataset \
   --include "v0.1.0/sf10/trip/*" --include "v0.1.0/sf10/zone/*" --local-dir spatialbench-data
 
