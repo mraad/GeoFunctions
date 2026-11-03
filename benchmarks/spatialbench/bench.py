@@ -1,4 +1,4 @@
-"""SpatialBench Q1-Q10: geofunctions on Spark vs DuckDB spatial, same Parquet, warm medians.
+"""SpatialBench Q1-Q12: geofunctions on Spark vs DuckDB spatial, same Parquet, warm medians.
 
 usage: python bench.py <spark|duckdb> <jar> <data_dir> <label> [runs] [queries=Q9,Q10] [spark.conf=value ...]
 Prints one JSON line per query: {"engine","label","query","runs":[...],"median","result"}.
@@ -9,6 +9,8 @@ engine, jar, data, label = sys.argv[1:5]
 runs = int(sys.argv[5]) if len(sys.argv) > 5 else 5
 extra = dict(a.split("=", 1) for a in sys.argv[6:])
 only = set(extra.pop("queries").split(",")) if "queries" in extra else None
+# Register only the tables that were downloaded; a query on a missing table fails on its own.
+TABLES = [t for t in ("trip", "zone", "customer", "building") if os.path.isdir(os.path.join(data, t))]
 
 from common import BOX, BOX6, CENTER, summarize
 
@@ -17,6 +19,7 @@ Q6_CELL = 1.0  # Q6 QR cell in degrees: 0.5-2 all within 3% at SF1
 Q8_CELL = 0.05  # Q8 QR cell in degrees: best of 0.005-0.2 at SF1 and SF10
 Q9_CELL = 0.05  # Q9 QR cell in degrees: best of 0.005-0.05 at SF1
 Q10_CELL = 0.5  # Q10 QR cell in degrees: 0.5-2 within 15% at SF1
+Q11_CELL = 0.5  # Q11 uses the Q10 plan for both ends of each trip
 
 GF = {
     "scan": "SELECT count(*) FROM trip WHERE length(t_pickuploc) > 0",
@@ -120,6 +123,28 @@ agg AS (SELECT z_zonekey, avg(dur) AS avg_duration, avg(dist) AS avg_distance, c
 SELECT z.z_zonekey, z.z_name AS pickup_zone, agg.avg_duration, agg.avg_distance, coalesce(agg.num_trips, 0) AS num_trips
 FROM zone z LEFT JOIN agg ON z.z_zonekey = agg.z_zonekey
 ORDER BY avg_duration DESC NULLS LAST, z.z_zonekey ASC LIMIT 100""",
+    # Q10's plan for both ends of each trip: candidates from broadcast zone envelopes, one
+    # ST_WITHIN_MASK per zone, then (trip, end, zone) hits. The SpatialBench SQL counts every
+    # (trip, pickup zone, dropoff zone) with different zones, so per trip that is
+    # pickup_zones * dropoff_zones - zones holding both ends.
+    "Q11": f"""
+WITH ze AS (SELECT z_zonekey, explode(QR_ENVP(z_boundary, {Q11_CELL}, 0.0)) AS qr FROM zone),
+pts AS (SELECT t_tripkey AS k, 0 AS e, t_pickuploc AS loc FROM trip
+        UNION ALL SELECT t_tripkey AS k, 1 AS e, t_dropoffloc AS loc FROM trip),
+p AS (SELECT k, e, loc, ST_X(loc, 0) AS x, ST_Y(loc, 0) AS y FROM pts),
+cand AS (SELECT /*+ BROADCAST(ze) */ ze.z_zonekey, struct(p.k, p.e, p.loc) AS v
+         FROM p JOIN ze ON QR_FROMGEOM(p.loc, {Q11_CELL}) = ze.qr.qr
+         WHERE p.x BETWEEN ze.qr.xmin AND ze.qr.xmax AND p.y BETWEEN ze.qr.ymin AND ze.qr.ymax),
+g AS (SELECT z_zonekey, collect_list(v) AS vs FROM cand GROUP BY z_zonekey),
+m AS (SELECT g.z_zonekey, g.vs, ST_WITHIN_MASK(transform(g.vs, x -> x.loc), z.z_boundary, '-1') AS mask
+      FROM g JOIN zone z ON g.z_zonekey = z.z_zonekey),
+hit AS (SELECT z_zonekey, h.vs.k AS k, h.vs.e AS e FROM m LATERAL VIEW explode(arrays_zip(vs, mask)) AS h WHERE h.mask),
+per_trip AS (SELECT k, sum(1 - e) AS np, sum(e) AS nd FROM hit GROUP BY k),
+same_zone AS (SELECT k FROM hit GROUP BY k, z_zonekey HAVING count(DISTINCT e) = 2)
+SELECT (SELECT sum(np * nd) FROM per_trip) - (SELECT count(*) FROM same_zone) AS cross_zone_trip_count""",
+    # k-nearest-neighbour join (knn_join): buildings broadcast into an R-tree per task, exact
+    # distances. A DataFrame plan, not SQL: see q12_spark below.
+    "Q12": "dataframe",
 }
 
 DUCK = {
@@ -188,6 +213,19 @@ SELECT z.z_zonekey, z.z_name AS pickup_zone, AVG(t.t_dropofftime - t.t_pickuptim
        AVG(t.t_distance) AS avg_distance, COUNT(t.t_tripkey) AS num_trips
 FROM zone z LEFT JOIN trip t ON ST_Within(ST_GeomFromWKB(t.t_pickuploc), ST_GeomFromWKB(z.z_boundary))
 GROUP BY z.z_zonekey, z.z_name ORDER BY avg_duration DESC NULLS LAST, z.z_zonekey ASC LIMIT 100""",
+    "Q11": """
+SELECT COUNT(*) AS cross_zone_trip_count
+FROM trip t
+JOIN zone pickup_zone ON ST_Within(ST_GeomFromWKB(t.t_pickuploc), ST_GeomFromWKB(pickup_zone.z_boundary))
+JOIN zone dropoff_zone ON ST_Within(ST_GeomFromWKB(t.t_dropoffloc), ST_GeomFromWKB(dropoff_zone.z_boundary))
+WHERE pickup_zone.z_zonekey != dropoff_zone.z_zonekey""",
+    # DuckDB 2.0 spatial has no KNN join: brute force compares every pickup with every building.
+    "Q12": """
+SELECT t_tripkey, AVG(d) AS avg_distance_to_5_nearest FROM (
+  SELECT t.t_tripkey, ST_Distance(ST_GeomFromWKB(t.t_pickuploc), ST_GeomFromWKB(b.b_boundary)) AS d,
+         row_number() OVER (PARTITION BY t.t_tripkey ORDER BY ST_Distance(ST_GeomFromWKB(t.t_pickuploc), ST_GeomFromWKB(b.b_boundary))) AS rn
+  FROM trip t CROSS JOIN building b) WHERE rn <= 5
+GROUP BY t_tripkey ORDER BY avg_distance_to_5_nearest DESC, t_tripkey ASC LIMIT 100""",
 }
 
 if engine == "spark":
@@ -205,21 +243,31 @@ if engine == "spark":
     spark.sparkContext.setLogLevel("ERROR")
     from geofunctions import st_register_functions
     st_register_functions()
-    spark.read.parquet(f"{data}/trip").createOrReplaceTempView("trip")
-    spark.read.parquet(f"{data}/zone").createOrReplaceTempView("zone")
-    spark.read.parquet(f"{data}/customer").createOrReplaceTempView("customer")
-    spark.read.parquet(f"{data}/building").createOrReplaceTempView("building")
-    queries, execute = GF, lambda q: [tuple(r) for r in spark.sql(q).collect()]
+    for table in TABLES:
+        spark.read.parquet(f"{data}/{table}").createOrReplaceTempView(table)
+    from pyspark.sql import functions as F
+    import geofunctions as gf
+
+    def q12_spark():
+        trips = spark.table("trip").select("t_tripkey", "t_pickuploc")
+        buildings = spark.table("building").select("b_boundary")
+        return (gf.knn_join(trips, buildings, 5, lhs_geom="t_pickuploc", rhs_geom="b_boundary")
+                .groupBy("t_tripkey").agg(F.avg("distance").alias("avg_distance_to_5_nearest"))
+                .orderBy(F.desc("avg_distance_to_5_nearest"), "t_tripkey").limit(100).collect())
+
+    queries = GF
+
+    def execute(q):
+        rows = q12_spark() if q == "dataframe" else spark.sql(q).collect()
+        return [tuple(r) for r in rows]
     version = spark.version
 else:
     import duckdb
     con = duckdb.connect()
     con.execute("INSTALL spatial; LOAD spatial;")
     lit = lambda path: "'" + path.replace("'", "''") + "'"  # SQL string literal; paths may hold quotes
-    con.execute(f"CREATE VIEW trip AS SELECT * FROM {lit(f'{data}/trip/*.parquet')}")
-    con.execute(f"CREATE VIEW zone AS SELECT * FROM {lit(f'{data}/zone/*.parquet')}")
-    con.execute(f"CREATE VIEW customer AS SELECT * FROM {lit(f'{data}/customer/*.parquet')}")
-    con.execute(f"CREATE VIEW building AS SELECT * FROM {lit(f'{data}/building/*.parquet')}")
+    for table in TABLES:
+        con.execute(f"CREATE VIEW {table} AS SELECT * FROM {lit(f'{data}/{table}/*.parquet')}")
     queries, execute = DUCK, lambda q: con.execute(q).fetchall()
     version = duckdb.__version__
 

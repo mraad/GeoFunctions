@@ -2494,6 +2494,53 @@ def join_qr(
     )
 
 
+def knn_join(
+        lhs: DataFrame,
+        rhs: DataFrame,
+        k: int,
+        lhs_geom: str = "geom",
+        rhs_geom: str = "geom",
+        distance: str = "distance",
+) -> DataFrame:
+    """Join every lhs row to its k nearest rhs rows (planar distance).
+
+    The rhs side is collected and broadcast, so it must be small (tens of thousands of rows).
+    Each task puts it in an R-tree; the k nearest come from exact Esri distances. The result has
+    one row per (lhs, rhs) pair: the lhs columns, the rhs columns, then ``distance``. A null lhs
+    geometry gives no rows; when rhs has fewer than k rows, every rhs row is returned. Ties at the
+    k-th distance keep the rhs row that comes first.
+
+    :param lhs: The dataframe to find neighbours for (for example, points)
+    :type lhs: DataFrame
+    :param rhs: The small dataframe of candidate neighbours (for example, buildings)
+    :type rhs: DataFrame
+    :param k: The number of neighbours per lhs row
+    :type k: int
+    :param lhs_geom: The lhs geometry column (WKB). Default is "geom"
+    :type lhs_geom: str
+    :param rhs_geom: The rhs geometry column (WKB). Default is "geom"
+    :type rhs_geom: str
+    :param distance: The name of the distance column. Default is "distance"
+    :type distance: str
+    :return: The joined rows with a distance column
+    :rtype: DataFrame
+    :raises ValueError: If k is not a positive integer
+
+    Example::
+
+        knn_join(trips, buildings, 5, lhs_geom="t_pickuploc", rhs_geom="b_boundary") \
+            .groupBy("t_tripkey").agg(avg("distance"))
+    """
+    if isinstance(k, bool) or not isinstance(k, int) or k <= 0:
+        raise ValueError(f"k must be a positive integer, got {k!r}")
+    sc = _get_active_spark_context()
+    ss = lhs.sparkSession if hasattr(lhs, "sparkSession") else lhs.sql_ctx
+    return DataFrame(
+        sc._jvm.com.esri.spark.KnnJoinProcessor.apply(lhs._jdf, rhs._jdf, k, lhs_geom, rhs_geom, distance),
+        ss,
+    )
+
+
 # Exact predicates the broadcast path can evaluate; "crosses"/"equals" have no ST_ expression.
 _BROADCAST_PREDICATES = {
     "none": None,
@@ -2797,5 +2844,6 @@ def pairwise_dissolve(
 
 DataFrame.pairwise_dissolve = pairwise_dissolve
 DataFrame.join_qr = join_qr
+DataFrame.knn_join = knn_join
 DataFrame.to_feature_table = to_feature_table
 DataFrame.to_feature_class = to_feature_class
