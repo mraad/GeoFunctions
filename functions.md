@@ -650,13 +650,19 @@ In SQL the six predicates (`ST_INTERSECTS`, `ST_CONTAINS`, `ST_WITHIN`, `ST_TOUC
 (planar), as in Python.
 
 **A repeated geometry is parsed once.** In `st_intersects`, `st_contains`, `st_within`,
-`st_touches`, `st_overlaps`, `st_disjoint` and `st_dwithin`, the last parsed geometry of each
-argument is kept. When the next row brings the same bytes, it is reused instead of parsed again.
-This covers a literal (for example a polygon collected to the driver and passed as
-`lit(bytes(wkb))`), a SQL scalar subquery, and a join that repeats one side's geometry on
-consecutive rows. The six predicates (not `st_dwithin`) also accelerate a reused geometry,
+`st_touches`, `st_overlaps`, `st_disjoint` and `st_dwithin`, the last 4 parsed geometries of
+each argument are kept. When a row brings the same bytes again, the parse is reused. This covers
+a literal (for example a polygon collected to the driver and passed as `lit(bytes(wkb))`), a SQL
+scalar subquery, and a join that repeats a few geometries across rows (trips near a county
+border meet the same 2–3 counties over and over). The six predicates (not `st_dwithin`) also accelerate a reused geometry,
 unless `spark.esri.accelerate` is `false`. A geometry that differs from row to row is parsed per
 row, as before; the byte compare that detects reuse stops at the first difference.
+
+**Far-apart pairs are decided by envelope.** Before the exact test, the six predicates compare
+the two envelopes. If they are apart by more than any tolerance the operator could apply, the
+answer is known (false, or true for `st_disjoint`) and the exact test is skipped. Filtering
+156,095 zones with `st_intersects(<box>, zone)` therefore costs about the same as a manual
+`st_intersects_box` prefilter, so there is no need to add one.
 
 On the SpatialBench SF1 data, 6M pickup points against the 10,583-vertex Coconino County polygon
 went from about 66 s to 0.2–0.4 s (local mode). Almost all of the gain comes from parsing once.

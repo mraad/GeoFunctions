@@ -95,6 +95,27 @@ class STRelationSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  "The envelope pre-check" should "never change an answer from the raw operator" in {
+    import com.esri.core.geometry.{Operator, OperatorFactoryLocal, OperatorSimpleRelation, Polyline}
+    val types = Seq(Operator.Type.Intersects, Operator.Type.Contains, Operator.Type.Within,
+      Operator.Type.Touches, Operator.Type.Overlaps, Operator.Type.Disjoint)
+    // points on, just outside and far from the star's envelope (x = +-10 at the tips),
+    // plus a segment that only touches the star's tip
+    val near = Seq(10.0, 10.0 + 1e-12, 10.0 + 1e-6, 10.5, -10.0, -10.0 - 1e-12, 1e6)
+      .flatMap(x => Seq(new Point(x, 0.0).bytes, new Point(0.0, x).bytes))
+    val touch = { val l = new Polyline(); l.startPath(10.0, 0.0); l.lineTo(12.0, 0.0); l.bytes }
+    types.foreach { t =>
+      val op = OperatorFactoryLocal.getInstance().getOperator(t).asInstanceOf[OperatorSimpleRelation]
+      val eval = new STRelationEval(t)
+      (near ++ points :+ touch).foreach { g =>
+        withClue(s"$t: ") {
+          eval.eval(star, g, wkid) shouldBe op.execute(star.geom, g.geom, null, null)
+          eval.eval(g, star, wkid) shouldBe op.execute(g.geom, star.geom, null, null)
+        }
+      }
+    }
+  }
+
   "ST_INTERSECTS" should "find points inside and outside the star" in {
     val e = STIntersects(Seq(lhsCol, Literal(star), Literal(wkid)))
     run(e, new Point(0, 0).bytes, null, null)._1 shouldBe true
@@ -108,6 +129,16 @@ class STRelationSpec extends AnyFlatSpec with Matchers {
     val g = cache(a, _ => reuses += 1)
     cache(a.clone(), _ => reuses += 1) should be theSameInstanceAs g
     reuses shouldBe 1
+  }
+
+  it should "keep a few interleaved geometries, then evict the oldest" in {
+    val cache = new WkbCache
+    val gs = (0 until WkbCache.Slots).map(i => new Point(i, i).bytes)
+    val parsed = gs.map(g => cache(g))
+    (1 to 3).foreach(_ => gs.zip(parsed).foreach { case (g, p) => cache(g.clone()) should be theSameInstanceAs p })
+    cache(new Point(99, 99).bytes) // evicts the first slot
+    cache(gs.head) should not be theSameInstanceAs(parsed.head)
+    cache(gs.last) should be theSameInstanceAs parsed.last
   }
 
   it should "reuse a parse only for equal bytes" in {

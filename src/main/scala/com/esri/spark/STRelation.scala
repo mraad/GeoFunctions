@@ -1,7 +1,7 @@
 package com.esri.spark
 
 import com.esri.core.geometry.Geometry.GeometryAccelerationDegree
-import com.esri.core.geometry.{Geometry, Operator, OperatorFactoryLocal, OperatorSimpleRelation, SpatialReference}
+import com.esri.core.geometry.{Envelope2D, Geometry, Operator, OperatorFactoryLocal, OperatorSimpleRelation, SpatialReference}
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
@@ -36,11 +36,37 @@ final class STRelationEval(opType: Operator.Type) extends Serializable {
 
   def eval(lhs: Array[Byte], rhs: Array[Byte], wkid: UTF8String): Boolean = {
     val sr = SpatialReferenceObj.create(wkid)
-    operator.execute(lhsCache(lhs, accelerate(sr)), rhsCache(rhs, accelerate(sr)), sr, null)
+    val l = lhsCache(lhs, accelerate(sr))
+    val r = rhsCache(rhs, accelerate(sr))
+    if (STRelationEval.envelopesApart(l, r, sr)) opType == Operator.Type.Disjoint
+    else operator.execute(l, r, sr, null)
   }
 }
 
 object STRelationEval {
+
+  /**
+   * True when the envelopes are apart by more than any tolerance the operator could apply, so
+   * every simple relation is already decided: only disjoint holds. Rejecting here skips the
+   * relational operator's setup, which dominates when most pairs are far apart (a constant
+   * box against 156k zones). The margin is generous on purpose: a pair it lets through still
+   * gets the exact test, so slack can only cost time, never change an answer.
+   */
+  private[spark] def envelopesApart(l: Geometry, r: Geometry, sr: SpatialReference): Boolean = {
+    val le = new Envelope2D()
+    val re = new Envelope2D()
+    l.queryEnvelope2D(le)
+    r.queryEnvelope2D(re)
+    if (le.isEmpty || re.isEmpty) false // leave empty geometries to the operator
+    else {
+      val tolerance = if (sr == null) 0.0 else sr.getTolerance()
+      le.distance(re) > tolerance + 1e-9 * (1.0 + math.max(magnitude(le), magnitude(re)))
+    }
+  }
+
+  private def magnitude(e: Envelope2D): Double =
+    math.max(math.max(math.abs(e.xmin), math.abs(e.xmax)), math.max(math.abs(e.ymin), math.abs(e.ymax)))
+
   // SparkEnv, not SparkSession: getActiveSession is empty on executors (same as QRScan).
   private lazy val accelerate: Boolean =
     Option(SparkEnv.get).forall(_.conf.getBoolean("spark.esri.accelerate", defaultValue = true))

@@ -203,6 +203,7 @@ def _create_spark(master: str, driver_memory: str) -> "SparkSession":
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
         .config("spark.sql.autoBroadcastJoinThreshold", -1)
         .config("spark.ui.enabled", "false")
+        .config("spark.ui.showConsoleProgress", "false")
         .getOrCreate()
     )
     spark.sparkContext.setLogLevel("WARN")
