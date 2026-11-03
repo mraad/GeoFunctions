@@ -562,6 +562,26 @@ Compute the distance between two geometries.
 
 **Returns:** Column with distance value
 
+### st_dwithin(lhs, rhs, dist)
+Check if two geometries are within a planar distance of each other. SQL: `ST_DWITHIN`.
+
+Same result as `st_distance(lhs, rhs) <= dist`, but faster. Pairs whose envelopes are farther
+apart than `dist` skip the exact distance. A geometry that is the same on every row is parsed once,
+not per row.
+
+**Parameters:**
+- `lhs` (Union[Column, str]): Left hand side geometry or column name (default: "lgeom")
+- `rhs` (Union[Column, str]): Right hand side geometry or column name (default: "rgeom")
+- `dist` (Union[Column, str, int, float]): Distance in coordinate units (default: 0.0)
+
+**Returns:** Boolean column indicating if the geometries are within `dist`
+
+**Example:**
+```python
+center = st_fromtext(lit("POINT (-111.7610 34.8697)"))
+df.filter(st_dwithin("t_pickuploc", center, 0.45))
+```
+
 ---
 
 ## Geometry Properties
@@ -597,6 +617,26 @@ Check if a geometry is empty.
 ## Spatial Relationships
 
 Functions for testing spatial relationships between geometries.
+
+**A repeated geometry is parsed once.** In `st_intersects`, `st_contains`, `st_within`,
+`st_touches`, `st_overlaps`, `st_disjoint` and `st_dwithin`, a geometry that is the same on every
+row is parsed once per task, not once per row. This applies to a literal (for example a polygon
+collected to the driver and passed as `lit(bytes(wkb))`) and to a SQL scalar subquery. The
+predicates also accelerate that geometry, unless `spark.esri.accelerate` is `false`. A geometry
+from a column is still parsed per row.
+
+On the SpatialBench SF1 data, 6M pickup points against the 10,583-vertex Coconino County polygon
+went from about 66 s to 0.2–0.4 s (local mode). Almost all of the gain comes from parsing once.
+
+```python
+county = zone.where("z_name = 'Coconino County'").select("z_boundary").first()[0]
+trip.where(st_intersects("t_pickuploc", lit(bytes(county)))).count()
+```
+
+```sql
+SELECT COUNT(*) FROM trip t
+WHERE ST_INTERSECTS(t.t_pickuploc, (SELECT z_boundary FROM zone WHERE z_name = 'Coconino County' LIMIT 1), '-1')
+```
 
 ### st_intersects(lhs, rhs, wkid)
 Check if two geometries intersect.

@@ -151,6 +151,12 @@ object GeoFunctions {
                 ): Column =
     toColumn(STDistance(Seq(c1.expr, c2.expr)))
 
+  def stDWithin(c1: Column,
+                c2: Column,
+                c3: Column
+               ): Column =
+    toColumn(STDWithin(Seq(c1.expr, c2.expr, c3.expr)))
+
   def qrEnvp(c1: Column,
              c2: Column,
              c3: Column
