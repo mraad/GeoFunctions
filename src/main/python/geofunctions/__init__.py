@@ -14,7 +14,7 @@ try:
     )
 except ImportError:  # PySpark 3.x
     from pyspark.sql.column import Column, _to_java_column as _spark_to_java_column
-from pyspark.sql.functions import lit, array, explode, col, collect_list
+from pyspark.sql.functions import lit, array, explode, col, collect_list, broadcast as _broadcast
 
 
 def _get_active_spark_context() -> SparkContext:
@@ -1423,6 +1423,39 @@ def qr_list(
     )
 
 
+def qr_cells(
+        geom: Union[str, bytes, bytearray],
+        cell: float,
+        dist: float = 0.0,
+) -> List[int]:
+    """List the QR cells of one geometry on the driver, without running a Spark job.
+
+    Returns the same values as ``qr_list``. Use it to prune a table that was written sorted by
+    a QR column: ``df.where(col("qr").isin(qr_cells(area, cell, dist)))`` lets Parquet skip every
+    row group whose qr range misses the area. Raise
+    ``spark.sql.parquet.pushdown.inFilterThreshold`` above the number of cells, or Spark pushes
+    only the overall min/max of the list, which spans every row in between.
+
+    :param geom: The geometry as WKT (str) or WKB (bytes)
+    :type geom: Union[str, bytes, bytearray]
+    :param cell: The cell size
+    :type cell: float
+    :param dist: The cell padding. Default is 0.0
+    :type dist: float
+    :return: The qr values of the cells the geometry envelope (grown by dist) touches
+    :rtype: List[int]
+
+    Example::
+
+        cells = qr_cells("POINT (-111.761 34.8697)", 0.1, 0.45)
+        trips.where(col("t_pickup_qr").isin(cells))
+    """
+    obj = _get_active_spark_context()._jvm.com.esri.spark.QRListObj
+    if isinstance(geom, str):
+        return list(obj.cellsWkt(geom, float(cell), float(dist)))
+    return list(obj.cells(bytearray(geom), float(cell), float(dist)))
+
+
 def qr_list_explode(
         geom: Union[Column, str],
         cell: Union[Column, str, float, int],
@@ -1946,11 +1979,11 @@ def st_extent(
 ) -> Column:
     """Get the extent (xmin, ymin, xmax, ymax) of a geometry.
 
-    Returns the minimum bounding rectangle as an array [xmin, ymin, xmax, ymax].
+    Returns the minimum bounding rectangle as a struct with fields xmin, ymin, xmax, ymax.
 
     :param geom: A geometry or column name. Default is "geom"
     :type geom: Union[Column, str]
-    :return: Array of [xmin, ymin, xmax, ymax] with alias "extent"
+    :return: Struct<xmin, ymin, xmax, ymax> with alias "extent"
     :rtype: Column
 
     Example::
@@ -2303,6 +2336,7 @@ def join_qr(
         lhs_geom: str = "geom",
         rhs_geom: str = "geom",
         acceleration: str = "mild",
+        broadcast: Optional[str] = None,
 ) -> DataFrame:
     """Spatially join dataframes using quadtree-based spatial indexing.
 
@@ -2331,6 +2365,11 @@ def join_qr(
     :type rhs_geom: str
     :param acceleration: The geometry acceleration mode: "mild", "medium", or "hot". Default is "mild"
     :type acceleration: str
+    :param broadcast: "lhs" or "rhs" to broadcast that side and stream the other, instead of
+        shuffling both sides by QR cell. Use it when one side is small (a few thousand rows): the
+        large side is then never shuffled. Supports "none", "contains", "intersects",
+        "overlaps", "touches" and "within". Default is None (shuffle both sides)
+    :type broadcast: Optional[str]
     :return: DataFrame with joined results
     :rtype: DataFrame
     :raises ValueError: If an option or numeric parameter is invalid. A disjoint
@@ -2341,6 +2380,7 @@ def join_qr(
 
         result = join_qr(df1, df2, cell=10000.0, wkid=3857)
         result = join_qr(df1, df2, cell=10000.0, dist=100.0, oper="intersection")
+        result = join_qr(top_points, zones, cell=10.0, oper="within", broadcast="lhs")
     """
     cell = float(cell)
     dist = float(dist)
@@ -2369,6 +2409,16 @@ def join_qr(
             f"got {acceleration!r}"
         )
 
+    if broadcast is not None:
+        broadcast = broadcast.strip().lower()
+        if broadcast not in {"lhs", "rhs"}:
+            raise ValueError(f"broadcast must be 'lhs', 'rhs' or None, got {broadcast!r}")
+        if oper not in _BROADCAST_PREDICATES:
+            raise ValueError(
+                f"broadcast join does not support {oper!r}; expected one of "
+                f"{sorted(_BROADCAST_PREDICATES)}"
+            )
+
     if qr not in lhs.columns:
         if lhs_geom not in lhs.columns:
             raise ValueError(f"missing {lhs_geom!r} geometry column in LHS dataframe")
@@ -2383,6 +2433,9 @@ def join_qr(
             raise ValueError(f"missing {lhs_geom!r} geometry column in LHS dataframe")
         if rhs_geom not in rhs.columns:
             raise ValueError(f"missing {rhs_geom!r} geometry column in RHS dataframe")
+
+    if broadcast is not None:
+        return _join_qr_broadcast(lhs, rhs, cell, qr, oper, wkid, lhs_geom, rhs_geom, broadcast)
 
     sc = _get_active_spark_context()
     ss = lhs.sparkSession if hasattr(lhs, "sparkSession") else lhs.sql_ctx
@@ -2399,6 +2452,43 @@ def join_qr(
             acceleration,
         ),
         ss,
+    )
+
+
+# Exact predicates the broadcast path can evaluate; "crosses"/"equals" have no ST_ expression.
+_BROADCAST_PREDICATES = {
+    "none": None,
+    "contains": st_contains,
+    "intersects": st_intersects,
+    "overlaps": st_overlaps,
+    "touches": st_touches,
+    "within": st_within,
+}
+
+
+def _join_qr_broadcast(lhs, rhs, cell, qr, oper, wkid, lhs_geom, rhs_geom, side):
+    """join_qr as an equi-join on the QR cell with one side broadcast.
+
+    Same rows and columns as JoinQRInnerProcessor: candidates share a cell, qr_intersect keeps
+    each pair once (in the canonical cell of the envelope overlap), then the exact predicate runs.
+    """
+    def field(alias, name):
+        return col(f"{alias}.`{name.replace('`', '``')}`")
+
+    lhs, rhs = lhs.alias("_qr_l"), rhs.alias("_qr_r")
+    if side == "lhs":
+        lhs = _broadcast(lhs)
+    else:
+        rhs = _broadcast(rhs)
+    lqr, rqr = field("_qr_l", qr), field("_qr_r", qr)
+    condition = (lqr.getField("qr") == rqr.getField("qr")) & qr_intersect(lqr, rqr, cell)
+    predicate = _BROADCAST_PREDICATES[oper]
+    if predicate is not None:
+        # lit: a str wkid such as "4326" would otherwise be read as a column name
+        condition = condition & predicate(field("_qr_l", lhs_geom), field("_qr_r", rhs_geom), lit(str(wkid)))
+    return lhs.join(rhs, condition).select(
+        *[field("_qr_l", c) for c in lhs.columns if c != qr],
+        *[field("_qr_r", c) for c in rhs.columns if c != qr],
     )
 
 

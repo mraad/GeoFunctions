@@ -72,13 +72,45 @@ class STRelationSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  "Every predicate" should "default wkid to -1 when called with two arguments" in {
+    predicates.foreach { case (name, make) =>
+      val two = make(Seq(lhsCol, rhsCol))
+      val three = make(Seq(lhsCol, rhsCol, Literal(wkid)))
+      two.checkInputDataTypes().isSuccess shouldBe true
+      // every grid point plus the origin (inside) and the (10, 0) vertex (boundary)
+      points.foreach { pt =>
+        withClue(name) {
+          run(two, star, pt, null) shouldBe run(three, star, pt, null)
+          run(two, pt, star, null) shouldBe run(three, pt, star, null)
+        }
+      }
+      withClue(s"$name null: ") {
+        Seq((null, star), (star, null)).foreach { case (l, r) =>
+          val row = InternalRow(l, r, null)
+          Option(two.eval(row)) shouldBe None
+          UnsafeProjection.create(Seq(two))(row).isNullAt(0) shouldBe true
+        }
+      }
+      make(Seq(lhsCol, rhsCol, Literal(wkid), Literal(wkid))).checkInputDataTypes().isFailure shouldBe true
+    }
+  }
+
   "ST_INTERSECTS" should "find points inside and outside the star" in {
     val e = STIntersects(Seq(lhsCol, Literal(star), Literal(wkid)))
     run(e, new Point(0, 0).bytes, null, null)._1 shouldBe true
     run(e, new Point(9, 9).bytes, null, null)._1 shouldBe false
   }
 
-  "WkbCache" should "reuse a parse only for the same array instance" in {
+  "WkbCache" should "reuse a parse for an equal copy, as a join delivers it" in {
+    val cache = new WkbCache
+    var reuses = 0
+    val a = new Point(1, 2).bytes
+    val g = cache(a, _ => reuses += 1)
+    cache(a.clone(), _ => reuses += 1) should be theSameInstanceAs g
+    reuses shouldBe 1
+  }
+
+  it should "reuse a parse only for equal bytes" in {
     val cache = new WkbCache
     var reuses = 0
     val a = new Point(1, 2).bytes
@@ -88,7 +120,7 @@ class STRelationSpec extends AnyFlatSpec with Matchers {
     reuses shouldBe 1
     val b = new Point(3, 4).bytes
     cache(b).asInstanceOf[Point].getX shouldBe 3.0
-    cache(a.clone()).asInstanceOf[Point].getX shouldBe 1.0
+    cache(a).asInstanceOf[Point].getX shouldBe 1.0
   }
 
   "ST_DWITHIN" should "equal ST_DISTANCE <= dist, constant or not" in {

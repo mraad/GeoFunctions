@@ -235,6 +235,7 @@ fail with an actionable error instead of wrapping to another key.
 - qr_fromxy(x, y, cell): Returns the quad region containing the point (x, y).
 - qr_geom(geom, cell, dist=0.0, wkid=-1): Returns the intersections of the quad regions and the geometry.
 - qr_intersect(lhs, rhs, cell): Returns true when matching QR groups overlap in their canonical lower-left cell.
+- qr_cells(geom, cell, dist=0.0): Returns the qr_list cells of one WKT/WKB geometry on the driver, for pruning a QR-sorted table.
 - qr_list(geom, cell, dist=0.0): Returns a list of quad regions.
 - st_astext(geom): Returns the WKT representation of the geometry.
 - st_box(x, y, h, v=None): Returns a rectangle centered on x/y, width 2*h and height 2*v (v defaults to h).
@@ -271,7 +272,7 @@ The list above is a subset. Other areas covered in [functions.md](functions.md):
 
 - **H3**: h3_latlng_to_cell, h3_cell_to_boundary (needs the Uber `h3` jar on the classpath).
 - **Explode helpers**: qr_geom_explode, qr_envp_explode, qr_list_explode, st_dump_explode — wrap `explode()` around the array-returning functions.
-- **Spatial joins**: join_qr(lhs, rhs, cell, ...), also usable as `df.join_qr(...)`.
+- **Spatial joins**: join_qr(lhs, rhs, cell, ..., broadcast=None), also usable as `df.join_qr(...)`. Pass `broadcast="lhs"` or `"rhs"` when that side is small.
 - **Aggregation**: st_union_col, qr_count, pairwise_dissolve.
 - **GDB decoding**: gdb_polyline2, gdb_polygon2, gdb_polygonM, gdb_polygonZ — turn the `Shape` struct from the `gdb`/`shp` readers into WKB.
 - **ArcGIS bridge**: to_spark, to_feature_class, to_feature_table.

@@ -145,6 +145,15 @@ class GeoFunctionsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "dist must"):
             gf.join_qr(lhs, rhs, 1.0, dist=-1.0)
 
+    def test_broadcast_join_rejects_unknown_sides_and_inexpressible_operations(self):
+        lhs = FakeFrame(["geom", "qr"], "lhs")
+        rhs = FakeFrame(["geom", "qr"], "rhs")
+        with self.assertRaisesRegex(ValueError, "broadcast must"):
+            gf.join_qr(lhs, rhs, 1.0, broadcast="left")
+        for oper in ("crosses", "equals"):
+            with self.assertRaisesRegex(ValueError, "broadcast join does not support"):
+                gf.join_qr(lhs, rhs, 1.0, oper=oper, broadcast="lhs")
+
     def test_dissolve_keeps_the_remainder_when_the_breaker_fires(self):
         frame = DissolveFrame()
         expression = FakeExpression()

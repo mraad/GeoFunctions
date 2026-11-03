@@ -100,3 +100,21 @@ as the release notes warn.
 ## Not doing
 - Raising the `spark-3.3`/`spark-3.4` profiles or testing them. Untouched and unverified
   here; they were already unverified before.
+
+# SpatialBench Q3/Q4 + QR preparation — 2026-11-03
+
+Branch `perf/qr-prepared-q3-q4`. Spark 4.3 jar, SF1/SF10 (SF100 for the final table).
+
+Findings so far: Q4 broadcast `qr` equi-join 0.42 s (SF1) vs `join_qr` cogroup 2–44 s (shuffles
+1.4 GB of zones); cell size barely matters with broadcast. Spark floor = scans run one after the
+other; a fast WKB envelope reader would save ~0.02 s, so skip it.
+
+- [x] `join_qr(..., broadcast="lhs"|"rhs")`: equi-join on `qr`, broadcast the small side,
+      `qr_intersect` dedup, exact ST_* predicate. Python unit test + real-Spark parity vs processor.
+- [x] `qr_cells(geom, cell, dist)`: driver-side QR_LIST (Scala `QRListObj.cells`/`cellsWkt`) to
+      prune a QR-sorted Parquet table by row-group stats (`isin` + inFilterThreshold).
+- [x] `benchmarks/spatialbench/prepare.py`: trip sorted by pickup qr (+`t_pickup_qr`), zone clipped
+      into per-cell pieces (`QR_CLIP`, tiny dist) sorted by qr.
+- [x] Q3/Q4 in bench.py: as-is (both engines) and QR-prepared (both engines, same IN filter).
+- [x] Cell-size sweep on prepared layouts (Q1–Q4), SF10; final SF1/SF10/SF100 table.
+- [x] Docs: functions.md, README, benchmark README, CLAUDE.md (join_qr dispatch).

@@ -198,4 +198,14 @@ class QRScanSpec extends AnyFlatSpec with Matchers {
     an[IllegalArgumentException] should be thrownBy QRGeomPar.eval(huge, 1e-3, 0.0, NoSR)
     an[IllegalArgumentException] should be thrownBy QRCountObj.eval(huge, 1e-3, 0.0)
   }
+
+  "QRListObj.cells" should "list the same cells as QR_LIST, from WKB or WKT" in {
+    val wkt = "POLYGON ((-111.906 34.7347, -111.616 34.7347, -111.616 35.0047, -111.906 35.0047, -111.906 34.7347))"
+    val bytes = STFromTextObj.eval(UTF8String.fromString(wkt))
+    val expected = QRListObj.eval(bytes, 0.1, 0.045).toLongArray().toSeq
+    expected should not be empty
+    QRListObj.cells(bytes, 0.1, 0.045).toSeq shouldBe expected
+    QRListObj.cellsWkt(wkt, 0.1, 0.045).toSeq shouldBe expected
+    an[IllegalArgumentException] should be thrownBy QRListObj.cellsWkt("POLYGON ((", 0.1, 0.0)
+  }
 }
