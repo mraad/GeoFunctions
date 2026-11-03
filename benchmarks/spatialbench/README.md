@@ -329,6 +329,30 @@ Warm medians in seconds (3 runs). A run over 10 minutes is stopped and shown as 
   and accelerated once. Q10 fell to 3.7 s. QR-prepared pieces did not help (16–17 s): European
   cells hold hundreds of pieces, and some pieces are still 2.6 MB.
 
+## Q11 and Q12
+
+Warm medians in seconds (3 runs). A run over 10 minutes is stopped. DuckDB was not run at SF10,
+because it already exceeds 10 minutes at SF1.
+
+| SF | query | DuckDB | Spark | Result |
+|---|---|---|---|---|
+| 1 | Q11 | > 600 | 6.53 | 176,391 (same as published) |
+| | Q12 | > 600 | 7.94 | top 1397637 at 82.409775 (same as published) |
+| 10 | Q11 | not run | 29.2 | 2,727,523 |
+| | Q12 | not run | 37.8 | top 33049925 at 82.417175 |
+
+- **Q11 (trips that cross zones)** uses the Q10 plan for both ends of each trip (12M points at
+  SF1). The SpatialBench SQL counts each (trip, pickup zone, dropoff zone) with different zones,
+  and zones overlap, so per trip the count is pickup zones × dropoff zones − zones that hold both
+  ends.
+- **Q12 (5 nearest buildings per pickup)** uses the new `knn_join`: buildings broadcast into an
+  R-tree per task, a first pass by envelope distance to set the search radius, then exact Esri
+  distances inside it. Without the first pass Q12 took 10.8 s at SF1. DuckDB 2.0 has no
+  k-nearest-neighbour join, so its SQL compares every pickup with every building (120 billion
+  distances at SF1).
+- The data now lives in the repository's gitignored `data/spatialbench/`, so later runs do not
+  download it again.
+
 ## When to use which
 
 - **DuckDB** wins on small data and interactive one-off queries. A Spark session costs 2.5 s

@@ -10,7 +10,7 @@ import html, json, math, os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(HERE, "results", "sf1-sf10.jsonl")
-QUERIES = [f"Q{i}" for i in range(1, 11)]
+QUERIES = [f"Q{i}" for i in range(1, 13)]
 CAP = 600.0  # seconds; a run over this is killed and recorded as skipped
 
 rows = [json.loads(line) for line in open(RESULTS)]
@@ -110,6 +110,7 @@ def fig_ratio():
     for i, q in enumerate(QUERIES):
         y = top + i * rowh + rowh / 2
         parts.append(f'<text class="tick" x="{left - 10}" y="{y + 4:.1f}" text-anchor="end">{q}</text>')
+        labelled = False
         for sf, cls, dy in (("sf1", "s1", -5), ("sf10", "s2", 5)):
             s, d = median("spark", sf, "asis", q), median("duckdb", sf, "asis", q)
             if s is None:
@@ -121,11 +122,12 @@ def fig_ratio():
             mark = (f'<circle class="{cls}{" open" if capped else ""}" cx="{x(r):.1f}" cy="{y + dy:.1f}" r="5">'
                     f'<title>{esc(tip)}</title></circle>')
             parts.append(mark)
-            if capped:
+            if capped and not labelled:
                 parts.append(f'<text class="lbl-small" x="{x(r) + 9:.1f}" y="{y + dy + 4:.1f}">DuckDB &gt; 10 min</text>')
+                labelled = True
     legend = (f'<circle class="s1" cx="{left + 6}" cy="12" r="5"/><text class="tick" x="{left + 16}" y="16">SF1 (6M trips)</text>'
               f'<circle class="s2" cx="{left + 136}" cy="12" r="5"/><text class="tick" x="{left + 146}" y="16">SF10 (60M trips)</text>'
-              f'<circle class="s2 open" cx="{left + 286}" cy="12" r="5"/><text class="tick" x="{left + 296}" y="16">upper bound (DuckDB capped)</text>')
+              f'<circle class="open neutral" cx="{left + 286}" cy="12" r="5"/><text class="tick" x="{left + 296}" y="16">upper bound (DuckDB capped)</text>')
     return (f'<svg viewBox="0 0 {width} {h}" role="img" aria-labelledby="f2t"><title id="f2t">Spark time divided by DuckDB time, '
             f'per query, log scale</title>{legend}{"".join(parts)}</svg>')
 
@@ -244,6 +246,13 @@ def times_faster(sf, q):
     return "—" if d is None or s is None else f"{d / s:.0f}"
 
 
+def median_result(engine, sf, q):
+    for r in rows:
+        if (r["engine"], r["sf"], r["layout"], r["query"]) == (engine, sf, "asis", q) and "result" in r:
+            return f"{r['result']:,}" if isinstance(r["result"], int) else r["result"]
+    return "—"
+
+
 def n(sf, eng, q, layout="asis"):
     return fmt(median(eng, sf, layout, q))
 
@@ -313,7 +322,8 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .grid { stroke: var(--rule); stroke-width: 1; } .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
 circle.s1 { fill: var(--s1); stroke: var(--bg); stroke-width: 2; } circle.s2 { fill: var(--s2); stroke: var(--bg); stroke-width: 2; }
 circle.s3 { fill: var(--s3); stroke: var(--bg); stroke-width: 2; } circle.s4 { fill: var(--s4); stroke: var(--bg); stroke-width: 2; }
-circle.open { fill: var(--bg); stroke: var(--s2); stroke-width: 2; }
+circle.open { fill: var(--bg); stroke-width: 2; } circle.s1.open { stroke: var(--s1); }
+circle.s2.open { stroke: var(--s2); } circle.open.neutral { stroke: var(--muted); }
 path.line { fill: none; stroke-width: 2; } path.s1 { stroke: var(--s1); } path.s2 { stroke: var(--s2); }
 path.s3 { stroke: var(--s3); } path.s4 { stroke: var(--s4); }
 .box { fill: var(--panel); stroke: var(--rule); } .box-key { fill: var(--cell-on); stroke: var(--accent); stroke-width: 1.5; }
@@ -328,13 +338,14 @@ def page():
     body = f"""
 <div class="wrap">
 <h1>SpatialBench on Spark</h1>
-<p class="lede">GeoFunctions on Apache Spark 4.3 against DuckDB 2.0 spatial, SpatialBench queries Q1 to Q10.</p>
+<p class="lede">GeoFunctions on Apache Spark 4.3 against DuckDB 2.0 spatial, SpatialBench queries Q1 to Q12.</p>
 <p class="meta">Data: SpatialBench v0.1.0, SF1 (6M trips) and SF10 (60M trips) · Machine: 16 cores, 128 GB RAM, local NVMe ·
 Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf1-sf10.jsonl</p>
 
 <h2>Summary</h2>
 <ul>
-<li>Spark with GeoFunctions is faster than DuckDB on Q8, Q9 and Q10 at all tested scales.</li>
+<li>Spark with GeoFunctions is faster than DuckDB on Q8, Q9, Q10, Q11 and Q12 at all tested scales.</li>
+<li>Q12 needs a k-nearest-neighbour join. DuckDB 2.0 does not have one. GeoFunctions has <code>knn_join</code>.</li>
 <li>On Q9 (building overlap), Spark is {times_faster('sf1', 'Q9')} times faster at SF1. DuckDB compares every building with every building.</li>
 <li>On Q10 (trips in each zone), Spark is {times_faster('sf1', 'Q10')} times faster at SF1.</li>
 <li>On Q1, Q2, Q3, Q6 and Q7, Spark is 1.1 to 2 times slower. Spark has a fixed cost of about 60 ms for each query job.</li>
@@ -365,7 +376,8 @@ Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf
 <div class="tbl"><table class="text"><thead><tr><th>Pattern</th><th>Left side</th><th>Right side</th><th>Remove duplicates</th><th>Used in</th></tr></thead><tbody>
 <tr><th>Polygon and polygon</th><td><code>QR_ENVP</code> (all cells)</td><td><code>QR_ENVP</code> (all cells)</td><td><code>QR_INTERSECT</code></td><td>Q4, Q9</td></tr>
 <tr><th>Point in polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_LIST</code> (all cells)</td><td>Not necessary</td><td>Q6</td></tr>
-<tr><th>Point in polygon, grouped by polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_ENVP</code> (cell and envelope, no geometry)</td><td>Not necessary; exact test with <code>ST_WITHIN_MASK</code></td><td>Q10</td></tr>
+<tr><th>Point in polygon, grouped by polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_ENVP</code> (cell and envelope, no geometry)</td><td>Not necessary; exact test with <code>ST_WITHIN_MASK</code></td><td>Q10, Q11</td></tr>
+<tr><th>k nearest neighbours</th><td>Each point</td><td>All polygons in an R-tree (broadcast)</td><td>Not necessary</td><td>Q12</td></tr>
 <tr><th>Point near polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_LIST</code> with <code>dist</code></td><td>Not necessary</td><td>Q8</td></tr>
 </tbody></table></div>
 <p>A point is in only one cell. Thus a point and a polygon meet in one cell only, and no pair repeats.</p>
@@ -393,12 +405,18 @@ Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf
 <figcaption>Figure 3. The Q10 plan. Step 5 reads each zone polygon one time for all of its points.</figcaption></figure>
 <p>Spark gives each row its own copy of a binary value. With one row for each (zone, point) pair, Spark copied about 1 TB of polygon data at SF1. <code>ST_WITHIN_MASK</code> tests all points of a zone in one call. Time at SF1 went from 20 s to {s1('spark','Q10')} s.</p>
 
+<h3>Q11: trips that cross zones</h3>
+<p>The query uses the Q10 plan for both ends of each trip: 12 million points. The SpatialBench SQL counts each combination of trip, pickup zone and dropoff zone with different zones. Zones overlap (country, state, county), so the count for one trip is: pickup zones × dropoff zones − zones that hold both ends. Spark: {s1('spark','Q11')} s. The result is {median_result('spark','sf1','Q11')}, the same as the published value.</p>
+<h3>Q12: 5 nearest buildings for each pickup</h3>
+<p>The query uses <code>knn_join</code>. The buildings are broadcast. Each task puts them in an R-tree. For each pickup, the tree gives the 5 nearest buildings by envelope distance. Their exact distances give a search radius. The tree then visits only the buildings inside that radius, and the 5 smallest exact distances are kept. Spark: {s1('spark','Q12')} s. DuckDB has no k-nearest-neighbour join: it must compute the distance from every pickup to every building (120 billion distances at SF1).</p>
+
 <h2>Changes to the library</h2>
 <div class="tbl"><table class="text"><thead><tr><th>Change</th><th>Effect</th><th>Measured</th></tr></thead><tbody>
 <tr><th><code>WkbCache</code> in the six predicates and <code>ST_DWITHIN</code></th><td>A repeated geometry is parsed one time. The cache keeps 4 geometries and compares the bytes.</td><td>Q2: 66 s to 0.2 s · Q6: 0.75 s to 0.40 s</td></tr>
 <tr><th>Envelope check in the six predicates</th><td>Pairs that are far apart get the answer without the Esri operator.</td><td>Zone filter: 0.283 s to 0.229 s</td></tr>
 <tr><th>Direct decode of 2D points</th><td>A 21-byte point is read without the Esri importer. All other shapes use the importer.</td><td>Q1 −21%, Q8 −10%, Q6 −8%</td></tr>
 <tr><th><code>ST_WITHIN_MASK</code></th><td>Many points against one polygon. The polygon is read one time.</td><td>Q10: 20 s to {fmt(median("spark", "sf1", "asis", "Q10"))} s</td></tr>
+<tr><th><code>knn_join</code></th><td>New. Exact k nearest neighbours with a broadcast R-tree. A first pass by envelope distance sets the search radius.</td><td>Q12 SF1: {s1('spark','Q12')} s (10.8 s without the first pass)</td></tr>
 <tr><th><code>join_qr(broadcast=...)</code></th><td>Broadcast the small side. Do not shuffle the large side.</td><td>Q4: 2.2 s to 0.42 s</td></tr>
 <tr><th><code>qr_cells</code></th><td>Lists the cells of a geometry on the driver. Use it to read only some row groups of a QR-sorted table.</td><td>Q1 SF10: 0.45 s to 0.08 s</td></tr>
 <tr><th><code>ST_DWITHIN</code></th><td>New function. Distance test with an envelope check first.</td><td>Q1, Q3</td></tr>
@@ -434,6 +452,7 @@ Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf
 <li>Install the Python package from the repository root: <code>pip install .</code></li>
 <li>Set the jar path: <code>JAR=$(ls -S target/geofunctions-*.jar | head -1)</code></li>
 <li>Download the data: <code>hf download apache-sedona/spatialbench --repo-type dataset --include "v0.1.0/sf1/*" --local-dir data</code></li>
+<li>Delete the tables that you do not need. Q1 to Q12 use only <code>trip</code>, <code>zone</code>, <code>customer</code> and <code>building</code>.</li>
 <li>Run Spark: <code>python benchmarks/spatialbench/bench.py spark "$JAR" data/v0.1.0/sf1 sf1</code></li>
 <li>Run DuckDB: <code>python benchmarks/spatialbench/bench.py duckdb - data/v0.1.0/sf1 sf1</code></li>
 <li>Compare the <code>result</code> field of each output line.</li>
