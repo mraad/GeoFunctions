@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, Codegen
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
 import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
 
 object QRListObj extends Serializable {
 
@@ -33,6 +34,20 @@ object QRListObj extends Serializable {
       q += 1L
     }
     UnsafeArrayData.fromPrimitiveArray(arr)
+  }
+
+  /**
+   * QR_LIST on the driver, for pruning a table sorted by a QR column: keep rows whose qr is in
+   * these cells, and Parquet row-group statistics skip the rest.
+   */
+  final def cells(bytes: Array[Byte], cell: Double, dist: Double): Array[Long] =
+    eval(bytes, cell, dist).toLongArray()
+
+  /** [[cells]] for a WKT geometry. */
+  final def cellsWkt(wkt: String, cell: Double, dist: Double): Array[Long] = {
+    val bytes = STFromTextObj.eval(UTF8String.fromString(wkt))
+    require(bytes.nonEmpty, s"invalid WKT: $wkt")
+    cells(bytes, cell, dist)
   }
 }
 
