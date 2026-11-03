@@ -274,6 +274,7 @@ The list above is a subset. Other areas covered in [functions.md](functions.md):
 - **H3**: h3_latlng_to_cell, h3_cell_to_boundary (needs the Uber `h3` jar on the classpath).
 - **Explode helpers**: qr_geom_explode, qr_envp_explode, qr_list_explode, st_dump_explode — wrap `explode()` around the array-returning functions.
 - **Spatial joins**: join_qr(lhs, rhs, cell, ..., broadcast=None), also usable as `df.join_qr(...)`. Pass `broadcast="lhs"` or `"rhs"` when that side is small.
+- **Nearest neighbours**: knn_join(lhs, rhs, k, lhs_geom, rhs_geom), also usable as `df.knn_join(...)`. Exact k nearest rhs rows per lhs row; rhs is broadcast.
 - **Aggregation**: st_union_col, qr_count, pairwise_dissolve.
 - **GDB decoding**: gdb_polyline2, gdb_polygon2, gdb_polygonM, gdb_polygonZ — turn the `Shape` struct from the `gdb`/`shp` readers into WKB.
 - **ArcGIS bridge**: to_spark, to_feature_class, to_feature_table.

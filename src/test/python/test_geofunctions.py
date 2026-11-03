@@ -145,6 +145,13 @@ class GeoFunctionsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "dist must"):
             gf.join_qr(lhs, rhs, 1.0, dist=-1.0)
 
+    def test_knn_join_rejects_a_k_that_is_not_a_positive_integer(self):
+        lhs = FakeFrame(["geom"], "lhs")
+        rhs = FakeFrame(["geom"], "rhs")
+        for k in (0, -1, 2.5, True, "5"):
+            with self.assertRaisesRegex(ValueError, "k must be a positive integer"):
+                gf.knn_join(lhs, rhs, k)
+
     def test_broadcast_join_rejects_unknown_sides_and_inexpressible_operations(self):
         lhs = FakeFrame(["geom", "qr"], "lhs")
         rhs = FakeFrame(["geom", "qr"], "rhs")
