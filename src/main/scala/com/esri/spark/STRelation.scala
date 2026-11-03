@@ -6,7 +6,8 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
-import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
+import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
+import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes, Literal}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -45,7 +46,10 @@ object STRelationEval {
     Option(SparkEnv.get).forall(_.conf.getBoolean("spark.esri.accelerate", defaultValue = true))
 }
 
-/** `(lhs: WKB, rhs: WKB, wkid: String) => Boolean` for one `OperatorSimpleRelation`. */
+/**
+ * `(lhs: WKB, rhs: WKB[, wkid: String]) => Boolean` for one `OperatorSimpleRelation`. `wkid`
+ * defaults to "-1" (planar), as in the Python wrappers.
+ */
 abstract class STRelation extends Expression with ImplicitCastInputTypes {
 
   protected def opType: Operator.Type
@@ -54,11 +58,20 @@ abstract class STRelation extends Expression with ImplicitCastInputTypes {
 
   override def nullable: Boolean = children.exists(_.nullable)
 
-  override def inputTypes: Seq[DataType] = Seq(
-    BinaryType,
-    BinaryType,
-    StringType,
-  )
+  override def inputTypes: Seq[DataType] =
+    if (children.length == 2) Seq(BinaryType, BinaryType) else Seq(BinaryType, BinaryType, StringType)
+
+  override def checkInputDataTypes(): TypeCheckResult = {
+    if (children.length != 2 && children.length != 3) {
+      TypeCheckResult.TypeCheckFailure(
+        s"$prettyName requires 2 or 3 arguments (lhs, rhs[, wkid]), got ${children.length}")
+    } else {
+      super.checkInputDataTypes()
+    }
+  }
+
+  @transient private lazy val wkid: Expression =
+    if (children.length == 2) Literal(UTF8String.fromString("-1"), StringType) else children(2)
 
   override def dataType: DataType = BooleanType
 
@@ -67,7 +80,7 @@ abstract class STRelation extends Expression with ImplicitCastInputTypes {
   override def eval(inputRow: InternalRow): Any = {
     val v1 = children.head.eval(inputRow)
     val v2 = children(1).eval(inputRow)
-    val v3 = children(2).eval(inputRow)
+    val v3 = wkid.eval(inputRow)
     if (v1 == null || v2 == null || v3 == null) null
     else {
       relation.eval(
@@ -83,7 +96,7 @@ abstract class STRelation extends Expression with ImplicitCastInputTypes {
                                   ): ExprCode = {
     val c1 = children.head.genCode(ctx)
     val c2 = children(1).genCode(ctx)
-    val c3 = children(2).genCode(ctx)
+    val c3 = wkid.genCode(ctx)
 
     // References ship inside the task closure, so each task deserializes its own caches.
     val rel = ctx.addReferenceObj("relation", new STRelationEval(opType), classOf[STRelationEval].getName)
