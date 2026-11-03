@@ -1,4 +1,4 @@
-"""SpatialBench Q1-Q4 on a QR-prepared layout (prepare.py): geofunctions on Spark vs DuckDB.
+"""SpatialBench Q1-Q4 and Q6 on a QR-prepared layout (prepare.py): geofunctions on Spark vs DuckDB.
 
 usage: python bench_qr.py <spark|duckdb> <jar> <prepared_dir> <cell> <label> [runs]
 
@@ -6,16 +6,18 @@ Both engines run the same plan. Q1-Q3 keep only the QR cells the query area can 
 Parquet skips every other row group. Q2 and Q4 test points against the per-cell zone pieces,
 joined on the QR cell. Q2 runs in two phases: phase 1 reads the county's zone key and cells,
 phase 2 prunes with them. Q4 does not prune: the top-1000 pickups are spread over the whole
-world, and a list of ~700 cells costs more to evaluate than reading every piece.
+world, and a list of ~700 cells costs more to evaluate than reading every piece. Q6 runs in
+three phases: the zones with a piece in the box's cells that intersects the box, then those
+zones' cells, then the trips in those cells joined to the pieces. Q5, Q7 and Q8 are only in
+bench.py: Q5 groups by customer and Q7 has no spatial filter, so neither can prune by cell, and
+Q8's buildings sit in 45% of the 1-degree cells that hold trips, so pruning skips little.
 """
 import json, math, os, statistics, sys, time
 
 engine, jar, data, cell, label = sys.argv[1], sys.argv[2], sys.argv[3], float(sys.argv[4]), sys.argv[5]
 runs = int(sys.argv[6]) if len(sys.argv) > 6 else 5
 
-CENTER = "POINT (-111.7610 34.8697)"
-BOX = ("POLYGON((-111.9060 34.7347, -111.6160 34.7347, -111.6160 35.0047, "
-       "-111.9060 35.0047, -111.9060 34.7347))")
+from common import BOX, BOX6, BOX6_ENV, BOX_ENV, CENTER, CENTER_XY, summarize
 
 
 def cells(xmin, ymin, xmax, ymax, dist):
@@ -28,8 +30,29 @@ def cells(xmin, ymin, xmax, ymax, dist):
     return out
 
 
-Q1_CELLS = cells(-111.7610, 34.8697, -111.7610, 34.8697, 0.45)
-Q3_CELLS = cells(-111.9060, 34.7347, -111.6160, 35.0047, 0.045)
+Q1_CELLS = cells(*CENTER_XY, *CENTER_XY, 0.45)
+Q3_CELLS = cells(*BOX_ENV, 0.045)
+# pieces are clipped to cells grown by cell*1e-6, so a piece one cell over can reach the box edge
+Q6_BOX_CELLS = cells(*BOX6_ENV, cell * 1e-6)
+
+
+def q6_keys(box, piece):
+    return f"""SELECT DISTINCT z_zonekey FROM zone
+WHERE qr IN ({in_list(Q6_BOX_CELLS)}) AND ST_INTERSECTS({box}, {piece})"""
+
+
+def q6_cells(keys):
+    return f"SELECT DISTINCT qr FROM zone WHERE z_zonekey IN ({in_list(keys)})"
+
+
+def q6(keys, cell_list, point, piece):
+    return f"""
+SELECT /*+ BROADCAST(z) */ z.z_zonekey, z.z_name, count(t.t_tripkey) AS total_pickups,
+       avg(t.t_distance) AS avg_distance, avg(t.t_dropofftime - t.t_pickuptime) AS avg_duration
+FROM trip t JOIN zone z ON t.t_pickup_qr = z.qr
+WHERE t.t_pickup_qr IN ({in_list(cell_list)}) AND z.qr IN ({in_list(cell_list)})
+  AND z.z_zonekey IN ({in_list(keys)}) AND ST_WITHIN({point}, {piece})
+GROUP BY z.z_zonekey, z.z_name ORDER BY total_pickups DESC, z.z_zonekey ASC"""
 
 
 def in_list(values):
@@ -44,10 +67,10 @@ WHERE t.t_pickup_qr IN ({in_list(Q1_CELLS)}) AND ST_DWITHIN({geom_from}, {CENTER
 ORDER BY distance_to_center ASC, t.t_tripkey ASC LIMIT 100"""
 
 
-def q3(geom_from, duration):
+def q3(geom_from):
     return f"""
 SELECT date_trunc('month', t.t_pickuptime) AS pickup_month, count(t.t_tripkey) AS total_trips,
-       avg(t.t_distance) AS avg_distance, avg({duration}) AS avg_duration, avg(t.t_fare) AS avg_fare
+       avg(t.t_distance) AS avg_distance, avg(t.t_dropofftime - t.t_pickuptime) AS avg_duration, avg(t.t_fare) AS avg_fare
 FROM trip t
 WHERE t.t_pickup_qr IN ({in_list(Q3_CELLS)}) AND ST_DWITHIN({geom_from}, {BOX_G}, 0.045)
 GROUP BY pickup_month ORDER BY pickup_month"""
@@ -98,6 +121,8 @@ if engine == "spark":
     spark.read.parquet(f"{data}/trip").createOrReplaceTempView("trip")
     spark.read.parquet(f"{data}/zone").createOrReplaceTempView("zone")
     CENTER_G, BOX_G = f"ST_FROMTEXT('{CENTER}')", f"ST_FROMTEXT('{BOX}')"
+    BOX_G6 = f"ST_FROMTEXT('{BOX6}')"
+    assert gf.qr_cells(BOX6, cell, cell * 1e-6) == Q6_BOX_CELLS
     sql = lambda q: [tuple(r) for r in spark.sql(q).collect()]
     version = spark.version
 
@@ -109,11 +134,17 @@ if engine == "spark":
         spark.createDataFrame(top, "t_pickuploc binary, t_pickup_qr long, x double, y double").createOrReplaceTempView("top")
         return sql(q4("t.t_pickuploc", "z.z_piece", "t.x", "t.y"))
 
+    def run_q6():
+        keys = [r[0] for r in sql(q6_keys(BOX_G6, "z_piece"))]
+        cell_list = [r[0] for r in sql(q6_cells(keys))]
+        return sql(q6(keys, cell_list, "t.t_pickuploc", "z.z_piece"))
+
     queries = {
         "Q1": lambda: sql(q1("t.t_pickuploc", "ST_X(t.t_pickuploc, 0) AS pickup_lon, ST_Y(t.t_pickuploc, 0) AS pickup_lat")),
         "Q2": run_q2,
-        "Q3": lambda: sql(q3("t.t_pickuploc", "t.t_dropofftime - t.t_pickuptime")),
+        "Q3": lambda: sql(q3("t.t_pickuploc")),
         "Q4": run_q4,
+        "Q6": run_q6,
     }
 else:
     import duckdb
@@ -123,6 +154,7 @@ else:
     con.execute(f"CREATE VIEW trip AS SELECT * FROM {lit(f'{data}/trip/*.parquet')}")
     con.execute(f"CREATE VIEW zone AS SELECT * FROM {lit(f'{data}/zone/*.parquet')}")
     CENTER_G, BOX_G = f"ST_GeomFromText('{CENTER}')", f"ST_GeomFromText('{BOX}')"
+    BOX_G6 = f"ST_GeomFromText('{BOX6}')"
     sql = lambda q: con.execute(q).fetchall()
     version = duckdb.__version__
     P, Z = "ST_GeomFromWKB(t.t_pickuploc)", "ST_GeomFromWKB({}.z_piece)"
@@ -135,26 +167,26 @@ else:
         con.execute(f"CREATE OR REPLACE TEMP TABLE top AS {TOP_XY.format(x=f'ST_X({g})', y=f'ST_Y({g})', top=TOP_SQL)}")
         return sql(q4(P, Z.format("z"), "t.x", "t.y").replace("/*+ BROADCAST(t) */ ", ""))
 
+    def run_q6():
+        keys = [r[0] for r in sql(q6_keys(BOX_G6, "ST_GeomFromWKB(z_piece)"))]
+        cell_list = [r[0] for r in sql(q6_cells(keys))]
+        return sql(q6(keys, cell_list, P, Z.format("z"))
+                   .replace("/*+ BROADCAST(z) */ ", ""))
+
     queries = {
         "Q1": lambda: sql(q1(P, f"ST_X({P}) AS pickup_lon, ST_Y({P}) AS pickup_lat").replace("ST_DWITHIN", "ST_DWithin").replace("ST_DISTANCE", "ST_Distance")),
         "Q2": run_q2,
-        "Q3": lambda: sql(q3(P, "t.t_dropofftime - t.t_pickuptime")),
+        "Q3": lambda: sql(q3(P)),
         "Q4": run_q4,
+        "Q6": run_q6,
     }
-
-def q3_summary(rows):
-    """Month, count and all three averages, normalized so both engines compare equal."""
-    return [(str(m)[:7], n, round(float(d), 9), round(dur.total_seconds(), 3), round(float(f), 9))
-            for m, n, d, dur, f in rows]
-
 
 for name, run in queries.items():
     t = time.perf_counter(); result = run(); first = time.perf_counter() - t
     times = []
     for _ in range(runs):
         t = time.perf_counter(); run(); times.append(time.perf_counter() - t)
-    summary = {"Q1": lambda r: [x[0] for x in r], "Q2": lambda r: r[0][0],
-               "Q3": q3_summary, "Q4": lambda r: [(x[0], x[2]) for x in r]}[name](result)
+    summary = summarize(name, result)
     print(json.dumps({"engine": engine, "version": version, "label": label, "cell": cell, "query": name,
                       "first": round(first, 3), "runs": [round(x, 3) for x in times],
                       "median": round(statistics.median(times), 3), "result": summary}), flush=True)
