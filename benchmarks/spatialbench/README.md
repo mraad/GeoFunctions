@@ -22,6 +22,7 @@ hf download apache-sedona/spatialbench --repo-type dataset \
   --include "v0.1.0/sf10/trip/*" --include "v0.1.0/sf10/zone/*" --local-dir spatialbench-data
 
 mvn -P spark-4.3 clean package          # Spark 4.3 jar; pair with pyspark==4.3.0
+pip install .                           # the geofunctions Python package, from the repo root
 JAR=$(ls -S target/geofunctions-*.jar | head -1)   # the shaded jar is the largest in target/
 python benchmarks/spatialbench/bench.py spark  "$JAR" spatialbench-data/v0.1.0/sf10 sf10
 python benchmarks/spatialbench/bench.py duckdb -      spatialbench-data/v0.1.0/sf10 sf10
