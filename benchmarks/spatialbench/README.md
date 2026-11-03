@@ -22,8 +22,9 @@ hf download apache-sedona/spatialbench --repo-type dataset \
   --include "v0.1.0/sf10/trip/*" --include "v0.1.0/sf10/zone/*" --local-dir spatialbench-data
 
 mvn -P spark-4.3 clean package          # Spark 4.3 jar; pair with pyspark==4.3.0
-python benchmarks/spatialbench/bench.py spark  target/geofunctions-<ver>.jar spatialbench-data/v0.1.0/sf10 sf10
-python benchmarks/spatialbench/bench.py duckdb -                            spatialbench-data/v0.1.0/sf10 sf10
+JAR=$(ls -S target/geofunctions-*.jar | head -1)   # the shaded jar is the largest in target/
+python benchmarks/spatialbench/bench.py spark  "$JAR" spatialbench-data/v0.1.0/sf10 sf10
+python benchmarks/spatialbench/bench.py duckdb -      spatialbench-data/v0.1.0/sf10 sf10
 ```
 
 Extra `key=value` arguments after the run count become Spark configs, for example
@@ -33,7 +34,10 @@ Extra `key=value` arguments after the run count become Spark configs, for exampl
 
 Test machine: Apple silicon, 16 cores, 128 GB RAM, local NVMe. Spark ran as `local[*]` with a
 64 GB driver; DuckDB 2.0.0 used its defaults. Times are warm medians in seconds (5 runs; 3 at
-SF100). The OS page cache was warm for both engines.
+SF100). The OS page cache was warm for both engines. The engines ran one after the other, not
+interleaved, so slow drift (thermal, page cache) is not controlled for. Repeating a whole SF10
+series later showed about 10% drift for both engines, so treat differences under about 10% as
+noise.
 
 | SF | trips | query | DuckDB | Spark 4.3.0 | Spark 3.5.9 | Spark 4.3 / DuckDB |
 |---|---|---|---|---|---|---|
@@ -60,10 +64,11 @@ Costs that the warm medians leave out:
 
 ## What the numbers say
 
-- **The geometry work is not the gap.** Subtract each engine's scan floor. At SF100, Spark
-  spends 1.1 s on Q1's spatial work and 1.5 s on Q2's. DuckDB spends 1.7 s and 2.8 s. The
-  Esri geometry engine, with a repeated geometry parsed once (see `WkbCache`), is faster than
-  DuckDB spatial on these predicates.
+- **The scan is the gap, not the rest of the query.** At SF100, query time minus scan time is
+  1.1 s (Q1) and 1.5 s (Q2) for Spark, and 1.7 s and 2.8 s for DuckDB. That difference
+  includes all non-scan work (spatial predicates, projection, sorting, Q2's subquery), so it
+  does not isolate the geometry engine. It does show that, after the scan, Spark with
+  geofunctions does this work no slower than DuckDB.
 - **The gap is the Spark engine.** Each Spark job has about 60 ms of fixed overhead
   (scheduling, task launch, building rows). Spark's Parquet scan of the WKB column is about 3×
   slower than DuckDB's at every scale, because Spark copies each value into its own `byte[]`.

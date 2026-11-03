@@ -621,9 +621,9 @@ Functions for testing spatial relationships between geometries.
 **A repeated geometry is parsed once.** In `st_intersects`, `st_contains`, `st_within`,
 `st_touches`, `st_overlaps`, `st_disjoint` and `st_dwithin`, a geometry that is the same on every
 row is parsed once per task, not once per row. This applies to a literal (for example a polygon
-collected to the driver and passed as `lit(bytes(wkb))`) and to a SQL scalar subquery. The
-predicates also accelerate that geometry, unless `spark.esri.accelerate` is `false`. A geometry
-from a column is still parsed per row.
+collected to the driver and passed as `lit(bytes(wkb))`) and to a SQL scalar subquery. The six
+predicates (not `st_dwithin`) also accelerate that geometry, unless `spark.esri.accelerate` is
+`false`. A geometry from a column is still parsed per row.
 
 On the SpatialBench SF1 data, 6M pickup points against the 10,583-vertex Coconino County polygon
 went from about 66 s to 0.2–0.4 s (local mode). Almost all of the gain comes from parsing once.

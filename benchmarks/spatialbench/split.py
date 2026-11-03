@@ -2,7 +2,9 @@
 import os, sys, pyarrow.dataset as ds, pyarrow.parquet as pq
 src, dst, n = sys.argv[1], sys.argv[2], int(sys.argv[3])
 t = ds.dataset(f"{src}/trip", format="parquet").to_table()
-os.makedirs(f"{dst}/trip", exist_ok=True)
+if os.path.exists(dst) and os.listdir(dst):
+    sys.exit(f"{dst} is not empty; leftover parts would be read as duplicate rows")
+os.makedirs(f"{dst}/trip")
 step = -(-t.num_rows // n)
 for i in range(n):
     part = t.slice(i * step, step)
