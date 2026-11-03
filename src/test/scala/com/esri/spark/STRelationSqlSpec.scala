@@ -45,4 +45,12 @@ class STRelationSqlSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll
       spark.sql(s"SELECT ST_WITHIN($inside, $box, '-1', '-1')").collect()
     e.getMessage should include("requires 2 or 3 arguments")
   }
+
+  "ST_WITHIN_MASK in SQL" should "test an array of points and reject a wrong argument count" in {
+    spark.sql(s"SELECT ST_WITHIN_MASK(array($inside, ST_FROMTEXT('POINT (5 5)')), $box, '-1')")
+      .collect().head.getSeq[Boolean](0) shouldBe Seq(true, false)
+    val e = the[AnalysisException] thrownBy
+      spark.sql(s"SELECT ST_WITHIN_MASK(array($inside), $box)").collect()
+    e.getMessage should include("requires 3 arguments")
+  }
 }

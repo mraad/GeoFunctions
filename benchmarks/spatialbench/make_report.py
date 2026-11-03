@@ -92,7 +92,7 @@ def fig_grid():
 
 # ---------------------------------------------------------------- figure 2: Spark ÷ DuckDB per query
 def fig_ratio():
-    lo, hi = 1 / 1000, 10.0
+    lo, hi = 1 / 10000, 10.0
     left, right, top, rowh = 54, 24, 30, 30
     width = 640
     plot = width - left - right
@@ -102,10 +102,10 @@ def fig_ratio():
         return left + plot * (math.log10(v) - math.log10(lo)) / (math.log10(hi) - math.log10(lo))
 
     parts = []
-    for t, lab in ((0.001, "1/1000"), (0.01, "1/100"), (0.1, "1/10"), (1, "1×"), (10, "10×")):
+    for t, lab in ((0.0001, "1/10000"), (0.001, "1/1000"), (0.01, "1/100"), (0.1, "1/10"), (1, "1×"), (10, "10×")):
         parts.append(f'<line class="{"ref" if t == 1 else "grid"}" x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{top - 8}" y2="{h - 34}"/>')
         parts.append(f'<text class="tick" x="{x(t):.1f}" y="{h - 18}" text-anchor="middle">{lab}</text>')
-    parts.append(f'<text class="axis" x="{x(0.03):.1f}" y="{h - 2}" text-anchor="middle">◀ Spark faster</text>')
+    parts.append(f'<text class="axis" x="{x(0.01):.1f}" y="{h - 2}" text-anchor="middle">◀ Spark faster</text>')
     parts.append(f'<text class="axis" x="{x(3.3):.1f}" y="{h - 2}" text-anchor="middle">DuckDB faster ▶</text>')
     for i, q in enumerate(QUERIES):
         y = top + i * rowh + rowh / 2
@@ -162,7 +162,8 @@ def fig_q10():
     parts.append(f'<path class="arrow" fill="none" d="M{x3} {y3 + 2} V{y3 + gap / 2} H{x4} V{y3 + gap - 4}" marker-end="url(#ah)"/>')
     note_y = top + 2 * bh + gap + 26
     parts.append(f'<text class="lbl" x="10" y="{note_y}">Per-row ST_WITHIN: each pair copies its zone polygon ≈ 1 TB at SF1, 20 s.</text>')
-    parts.append(f'<text class="lbl" x="10" y="{note_y + 22}">ST_WITHIN_MASK: each zone polygon is copied once per zone, 3.6 s.</text>')
+    q10 = median("spark", "sf1", "asis", "Q10")
+    parts.append(f'<text class="lbl" x="10" y="{note_y + 22}">ST_WITHIN_MASK: each zone polygon is copied once per zone, {fmt(q10)} s.</text>')
     defs = ('<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">'
             '<path d="M0 0 L10 5 L0 10 z" class="arrow-head"/></marker></defs>')
     return f'<svg viewBox="0 0 {w} {h}" role="img" aria-labelledby="f3t"><title id="f3t">Q10 plan in six steps</title>{defs}{"".join(parts)}</svg>'
@@ -363,7 +364,8 @@ Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf
 <h3>Join patterns</h3>
 <div class="tbl"><table class="text"><thead><tr><th>Pattern</th><th>Left side</th><th>Right side</th><th>Remove duplicates</th><th>Used in</th></tr></thead><tbody>
 <tr><th>Polygon and polygon</th><td><code>QR_ENVP</code> (all cells)</td><td><code>QR_ENVP</code> (all cells)</td><td><code>QR_INTERSECT</code></td><td>Q4, Q9</td></tr>
-<tr><th>Point in polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_LIST</code> (all cells)</td><td>Not necessary</td><td>Q6, Q10</td></tr>
+<tr><th>Point in polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_LIST</code> (all cells)</td><td>Not necessary</td><td>Q6</td></tr>
+<tr><th>Point in polygon, grouped by polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_ENVP</code> (cell and envelope, no geometry)</td><td>Not necessary; exact test with <code>ST_WITHIN_MASK</code></td><td>Q10</td></tr>
 <tr><th>Point near polygon</th><td><code>QR_FROMGEOM</code> (1 cell)</td><td><code>QR_LIST</code> with <code>dist</code></td><td>Not necessary</td><td>Q8</td></tr>
 </tbody></table></div>
 <p>A point is in only one cell. Thus a point and a polygon meet in one cell only, and no pair repeats.</p>
@@ -396,7 +398,7 @@ Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf
 <tr><th><code>WkbCache</code> in the six predicates and <code>ST_DWITHIN</code></th><td>A repeated geometry is parsed one time. The cache keeps 4 geometries and compares the bytes.</td><td>Q2: 66 s to 0.2 s · Q6: 0.75 s to 0.40 s</td></tr>
 <tr><th>Envelope check in the six predicates</th><td>Pairs that are far apart get the answer without the Esri operator.</td><td>Zone filter: 0.283 s to 0.229 s</td></tr>
 <tr><th>Direct decode of 2D points</th><td>A 21-byte point is read without the Esri importer. All other shapes use the importer.</td><td>Q1 −21%, Q8 −10%, Q6 −8%</td></tr>
-<tr><th><code>ST_WITHIN_MASK</code></th><td>Many points against one polygon. The polygon is read one time.</td><td>Q10: 20 s to 3.6 s</td></tr>
+<tr><th><code>ST_WITHIN_MASK</code></th><td>Many points against one polygon. The polygon is read one time.</td><td>Q10: 20 s to {fmt(median("spark", "sf1", "asis", "Q10"))} s</td></tr>
 <tr><th><code>join_qr(broadcast=...)</code></th><td>Broadcast the small side. Do not shuffle the large side.</td><td>Q4: 2.2 s to 0.42 s</td></tr>
 <tr><th><code>qr_cells</code></th><td>Lists the cells of a geometry on the driver. Use it to read only some row groups of a QR-sorted table.</td><td>Q1 SF10: 0.45 s to 0.08 s</td></tr>
 <tr><th><code>ST_DWITHIN</code></th><td>New function. Distance test with an envelope check first.</td><td>Q1, Q3</td></tr>

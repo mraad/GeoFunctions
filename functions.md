@@ -746,7 +746,7 @@ Use it for a point-in-polygon join against large polygons. Spark gives every row
 of a binary value, so per-row `st_within(point, polygon)` copies and parses the polygon once
 per candidate pair. On SpatialBench Q10 (6M trips × 156k zones, SF1) that was about 1 TB of
 copies and took 20 s. Group each polygon's candidate points into one array instead, and the
-polygon is copied, parsed and accelerated once: 3.6 s. Points outside the polygon's envelope
+polygon is copied, parsed and accelerated once: 3.7 s. Points outside the polygon's envelope
 are rejected without the exact test.
 
 ```python

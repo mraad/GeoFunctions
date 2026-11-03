@@ -3,6 +3,7 @@ package com.esri.spark
 import com.esri.core.geometry.Geometry.GeometryAccelerationDegree
 import com.esri.core.geometry.{Envelope2D, OperatorWithin, Point}
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes}
@@ -56,11 +57,18 @@ final case class STWithinMask(children: Seq[Expression])
 
   override def nullable: Boolean = children.exists(_.nullable)
 
-  override def inputTypes: Seq[DataType] = Seq(
-    ArrayType(BinaryType),
-    BinaryType,
-    StringType,
-  )
+  // One type per child even for a bad arity, so the analyzer reaches checkInputDataTypes (as in STRelation).
+  override def inputTypes: Seq[DataType] =
+    children.indices.map(i => if (i == 0) ArrayType(BinaryType) else if (i == 1) BinaryType else StringType)
+
+  override def checkInputDataTypes(): TypeCheckResult = {
+    if (children.length != 3) {
+      TypeCheckResult.TypeCheckFailure(
+        s"ST_WITHIN_MASK requires 3 arguments (points, polygon, wkid), got ${children.length}")
+    } else {
+      super.checkInputDataTypes()
+    }
+  }
 
   override def dataType: DataType = ArrayType(BooleanType, containsNull = true)
 
