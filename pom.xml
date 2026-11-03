@@ -16,6 +16,8 @@
         <scala.version>${scala.compact}.21</scala.version>
         <spark.compact>3.5</spark.compact>
         <spark.version>${spark.compact}.9</spark.version>
+        <!-- Spark line the spark-shp/filegdb readers were built for; spark-4.3 reuses the 4.0 builds -->
+        <readers.spark.compact>${spark.compact}</readers.spark.compact>
         <spark.scope>provided</spark.scope>
         <skipTests>true</skipTests>
     </properties>
@@ -80,7 +82,7 @@
         <dependency>
             <groupId>com.esri</groupId>
             <artifactId>spark-shp</artifactId>
-            <version>0.32-${spark.compact}-${scala.compact}</version>
+            <version>0.32-${readers.spark.compact}-${scala.compact}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -91,7 +93,7 @@
         <dependency>
             <groupId>com.esri</groupId>
             <artifactId>filegdb</artifactId>
-            <version>0.68-${spark.compact}-${scala.compact}</version>
+            <version>0.68-${readers.spark.compact}-${scala.compact}</version>
         </dependency>
         <!-- Source: https://github.com/Esri/geometry-api-java.git -->
         <dependency>
@@ -472,6 +474,20 @@
                 <scala.version>${scala.compact}.16</scala.version>
                 <spark.compact>4.0</spark.compact>
                 <spark.version>${spark.compact}.0</spark.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>spark-4.3</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <java.version>17</java.version>
+                <scala.compact>2.13</scala.compact>
+                <scala.version>${scala.compact}.18</scala.version>
+                <spark.compact>4.3</spark.compact>
+                <spark.version>${spark.compact}.0</spark.version>
+                <readers.spark.compact>4.0</readers.spark.compact>
             </properties>
         </profile>
         <profile>

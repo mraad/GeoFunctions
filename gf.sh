@@ -49,9 +49,9 @@ verify_jar() { # <jar> <2.12|2.13>
   echo "  verified ${jar} (shaded, Scala ${line})"
 }
 
-# Scala 2.13 / Spark 4.0 first, so the default-profile build below is what target/ is left
+# Scala 2.13 / Spark 4.3 (latest Spark) first, so the default-profile build below is what target/ is left
 # holding - that is the one people expect to find there.
-mvn -P spark-4.0 clean package
+mvn -P spark-4.3 clean package
 cp "target/geofunctions-${GF_VER}.jar" "${DIST}/geofunctions-${GF_VER}-2.13.jar"
 verify_jar "${DIST}/geofunctions-${GF_VER}-2.13.jar" 2.13
 
