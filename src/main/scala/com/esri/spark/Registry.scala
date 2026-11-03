@@ -37,6 +37,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_DISJOINT", STDisjoint, "")
     funcReg.createOrReplaceTempFunction("ST_DISTANCE", STDistance, "")
     funcReg.createOrReplaceTempFunction("ST_DUMP", STDump, "")
+    funcReg.createOrReplaceTempFunction("ST_DWITHIN", STDWithin, "")
     funcReg.createOrReplaceTempFunction("ST_EUCLID", STEuclid, "")
     funcReg.createOrReplaceTempFunction("ST_EXTENT", STExtent, "")
     funcReg.createOrReplaceTempFunction("ST_EXTERIORRING", STExteriorRing, "")

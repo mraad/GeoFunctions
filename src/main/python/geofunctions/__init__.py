@@ -1128,6 +1128,42 @@ def st_distance(
     )
 
 
+def st_dwithin(
+        lhs: Union[Column, str] = "lgeom",
+        rhs: Union[Column, str] = "rgeom",
+        dist: Union[Column, str, int, float] = 0.0,
+) -> Column:
+    """Check if two geometries are within a planar distance of each other.
+
+    Same result as ``st_distance(lhs, rhs) <= dist``, but faster: pairs whose envelopes
+    are farther apart than ``dist`` skip the exact distance, and a geometry that is the
+    same on every row (a literal or a SQL scalar subquery) is parsed once, not per row.
+
+    :param lhs: The left hand side geometry or column name. Default is "lgeom"
+    :type lhs: Union[Column, str]
+    :param rhs: The right hand side geometry or column name. Default is "rgeom"
+    :type rhs: Union[Column, str]
+    :param dist: The distance in the units of the coordinates, or a column name. Default is 0.0
+    :type dist: Union[Column, str, int, float]
+    :return: Boolean column indicating if the geometries are within dist
+    :rtype: Column
+
+    Example::
+
+        df.filter(st_dwithin("geom", st_fromtext(lit("POINT (-111.761 34.8697)")), 0.45))
+    """
+    sc = _get_active_spark_context()
+    if isinstance(dist, (int, float)):
+        dist = lit(float(dist))
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.stDWithin(
+            _to_java_column(lhs),
+            _to_java_column(rhs),
+            _to_java_column(dist),
+        )
+    )
+
+
 def qr_envp(
         geom: Union[Column, str],
         cell: Union[Column, str, float, int],

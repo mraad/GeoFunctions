@@ -1,6 +1,7 @@
 package com.esri.spark
 
 import java.io.File
+import java.lang.reflect.Modifier
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Expression, ImplicitCastInputTypes, Literal, UnsafeProjection}
@@ -23,7 +24,7 @@ class NullPropagationSpec extends AnyFlatSpec with Matchers {
     val dir = new File(new File(classOf[STPoint].getProtectionDomain.getCodeSource.getLocation.toURI), "com/esri/spark")
     dir.listFiles().map(_.getName).filter(n => n.endsWith(".class") && !n.contains("$"))
       .map(n => Class.forName("com.esri.spark." + n.stripSuffix(".class")))
-      .filter(c => classOf[Expression].isAssignableFrom(c))
+      .filter(c => classOf[Expression].isAssignableFrom(c) && !Modifier.isAbstract(c.getModifiers))
       .sortBy(_.getSimpleName)
       .toSeq
   }

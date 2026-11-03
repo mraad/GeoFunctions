@@ -6,8 +6,9 @@ It is typically used within an ArcGIS Pro conda environment, and the spark engin
 NOTE: This works in Pro up to version 3.5. This does NOT work in Pro 3.6 (yet).
 
 NOTE: This targets **Spark 3.5.9** and Scala 2.12. Java 11 is the build baseline;
-Java 17 is also supported and smoke-tested. A **Spark 4.0.0 / Scala 2.13 / Java 17** build
-also exists behind `-P spark-4.0`; see [Spark 4.0](#spark-40). Releases remain 3.5.9.
+Java 17 is also supported and smoke-tested. A **Spark 4.3.0 / Scala 2.13 / Java 17** build
+(the latest Spark) exists behind `-P spark-4.3`; see [Spark 4](#spark-4). The ArcGIS Pro bundle
+stays on 3.5.9, because Pro 3.5 ships Spark 3.5.
 
 ### Core Geometry Dependency
 
@@ -66,11 +67,11 @@ The wheel also works outside ArcGIS Pro against a plain PySpark install. It decl
 
 ```shell
 pip install pyspark==3.5.9   # pairs with the default -P spark-3.5 jar
-pip install pyspark==4.0.0   # pairs with the -P spark-4.0 jar; see Spark 4.0 below
+pip install pyspark==4.3.0   # pairs with the -P spark-4.3 jar; see Spark 4 below
 ```
 
 **The jar is not interchangeable between them.** It is compiled with Spark `provided`-scope
-so it loads on any host of its own line, but a Scala 2.12 jar on PySpark 4.0 fails with
+so it loads on any host of its own line, but a Scala 2.12 jar on PySpark 4.x fails with
 `NoClassDefFoundError: scala/collection/SeqOps`. Match the jar to the PySpark major version.
 
 If `SPARK_HOME` is set (sdkman installs one, for instance) PySpark uses those jars instead of
@@ -95,21 +96,25 @@ may additionally need `-Dio.netty.tryReflectionSetAccessible=true`, as described
 Java 21 is not supported by Spark 3.5.9. Official Java 21 support starts with Spark 4.0
 — see below.
 
-### Spark 4.0
+### Spark 4
 
-`mvn -P spark-4.0 clean package` builds against Spark 4.0.0, Scala 2.13.16 and Java 17.
-Tests are skipped by default, so ask for them explicitly to run the suite:
+`mvn -P spark-4.3 clean package` builds against **Spark 4.3.0** (the latest release),
+Scala 2.13.18 and Java 17. Pair the jar with `pip install pyspark==4.3.0`. Tests are skipped by
+default, so ask for them explicitly to run the suite:
 
 ```shell
-mvn -P spark-4.0 -DskipTests=false clean package
+mvn -P spark-4.3 -DskipTests=false clean package
 ```
 
-This is not what releases ship: ArcGIS Pro 3.5 supplies Spark 3.5 through `spark-esri`, and
-3.5.9 is the release and test baseline. Use the 4.0 jar only against a standalone Spark 4.0
-cluster, with `pip install pyspark==4.0.0` in place of 3.5.9 above.
+`./gf.sh` ships this build as `geofunctions-<ver>-2.13.jar`. Use it against standalone Spark
+4.3 hosts and clusters. ArcGIS Pro still needs the default 3.5.9 jar. `-P spark-4.0` (Spark
+4.0.0, Scala 2.13.16) remains for hosts pinned to 4.0.
 
 The three `com.esri` dependencies have **never been published to Maven Central** — the
-`com.esri` group there holds only Esri's own artifacts. Get them from their releases:
+`com.esri` group there holds only Esri's own artifacts. Get them from their releases. No
+Spark 4.3 build of `spark-shp` or `FileGDB` exists yet, so the `spark-4.3` profile links their
+**Spark 4.0** builds (`readers.spark.compact=4.0` in `pom.xml`). The `gdb`/`shp` readers are
+therefore untested on 4.3; nothing else in the jar depends on them.
 
 | Dependency | Release | Scala 2.13 jar |
 |---|---|---|
@@ -134,6 +139,10 @@ Building them from source works too:
 (cd spark-shp   && mvn -P spark-4.0,esri-geometry-github clean install)
 (cd FileGDB     && mvn -P spark-4.0 clean install)
 ```
+
+On SpatialBench Q1/Q2, Spark 4.3 is 0–19% faster than 3.5.9 for the same library code. At
+600M trips it matches DuckDB on one machine (see
+[`benchmarks/spatialbench`](benchmarks/spatialbench/README.md)).
 
 `esri-geometry-github` has to be named explicitly: Maven deactivates every `activeByDefault`
 profile the moment `-P` selects one, and that is the profile supplying the geometry API
@@ -234,6 +243,7 @@ fail with an actionable error instead of wrapping to another key.
 - st_centroid(geom): Returns the centroid of the geometry.
 - st_contains(lhs, rhs, wkid=-1): Returns true if the lhs geometry contains the rhs geometry.
 - st_distance(lhs, rhs): Returns the distance between two geometries.
+- st_dwithin(lhs, rhs, dist): Returns true if the planar distance between two geometries is at most dist.
 - st_euclid(x1, y1, x2, y2): Returns the euclidean distance between two points.
 - st_fromtext(text): Returns a geometry from a WKT representation.
 - st_haversine(lon1, lat1, lon2, lat2): Returns the haversine distance between two points.
