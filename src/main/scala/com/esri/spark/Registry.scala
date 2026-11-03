@@ -73,6 +73,7 @@ object Registry extends Serializable {
     funcReg.createOrReplaceTempFunction("ST_UNIONCOL", STUnionCol, "")
     funcReg.createOrReplaceTempFunction("ST_WGS84", STWGS84, "")
     funcReg.createOrReplaceTempFunction("ST_WITHIN", STWithin, "")
+    funcReg.createOrReplaceTempFunction("ST_WITHIN_MASK", STWithinMask, "")
     funcReg.createOrReplaceTempFunction("ST_X", STX, "")
     funcReg.createOrReplaceTempFunction("ST_XTOLON", STXToLon, "")
     funcReg.createOrReplaceTempFunction("ST_XTOQ", STXToQ, "")

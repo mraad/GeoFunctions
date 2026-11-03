@@ -260,6 +260,7 @@ fail with an actionable error instead of wrapping to another key.
 - st_qtox(q, cell, dist=0.0): Returns the x coordinate of a q value.
 - st_rect(x1, y1, x2, y2): Returns a rectangle geometry.
 - st_rtoy(r, cell, dist=0.0): Returns the y coordinate of an r value.
+- st_within_mask(points, polygon, wkid=-1): Returns st_within(points[i], polygon) for each point, reading the polygon once.
 - st_x(geom, index=0): Returns the x coordinate of a geometry at an index.
 - st_xtolon(x): Returns the longitude of an x coordinate.
 - st_xtoq(x, cell): Returns the q value of an x coordinate.

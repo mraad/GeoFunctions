@@ -1,6 +1,10 @@
-# SpatialBench Q1–Q8: geofunctions on Spark vs DuckDB
+# SpatialBench Q1–Q10: geofunctions on Spark vs DuckDB
 
-[SpatialBench](https://sedona.apache.org/spatialbench/queries/) Q1–Q8, run on the same
+**Report:** [`index.html`](index.html) is the full report, with figures (open it in a browser). It is
+built from [`results/sf1-sf10.jsonl`](results/sf1-sf10.jsonl) by `make_report.py`. This README keeps
+the run notes and the history of each measurement.
+
+[SpatialBench](https://sedona.apache.org/spatialbench/queries/) Q1–Q10, run on the same
 Parquet files with geofunctions on Apache Spark and with DuckDB spatial. `bench.py` runs one
 engine per process: one warm-up run, then N timed runs, and it reports the median.
 
@@ -303,6 +307,27 @@ values less than 1 µs apart round to 0.01 s apart (see above).
 - **Point fast path.** `bytes.geom` decodes a plain 2D WKB point directly (anything else still
   goes through Esri's importer, so results are bit-identical). Interleaved A/B at SF1: Q1 −21%,
   Q3 −9%, Q6 −8%, Q7 −7% (`ST_EUCLID`, four parses per row, −27%), Q8 −10%.
+
+## Q9 and Q10
+
+Warm medians in seconds (3 runs). A run over 10 minutes is stopped and shown as "> 600".
+
+| SF | query | DuckDB | Spark | Spark speedup |
+|---|---|---|---|---|
+| 1 | Q9 | 39.4 | 0.178 | 221× |
+| | Q10 | 83.8 | 3.73 | 22× |
+| 10 | Q9 | > 600 | 0.315 | > 1900× |
+| | Q10 | > 600 | 11.8 | > 50× |
+
+- **Q9 (building overlap)** is a QR self-join at 0.05° cells: both sides exploded with
+  `QR_ENVP`, one side broadcast, `QR_INTERSECT` and `id1 < id2` keep each pair once. DuckDB runs
+  a nested-loop join on one core. Only 37 pairs intersect at SF1, so the result has 37 rows. IoU
+  values differ from DuckDB's around the 12th digit (Esri vs GEOS intersection areas).
+- **Q10 (trips in each zone)** was 20 s at SF1 with a per-row `ST_WITHIN`. Spark copies a binary
+  value for each row, so 7.3M (zone, point) candidates copied about 1 TB of zone polygons.
+  `ST_WITHIN_MASK` tests all candidate points of a zone in one call: the polygon is copied, parsed
+  and accelerated once. Q10 fell to 3.7 s. QR-prepared pieces did not help (16–17 s): European
+  cells hold hundreds of pieces, and some pieces are still 2.6 MB.
 
 ## When to use which
 

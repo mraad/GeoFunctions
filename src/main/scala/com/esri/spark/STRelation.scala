@@ -68,7 +68,7 @@ object STRelationEval {
     math.max(math.max(math.abs(e.xmin), math.abs(e.xmax)), math.max(math.abs(e.ymin), math.abs(e.ymax)))
 
   // SparkEnv, not SparkSession: getActiveSession is empty on executors (same as QRScan).
-  private lazy val accelerate: Boolean =
+  private[spark] lazy val accelerate: Boolean =
     Option(SparkEnv.get).forall(_.conf.getBoolean("spark.esri.accelerate", defaultValue = true))
 }
 

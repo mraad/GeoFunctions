@@ -1,6 +1,6 @@
-"""SpatialBench Q1-Q8: geofunctions on Spark vs DuckDB spatial, same Parquet, warm medians.
+"""SpatialBench Q1-Q10: geofunctions on Spark vs DuckDB spatial, same Parquet, warm medians.
 
-usage: python bench.py <spark|duckdb> <jar> <data_dir> <label> [runs] [spark.conf=value ...]
+usage: python bench.py <spark|duckdb> <jar> <data_dir> <label> [runs] [queries=Q9,Q10] [spark.conf=value ...]
 Prints one JSON line per query: {"engine","label","query","runs":[...],"median","result"}.
 """
 import json, os, statistics, sys, time
@@ -8,12 +8,15 @@ import json, os, statistics, sys, time
 engine, jar, data, label = sys.argv[1:5]
 runs = int(sys.argv[5]) if len(sys.argv) > 5 else 5
 extra = dict(a.split("=", 1) for a in sys.argv[6:])
+only = set(extra.pop("queries").split(",")) if "queries" in extra else None
 
 from common import BOX, BOX6, CENTER, summarize
 
 CELL = 10.0  # Q4 QR cell in degrees: best of 0.5-45 at SF1 and SF10 for a broadcast QR join
 Q6_CELL = 1.0  # Q6 QR cell in degrees: 0.5-2 all within 3% at SF1
 Q8_CELL = 0.05  # Q8 QR cell in degrees: best of 0.005-0.2 at SF1 and SF10
+Q9_CELL = 0.05  # Q9 QR cell in degrees: best of 0.005-0.05 at SF1
+Q10_CELL = 0.5  # Q10 QR cell in degrees: 0.5-2 within 15% at SF1
 
 GF = {
     "scan": "SELECT count(*) FROM trip WHERE length(t_pickuploc) > 0",
@@ -86,6 +89,37 @@ SELECT /*+ BROADCAST(bq) */ bq.b_buildingkey, bq.b_name, count(*) AS nearby_pick
 FROM trip t JOIN bq ON QR_FROMGEOM(t.t_pickuploc, {Q8_CELL}) = bq.qr
 WHERE ST_DWITHIN(t.t_pickuploc, bq.b_boundary, 0.0045)
 GROUP BY bq.b_buildingkey, bq.b_name ORDER BY nearby_pickup_count DESC, bq.b_buildingkey ASC LIMIT 100""",
+    # QR self-join: both sides exploded into cells, each pair kept once (QR_INTERSECT, id1 < id2).
+    "Q9": f"""
+WITH b AS (SELECT b_buildingkey AS id, b_boundary AS geom, explode(QR_ENVP(b_boundary, {Q9_CELL}, 0.0)) AS qr FROM building),
+pairs AS (
+  SELECT /*+ BROADCAST(b2) */ b1.id AS building_1, b2.id AS building_2,
+         ST_AREA(b1.geom) AS area1, ST_AREA(b2.geom) AS area2,
+         ST_AREA(ST_INTERSECTION(b1.geom, b2.geom, '-1')) AS overlap_area
+  FROM b b1 JOIN b b2 ON b1.qr.qr = b2.qr.qr
+  WHERE b1.id < b2.id AND QR_INTERSECT(b1.qr, b2.qr, {Q9_CELL}) AND ST_INTERSECTS(b1.geom, b2.geom))
+SELECT building_1, building_2, area1, area2, overlap_area,
+       CASE WHEN (area1 + area2 - overlap_area) = 0 THEN 1.0 ELSE overlap_area / (area1 + area2 - overlap_area) END AS iou
+FROM pairs ORDER BY iou DESC, building_1 ASC, building_2 ASC LIMIT 100""",
+    # 1) broadcast zone cells + envelopes (no geometry): candidate (zone, trip) pairs;
+    # 2) one row per zone with its candidates: the boundary is copied, parsed and accelerated
+    #    once (ST_WITHIN_MASK) instead of once per pair (~1 TB of copies at SF1);
+    # 3) explode the hits, aggregate, LEFT JOIN so zones without trips stay.
+    "Q10": f"""
+WITH ze AS (SELECT z_zonekey, explode(QR_ENVP(z_boundary, {Q10_CELL}, 0.0)) AS qr FROM zone),
+t AS (SELECT t_pickuploc, t_distance, t_dropofftime - t_pickuptime AS dur,
+             ST_X(t_pickuploc, 0) AS x, ST_Y(t_pickuploc, 0) AS y FROM trip),
+cand AS (SELECT /*+ BROADCAST(ze) */ ze.z_zonekey, struct(t.t_pickuploc AS loc, t.dur, t.t_distance AS dist) AS p
+         FROM t JOIN ze ON QR_FROMGEOM(t.t_pickuploc, {Q10_CELL}) = ze.qr.qr
+         WHERE t.x BETWEEN ze.qr.xmin AND ze.qr.xmax AND t.y BETWEEN ze.qr.ymin AND ze.qr.ymax),
+g AS (SELECT z_zonekey, collect_list(p) AS ps FROM cand GROUP BY z_zonekey),
+m AS (SELECT g.z_zonekey, g.ps, ST_WITHIN_MASK(transform(g.ps, x -> x.loc), z.z_boundary, '-1') AS mask
+      FROM g JOIN zone z ON g.z_zonekey = z.z_zonekey),
+hit AS (SELECT z_zonekey, e.ps.dur AS dur, e.ps.dist AS dist FROM m LATERAL VIEW explode(arrays_zip(ps, mask)) AS e WHERE e.mask),
+agg AS (SELECT z_zonekey, avg(dur) AS avg_duration, avg(dist) AS avg_distance, count(*) AS num_trips FROM hit GROUP BY z_zonekey)
+SELECT z.z_zonekey, z.z_name AS pickup_zone, agg.avg_duration, agg.avg_distance, coalesce(agg.num_trips, 0) AS num_trips
+FROM zone z LEFT JOIN agg ON z.z_zonekey = agg.z_zonekey
+ORDER BY avg_duration DESC NULLS LAST, z.z_zonekey ASC LIMIT 100""",
 }
 
 DUCK = {
@@ -140,6 +174,20 @@ SELECT b.b_buildingkey, b.b_name, COUNT(*) AS nearby_pickup_count
 FROM trip t JOIN building b
   ON ST_DWithin(ST_GeomFromWKB(t.t_pickuploc), ST_GeomFromWKB(b.b_boundary), 0.0045)
 GROUP BY b.b_buildingkey, b.b_name ORDER BY nearby_pickup_count DESC, b.b_buildingkey ASC LIMIT 100""",
+    "Q9": """
+WITH b1 AS (SELECT b_buildingkey AS id, ST_GeomFromWKB(b_boundary) AS geom FROM building),
+b2 AS (SELECT b_buildingkey AS id, ST_GeomFromWKB(b_boundary) AS geom FROM building),
+pairs AS (SELECT b1.id AS building_1, b2.id AS building_2, ST_Area(b1.geom) AS area1, ST_Area(b2.geom) AS area2,
+                 ST_Area(ST_Intersection(b1.geom, b2.geom)) AS overlap_area
+          FROM b1 JOIN b2 ON b1.id < b2.id AND ST_Intersects(b1.geom, b2.geom))
+SELECT building_1, building_2, area1, area2, overlap_area,
+       CASE WHEN (area1 + area2 - overlap_area) = 0 THEN 1.0 ELSE overlap_area / (area1 + area2 - overlap_area) END AS iou
+FROM pairs ORDER BY iou DESC, building_1 ASC, building_2 ASC LIMIT 100""",
+    "Q10": """
+SELECT z.z_zonekey, z.z_name AS pickup_zone, AVG(t.t_dropofftime - t.t_pickuptime) AS avg_duration,
+       AVG(t.t_distance) AS avg_distance, COUNT(t.t_tripkey) AS num_trips
+FROM zone z LEFT JOIN trip t ON ST_Within(ST_GeomFromWKB(t.t_pickuploc), ST_GeomFromWKB(z.z_boundary))
+GROUP BY z.z_zonekey, z.z_name ORDER BY avg_duration DESC NULLS LAST, z.z_zonekey ASC LIMIT 100""",
 }
 
 if engine == "spark":
@@ -176,6 +224,8 @@ else:
     version = duckdb.__version__
 
 for name, sql in queries.items():
+    if only is not None and name not in only:
+        continue
     t = time.perf_counter(); result = execute(sql); first = time.perf_counter() - t  # cold-ish: JIT/plan cache
     times = []
     for _ in range(runs):

@@ -116,6 +116,23 @@ class STRelationSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  "ST_WITHIN_MASK" should "equal per-point ST_WITHIN, accelerated or not, with nulls kept" in {
+    import com.esri.core.geometry.OperatorWithin
+    import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData}
+    import org.apache.spark.sql.types.ArrayType
+    val arrCol = BoundReference(0, ArrayType(BinaryType), nullable = true)
+    val e = STWithinMask(Seq(arrCol, Literal(star), Literal(wkid)))
+    // 5 points (below the acceleration threshold) and every grid point (above it)
+    Seq(points.take(5), points).foreach { pts =>
+      val withNull = pts.take(2) ++ Seq(null) ++ pts.drop(2)
+      val row = InternalRow(new GenericArrayData(withNull.toArray[Any]))
+      val expected = withNull.map(p => if (p == null) null else OperatorWithin.local.execute(p.geom, star.geom, null, null))
+      def asSeq(a: ArrayData) = (0 until a.numElements()).map(i => if (a.isNullAt(i)) null else a.getBoolean(i))
+      asSeq(e.eval(row).asInstanceOf[ArrayData]) shouldBe expected
+      asSeq(UnsafeProjection.create(Seq(e))(row).getArray(0)) shouldBe expected
+    }
+  }
+
   "ST_INTERSECTS" should "find points inside and outside the star" in {
     val e = STIntersects(Seq(lhsCol, Literal(star), Literal(wkid)))
     run(e, new Point(0, 0).bytes, null, null)._1 shouldBe true
