@@ -5,10 +5,12 @@
 #
 # -Mode pip uses the env's pip PySpark. -Mode pro uses the Spark that ships with Pro.
 # Run ./gf.sh first: this reads release\geofunctions-<Version>.zip.
+# Exits 1 unless both scripts finish with no failed test.
 param([Parameter(Mandatory)][string]$Version, [string]$Mode = 'pip', [string]$Shp = '', [string]$Jar = '')
 $repo = (Resolve-Path "$PSScriptRoot\..\..\..").ProviderPath
 if (-not $Jar) { $Jar = "geofunctions-$Version-2.13.jar" }
 $t = Join-Path $env:TEMP "gf-pro-$PID"
+$failed = $false
 New-Item -ItemType Directory $t | Out-Null
 try {
   Copy-Item "$repo\release\geofunctions-$Version.zip" "$t\bundle.zip"
@@ -32,7 +34,14 @@ try {
     & $py "$t\$test.py" "$t\bundle" $Jar "$t\work-$test" 2>&1 | ForEach-Object { "$_" } | Set-Content $log
     Select-String -Path $log -Pattern '^(FAIL|NOTE|SKIP|SUMMARY|spark |arcpy )' | ForEach-Object { $_.Line }
     "PASS lines: " + @(Select-String -Path $log -Pattern '^PASS').Count
+    # The scripts exit 0 even with failed tests, and a crash never reaches SUMMARY.
+    if (-not (Select-String -Path $log -Pattern '^SUMMARY failed=0 ' -Quiet)) {
+      "FAILED ${test}: end of its log:"
+      Get-Content $log -Tail 20
+      $failed = $true
+    }
   }
 } finally {
   Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
 }
+if ($failed) { exit 1 }
