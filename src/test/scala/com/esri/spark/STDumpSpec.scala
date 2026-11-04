@@ -83,11 +83,25 @@ class STDumpSpec extends AnyFlatSpec with Matchers {
     dumpGeom(rings(Seq(hole, ext1, ext2))).map(area).toSet shouldBe Set(9600.0, 10000.0)
   }
 
+  it should "give a hole touching its ring's edge to that ring" in {
+    // The hole's first vertex is on the outer ring's left edge; the second ring is a decoy.
+    val parts = dumpGeom(rings(Seq((0.0, 0.0, 100.0, false), (200.0, 0.0, 100.0, false), (0.0, 40.0, 20.0, true))))
+    parts.map(area).toSet shouldBe Set(9600.0, 10000.0)
+  }
+
   "ST_EXTERIOR_RING" should "keep the outer ring when an island sits inside a hole" in {
     val g = rings(Seq((0.0, 0.0, 100.0, false), (20.0, 20.0, 60.0, true), (40.0, 40.0, 20.0, false)))
     val out = STExteriorRingObj.eval(g.bytes).geom.asInstanceOf[Polygon]
     out.getPathCount shouldBe 1
     area(out) shouldBe 10000.0
+  }
+
+  it should "keep a ring that only touches a larger one at a corner" in {
+    // (100,100) is the first vertex of the small ring and a corner of the large one.
+    val g = rings(Seq((0.0, 0.0, 100.0, false), (100.0, 100.0, 10.0, false)))
+    val out = STExteriorRingObj.eval(g.bytes).geom.asInstanceOf[Polygon]
+    out.getPathCount shouldBe 2
+    area(out) shouldBe 10100.0
   }
 
   it should "find the outer rings wherever the file stores them" in {

@@ -2930,6 +2930,9 @@ def pairwise_dissolve(
         # The circuit breaker is a resource limit, not permission to drop what still crosses a
         # cell edge. A shape crossing x=0 or y=0 always lands here: floor(x/cell) has an edge at
         # 0 at every cell size. Its pieces overlap, so merge them with no grid at all.
+        # shortcut: one task unions the whole remainder. At the default breaker the last round has
+        # already merged it into a few huge cells; with a small breaker on big input, this needs
+        # bounded spatial groups instead.
         rest = (
             buf.agg(collect_list("geom").alias("col"))
             .select(st_union_col("col", wkid).alias("geom"))

@@ -1,6 +1,6 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{Envelope2D, OperatorIntersects, Polygon}
+import com.esri.core.geometry.{Envelope2D, OperatorDisjoint, OperatorWithin, Polygon}
 
 /**
  * Groups a polygon's rings by containment, not by their order. Ring order is not reliable:
@@ -34,9 +34,28 @@ private[spark] object PolygonRings {
 
     private def area(i: Int): Double = math.abs(src.calculateRingArea2D(i))
 
-    /** The smallest of `candidates` that is larger than ring i and holds its first vertex, or -1. */
+    /**
+     * Whether ring i lies inside `ring`. Rings can touch but not cross, so the first vertex that
+     * is not on the boundary decides; a touching vertex says nothing (a square sharing one corner
+     * with a larger square is outside it).
+     */
+    private def inside(i: Int, ring: Int): Boolean = {
+      val outer = polygon(ring)
+      var v = src.getPathStart(i)
+      val end = src.getPathEnd(i)
+      while (v < end) {
+        val point = src.getPoint(v)
+        if (OperatorDisjoint.local().execute(outer, point, null, null)) return false
+        if (OperatorWithin.local().execute(point, outer, null, null)) return true
+        v += 1
+      }
+      false
+    }
+
+    /** The smallest of `candidates` that is larger than ring i and lies around it, or -1. */
     def innermostAround(i: Int, candidates: Array[Int]): Int = {
-      val first = src.getPoint(src.getPathStart(i))
+      val box = new Envelope2D()
+      polygon(i).queryEnvelope2D(box)
       val own = area(i)
       var best = -1
       var bestArea = Double.PositiveInfinity
@@ -44,8 +63,7 @@ private[spark] object PolygonRings {
       while (c < candidates.length) {
         val ring = candidates(c)
         val a = area(ring)
-        if (ring != i && a > own && a < bestArea && envelope(ring).contains(first.getX, first.getY) &&
-          OperatorIntersects.local().execute(polygon(ring), first, null, null)) {
+        if (ring != i && a > own && a < bestArea && envelope(ring).contains(box) && inside(i, ring)) {
           best = ring
           bestArea = a
         }

@@ -84,12 +84,18 @@ def main() -> None:
             subprocess.run(["ogr2ogr", "-f", "OpenFileGDB", *(["-update"] if n else []), new, csv,
                             "-nln", layer, "-nlt", geom_type,
                             "-oo", "GEOM_POSSIBLE_NAMES=WKT", "-oo", "KEEP_GEOM_COLUMNS=NO"], check=True)
-        # Copied next to the fixture first: a copy can fail (drive full, unmounted), a rename won't.
-        aside = out + ".new"
+        # Copied next to the fixture first, so only renames can fail once the old one moves.
+        aside, old = out + ".new", out + ".old"
         shutil.rmtree(aside, ignore_errors=True)
+        shutil.rmtree(old, ignore_errors=True)
         shutil.copytree(new, aside)
-        shutil.rmtree(out, ignore_errors=True)
-        os.replace(aside, out)
+        os.replace(out, old)
+        try:
+            os.replace(aside, out)
+        except OSError:
+            os.replace(old, out)
+            raise
+        shutil.rmtree(old)
     print("wrote", out)
 
 
