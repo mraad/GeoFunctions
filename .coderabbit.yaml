@@ -17,6 +17,7 @@ reviews:
   # (make_shapes_gdb.py) stays reviewed.
   path_filters:
     - "!src/test/resources/**/*.gdb/**"
+    - "!guide/index.html"
   auto_review:
     # Default 5. Pauses automatic re-review after this many reviewed commits on a PR;
     # resume deliberately with an "@coderabbitai review" comment.

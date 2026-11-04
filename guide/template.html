@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoFunctions Guide</title>
+<style>
+:root { --ink:#1f2933; --muted:#52606d; --line:#d5dbe1; --panel:#f4f6f8; --link:#1d5f9e; --bg:#ffffff;
+        --caution-bg:#fdf1e7; --caution:#b4570f; --note-bg:#eaf2fa; --note:#1d5f9e; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink:#e4e7eb; --muted:#a9b4bf; --line:#3e4c59; --panel:#242d36; --link:#7fb8ee; --bg:#1a2027;
+          --caution-bg:#3a2a1c; --caution:#f0a868; --note-bg:#1d2d3d; --note:#8fc1ef; }
+}
+* { box-sizing:border-box; }
+body { margin:0 auto; max-width:900px; padding:24px 16px 64px; background:var(--bg); color:var(--ink);
+       font:16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+h1 { font-size:2rem; margin:0 0 4px; line-height:1.2; }
+h2 { font-size:1.45rem; margin:48px 0 10px; padding-top:12px; border-top:2px solid var(--line); line-height:1.25; }
+h3 { font-size:1.15rem; margin:30px 0 8px; line-height:1.3; }
+h4 { font-size:1rem; margin:0 0 6px; }
+a { color:var(--link); }
+code, pre { font:13.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+p code, li code, td code, dd code { background:var(--panel); padding:1px 4px; border-radius:3px; overflow-wrap:anywhere; }
+pre { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:10px 12px; overflow-x:auto; margin:10px 0; }
+pre.result, div.result { border-left:4px solid var(--note); }
+div.result { background:none; padding:2px 0 2px 12px; margin:10px 0; overflow-x:auto; border-top:0; }
+div.result p { margin:6px 0; font-size:14px; }
+pre.sig { margin:0 0 8px; }
+table { border-collapse:collapse; width:100%; margin:12px 0; font-size:14.5px; }
+th, td { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+th { background:var(--panel); }
+.scroll { overflow-x:auto; }
+figure { margin:18px 0 12px; }
+figure img { display:block; width:640px; max-width:100%; height:auto; background:#fff; border:1px solid var(--line); border-radius:4px; }
+figcaption { font-size:14px; color:var(--muted); margin-top:6px; }
+.caution, .note { padding:10px 12px; margin:14px 0; border-left:5px solid; border-radius:3px; }
+.caution { background:var(--caution-bg); border-color:var(--caution); }
+.note { background:var(--note-bg); border-color:var(--note); }
+.caution > b, .note > b { display:block; letter-spacing:.04em; }
+.caution > b { color:var(--caution); }
+.note > b { color:var(--note); }
+.fn { border-top:1px solid var(--line); padding:14px 0 6px; }
+dl.facts { display:grid; grid-template-columns:7em 1fr; gap:3px 10px; margin:8px 0; font-size:14.5px; }
+dl.facts dt { font-weight:600; color:var(--muted); }
+dl.facts dd { margin:0; min-width:0; overflow-wrap:anywhere; }
+.cols { columns:2; padding-left:20px; }
+nav ol { columns:2; padding-left:26px; margin:8px 0; }
+.meta { color:var(--muted); margin:0 0 16px; }
+@media (max-width:600px) { .cols, nav ol { columns:1; } dl.facts { grid-template-columns:1fr; } dl.facts dt { margin-top:6px; } }
+@media print { pre { white-space:pre-wrap; } h2 { break-after:avoid; } figure { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<h1>GeoFunctions Guide</h1>
+<p class="meta">Version {{version}}. Geospatial functions for Apache Spark, on the Esri Geometry API. Written in the style of ASD-STE100 Simplified Technical English.</p>
+
+<nav aria-label="Contents">
+<ol>
+<li><a href="#about">About this guide</a></li>
+<li><a href="#overview">Library overview</a></li>
+<li><a href="#versions">Versions and jars</a></li>
+<li><a href="#install">Install the library</a></li>
+<li><a href="#session">Start a session</a></li>
+<li><a href="#rules">Data rules</a></li>
+<li><a href="#geometry">Create and change geometry</a></li>
+<li><a href="#relations">Spatial predicates</a></li>
+<li><a href="#coordinates">Coordinates and distance</a></li>
+<li><a href="#qr">The QR grid</a></li>
+<li><a href="#joins">Spatial joins</a></li>
+<li><a href="#dissolve">Parts and dissolve</a></li>
+<li><a href="#readers">Read FileGDB and Shapefile data</a></li>
+<li><a href="#arcpy">The arcpy bridge</a></li>
+<li><a href="#h3">H3</a></li>
+<li><a href="#performance">Performance</a></li>
+<li><a href="#build">Build, test and release</a></li>
+<li><a href="#trouble">Troubleshooting</a></li>
+<li><a href="#limits">Known limits</a></li>
+<li><a href="#notebooks">Notebooks</a></li>
+<li><a href="#reference">Function reference</a></li>
+</ol>
+</nav>
+
+<h2 id="about">1. About this guide</h2>
+<p>This guide tells you how to install and use GeoFunctions. It also tells you how to build, test and release the library.</p>
+<p>Each figure with code is the output of that code. The script <code>guide/make_guide.py</code> runs the code on Spark when it builds this page. If the code stops working, the build stops. The script reads the function reference from the source code.</p>
+<h3>Text conventions</h3>
+<ul>
+<li>A procedure has numbered steps. Each step has one action. Do the steps in the given sequence.</li>
+<li>A <b>CAUTION</b> tells you about a risk of data loss or a failed job.</li>
+<li>A <b>NOTE</b> gives more information.</li>
+<li>Code that you can use as it is has a gray background. Replace text in angle brackets, for example <code>&lt;path-to&gt;</code>.</li>
+<li>A blue line on the left marks the result of the code above it.</li>
+</ul>
+<h3>Terms</h3>
+<p>This guide uses each term with one meaning only.</p>
+<div class="scroll"><table>
+<thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>cell</td><td>One square of the QR grid. The size of the side is <code>cell</code>.</td></tr>
+<tr><td>H3 cell</td><td>One hexagon of the Uber H3 index.</td></tr>
+<tr><td>q, r</td><td>The column number and the row number of a cell. <code>q = floor(x / cell)</code>. <code>r = floor(y / cell)</code>.</td></tr>
+<tr><td>QR, QR key</td><td>A <code>bigint</code> that holds q in the high 32 bits and r in the low 32 bits.</td></tr>
+<tr><td>dist</td><td>The distance that a cell grows on each side. It does not change the geometry.</td></tr>
+<tr><td>geometry</td><td>A point, multipoint, polyline or polygon.</td></tr>
+<tr><td>WKB, WKT</td><td>Well-Known Binary and Well-Known Text. These are two formats for a geometry.</td></tr>
+<tr><td>envelope</td><td>The smallest rectangle, with sides parallel to the axes, that contains a geometry.</td></tr>
+<tr><td>ring</td><td>A closed path of a polygon.</td></tr>
+<tr><td>exterior ring, hole</td><td>A ring that is the outer limit of a part, and a ring that removes area from a part.</td></tr>
+<tr><td>part</td><td>One exterior ring and its holes.</td></tr>
+<tr><td>Z, M</td><td>The height value and the measure value of a vertex.</td></tr>
+<tr><td>layout</td><td>The values that a layer stores per vertex: xy, xyz, xym or xyzm.</td></tr>
+<tr><td>wkid</td><td>The number of a spatial reference. The value <code>-1</code> means no spatial reference, with planar calculation.</td></tr>
+<tr><td>driver, task</td><td>The Spark process that runs your program, and one unit of work on an executor.</td></tr>
+<tr><td>shaded jar</td><td>A jar that contains its dependencies. The release jars are shaded jars.</td></tr>
+</tbody></table></div>
+
+<h2 id="overview">2. Library overview</h2>
+<p>GeoFunctions adds spatial functions to Spark. You use them from the PySpark DataFrame API or from Spark SQL. The library has {{n_py}} public Python functions and {{n_sql}} SQL names.</p>
+<p>The library has two components:</p>
+<ul>
+<li>A Python wheel. It contains one file, <code>geofunctions/__init__.py</code>.</li>
+<li>A shaded Scala jar. It contains the Spark expressions and the Esri Geometry API.</li>
+</ul>
+{{fig:architecture}}
+<h3>How a function call works</h3>
+<ol>
+<li>A Python wrapper, for example <code>st_buffer</code>, calls the <code>GeoFunctions</code> object in the jar through py4j.</li>
+<li>The object makes a Catalyst expression and gives it back as a <code>Column</code>.</li>
+<li>Spark runs the expression on the executors. No Python worker is necessary for this.</li>
+</ol>
+<p>Each expression has two execution paths: an interpreted <code>eval</code> and generated code. Both paths give the same result.</p>
+<h3>Python only functions</h3>
+<p>Some functions do not have an expression of their own:</p>
+<ul>
+<li><code>*_explode</code> functions apply <code>explode()</code> to a function that returns an array.</li>
+<li><code>join_qr</code> and <code>knn_join</code> start processors in the jar.</li>
+<li><code>qr_cells</code> calculates on the driver. It does not start a Spark job.</li>
+<li><code>pairwise_dissolve</code> runs a loop of Spark jobs.</li>
+<li><code>to_spark</code>, <code>to_feature_class</code> and <code>to_feature_table</code> move data to and from ArcGIS.</li>
+</ul>
+<p>The import of <code>geofunctions</code> also adds methods to <code>DataFrame</code>: <code>pairwise_dissolve</code>, <code>join_qr</code>, <code>knn_join</code>, <code>to_feature_table</code> and <code>to_feature_class</code>. Thus <code>df.join_qr(other, 1.0)</code> and <code>join_qr(df, other, 1.0)</code> are the same.</p>
+<h3>Arguments</h3>
+<ul>
+<li>A string argument of a column function is a column name, not a value. To give a value, use <code>lit()</code>.</li>
+<li>Many functions have a default column name, for example <code>"geom"</code>. See the <a href="#reference">function reference</a>.</li>
+<li>Most functions give an alias to the result, for example <code>geom</code>, <code>area</code> or <code>text</code>.</li>
+</ul>
+
+<h2 id="versions">3. Versions and jars</h2>
+<p>The jar must match the Scala version of your Spark. The wheel works with all supported Spark versions: it declares <code>pyspark&gt;=3.5.9,&lt;5</code>.</p>
+{{fig:pairing}}
+<div class="scroll"><table>
+<thead><tr><th>ArcGIS Pro</th><th>Spark in Pro</th><th>Jar</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>3.5 and earlier</td><td>3.5</td><td><code>geofunctions-{{version}}.jar</code> (Scala 2.12)</td><td>Supported. The arcpy helpers are not tested on 3.5.</td></tr>
+<tr><td>3.6</td><td></td><td></td><td>Does not work. Not tested again.</td></tr>
+<tr><td>3.7</td><td>4.1</td><td><code>geofunctions-{{version}}-2.13.jar</code> (Scala 2.13)</td><td>Tested on 3.7.3. See <a href="#tests">the test record</a>.</td></tr>
+</tbody></table></div>
+<p>ArcGIS Pro 3.7.3 has Spark 4.1.1, Scala 2.13, Java 17 and Python 3.13.</p>
+<div class="scroll"><table>
+<thead><tr><th>Build profile</th><th>Spark</th><th>Scala</th><th>Java</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td><code>spark-3.5</code> (default)</td><td>3.5.9</td><td>2.12.21</td><td>11, also tested on 17</td><td>Java 21 is not supported.</td></tr>
+<tr><td><code>spark-4.3</code></td><td>4.3.0</td><td>2.13.18</td><td>17</td><td>This is the only Spark 4 build. Its jar also works on Spark 4.1.</td></tr>
+</tbody></table></div>
+<div class="caution"><b>CAUTION</b>A Scala 2.12 jar does not load on Spark 4. The job stops with <code>NoClassDefFoundError</code>. Use the 2.13 jar on Spark 4.</div>
+<h3>Release files</h3>
+<div class="scroll"><table>
+<thead><tr><th>File</th><th>Contents</th><th>Use with</th></tr></thead>
+<tbody>
+<tr><td><code>geofunctions-{{version}}.zip</code></td><td>Two jars, wheel, notebooks, toolboxes, sample data</td><td>ArcGIS Pro</td></tr>
+<tr><td><code>geofunctions-{{version}}.jar</code></td><td>Scala 2.12 jar</td><td>Spark 3.5.x, ArcGIS Pro 3.5</td></tr>
+<tr><td><code>geofunctions-{{version}}-2.13.jar</code></td><td>Scala 2.13 jar</td><td>Spark 4.x, ArcGIS Pro 3.7</td></tr>
+</tbody></table></div>
+<p>Get the files from the <a href="https://github.com/mraad/GeoFunctions/releases">GitHub releases page</a>.</p>
+
+<h2 id="install">4. Install the library</h2>
+<h3>4.1 Install on ArcGIS Pro</h3>
+<p>Do this procedure in the ArcGIS Python Command Prompt.</p>
+<ol>
+<li>Download <code>geofunctions-{{version}}.zip</code>.</li>
+<li>Extract the zip file to a folder.</li>
+<li>Go to your home folder:<pre><code>cd %HOMEPATH%</code></pre></li>
+<li>Make a new conda environment:<pre><code>conda create -n geofunctions --yes --clone arcgispro-py3</code></pre></li>
+<li>Make the new environment active:<pre><code>proswap geofunctions</code></pre></li>
+<li>Get the spark-esri package:<pre><code>git clone https://github.com/mraad/spark-esri.git</code></pre></li>
+<li>Go to the package folder:<pre><code>cd spark-esri</code></pre></li>
+<li>Install the package:<pre><code>pip install .</code></pre></li>
+<li>Install the wheel from the zip file:<pre><code>pip install --no-deps &lt;path-to&gt;/geofunctions-{{version}}-py3-none-any.whl</code></pre></li>
+</ol>
+<p>On ArcGIS Pro 3.7, also do the procedure in <a href="#pro37">section 4.2</a>.</p>
+<h3 id="pro37">4.2 Replace Spark on ArcGIS Pro 3.7</h3>
+<p>Spark 4.1.1 on Windows with Python 3.12 or higher stops each Python worker (SPARK-53759, Esri KB 000039267). Spark 4.1.2 has the correction. This failure has an effect on <code>createDataFrame</code> from a Python list, <code>rdd.map()</code>, <code>@udf</code> and <code>@pandas_udf</code>. The GeoFunctions functions and Spark SQL do not use a Python worker. Thus they work without this procedure.</p>
+<ol>
+<li>Install PySpark 4.1.3:<pre><code>pip install pyspark==4.1.3</code></pre></li>
+<li>Set the Spark home:<pre><code>set SPARK_HOME=%CONDA_PREFIX%\Lib\site-packages\pyspark</code></pre></li>
+<li>Restart the notebook kernel.</li>
+</ol>
+<div class="note"><b>NOTE</b><code>spark_esri</code> reads <code>SPARK_HOME</code> when you import it. A change after the import has no effect until the restart.</div>
+<h3>4.3 Install without ArcGIS Pro</h3>
+<ol>
+<li>Install PySpark 3.5.9 or 4.3.0:<pre><code>pip install pyspark==3.5.9</code></pre></li>
+<li>Install the wheel:<pre><code>pip install --no-deps &lt;path-to&gt;/geofunctions-{{version}}-py3-none-any.whl</code></pre></li>
+<li>Download the jar that matches PySpark. See <a href="#versions">section 3</a>.</li>
+<li>Remove <code>SPARK_HOME</code> from your environment. On macOS and Linux, use this command:<pre><code>unset SPARK_HOME</code></pre></li>
+</ol>
+<div class="caution"><b>CAUTION</b>If <code>SPARK_HOME</code> points to a different Spark, PySpark uses the jars of that Spark. The session or the first function call then stops. The error is <code>'JavaPackage' object is not callable</code> or <code>ClassNotFoundException: scala.collection.SeqOps</code>.</div>
+<h3>4.4 Install optional packages</h3>
+<p>The notebooks use these packages. The library does not need them:</p>
+<pre><code>pip install geopandas mapclassify folium xyzservices duckdb fastparquet</code></pre>
+<p>The arcpy bridge needs <code>pyarrow</code> and <code>pandas</code>. ArcGIS Pro has both. The other functions do not need them.</p>
+
+<h2 id="session">5. Start a session</h2>
+<h3>5.1 Start a session in ArcGIS Pro</h3>
+<ol>
+<li>Set the path of the jar.</li>
+<li>Call <code>spark_start</code>.</li>
+<li>Import <code>geofunctions</code>.</li>
+</ol>
+<pre><code>import spark_esri
+
+jar = r"&lt;path-to&gt;\geofunctions-{{version}}-2.13.jar"
+spark = spark_esri.spark_start(config={
+    "spark.jars": jar,
+    "spark.driver.extraClassPath": jar,
+    "spark.driver.memory": "4G",
+    "spark.executor.memory": "4G",
+})
+
+import geofunctions as S</code></pre>
+<p>To stop the session, call <code>spark_esri.spark_stop()</code>.</p>
+<h3>5.2 Start a session without ArcGIS Pro</h3>
+<pre><code>import os
+from pyspark.sql import SparkSession
+
+jar = os.path.expanduser("~/geofunctions-{{version}}.jar")
+spark = SparkSession.builder.config("spark.jars", jar).getOrCreate()
+
+from geofunctions import st_point, st_astext</code></pre>
+<div class="note"><b>NOTE</b>Python and Spark do not expand <code>~</code>. Use <code>os.path.expanduser</code>. If you do not, Spark does not find the jar.</div>
+<h3>5.3 Use SQL</h3>
+<p>The DataFrame API does not need registration. SQL names need it.</p>
+<ol>
+<li>Call <code>st_register_functions()</code> once in each session.</li>
+<li>Use the names in <code>spark.sql</code>.</li>
+</ol>
+<pre><code>from geofunctions import st_register_functions
+
+st_register_functions()
+spark.sql("SELECT ST_ASTEXT(ST_POINT(1.0, 2.0)) AS text, ST_AREA(ST_RECT(0.0, 0.0, 2.0, 3.0)) AS area").show()</code></pre>
+<pre class="result"><code>text = POINT (1 2), area = 6.0</code></pre>
+<h3>5.4 Set the session by hand</h3>
+<p>Use <code>spark.jars</code> if possible. If you set <code>PYSPARK_SUBMIT_ARGS</code>, obey these rules:</p>
+<ul>
+<li>Separate the items of <code>--driver-class-path</code> with <code>os.pathsep</code>.</li>
+<li>Separate the items of <code>--jars</code> with commas.</li>
+<li>On Windows, use forward slashes (<code>Path(p).as_posix()</code>) or <code>shlex.quote</code>. PySpark removes backslashes from this variable.</li>
+<li>Set <code>PYSPARK_PYTHON</code> to your interpreter.</li>
+</ul>
+
+<h2 id="rules">6. Data rules</h2>
+<h3>6.1 Geometry is WKB</h3>
+<p>A geometry column is a <code>binary</code> column that holds WKB. Most functions read and write WKB. To read a geometry, use <code>st_astext</code> or <code>st_asgeojson</code>. To make a geometry from text, use <code>st_fromtext</code>.</p>
+<p>WKB has no envelope type. An envelope that you write as WKB becomes a polygon.</p>
+<h3>6.2 Null input gives null output</h3>
+<p>A function returns null if an argument is null. There is one exception: <code>st_isempty</code> returns <code>true</code> for a null geometry. A <code>*_explode</code> function gives no rows for null input. <code>join_qr</code> excludes rows with a null QR or a null geometry.</p>
+<h3>6.3 Spatial reference</h3>
+<p>Functions with a <code>wkid</code> argument use it to make the spatial reference. The value <code>-1</code> means planar calculation. Numbers such as <code>4326</code>, <code>3857</code> and <code>102008</code>, and the forms with the prefix <code>EPSG:</code>, are all accepted. Default values are not the same for all functions. Examine the <a href="#reference">function reference</a>.</p>
+<h3>6.4 Use the data in Python</h3>
+<p><code>toPandas()</code> gives WKB as <code>bytearray</code>. Shapely 2.1 accepts only <code>bytes</code>. Change the type first:</p>
+<pre><code>pdf = df.toPandas()
+gdf = gp.GeoSeries.from_wkb(pdf.geometry.map(bytes, na_action="ignore"))</code></pre>
+<h3>6.5 Configuration</h3>
+<div class="scroll"><table>
+<thead><tr><th>Setting</th><th>Default</th><th>Function</th></tr></thead>
+<tbody>
+<tr><td><code>spark.esri.accelerate</code></td><td><code>true</code></td><td>Turns geometry acceleration on or off.</td></tr>
+<tr><td><code>spark.esri.parallel</code></td><td><code>64</code></td><td>The number of cells above which one geometry uses the parallel pool. It is not a number of threads. A lower value makes more geometries use the pool. A higher value makes fewer use it.</td></tr>
+<tr><td><code>spark.sql.parquet.pushdown.inFilterThreshold</code></td><td>Spark default</td><td>Set it above the length of a <code>qr_cells</code> list. See <a href="#qrcells">section 10.5</a>.</td></tr>
+</tbody></table></div>
+
+<h2 id="geometry">7. Create and change geometry</h2>
+<h3>7.1 Create a geometry</h3>
+<p>The functions in {{ref:construct}} make a geometry from numbers or text.</p>
+{{fig:construct}}
+<p>Other functions make a geometry from many points: <code>st_polyline</code>, <code>st_multipoint</code>, <code>st_polygon</code>, <code>st_polyline2</code> and <code>st_polygon2</code>.</p>
+<h3>7.2 Change or measure a geometry</h3>
+{{fig:ops}}
+<p>Other functions in this group are <code>st_simplify</code>, <code>st_repair</code>, <code>st_union_col</code>, <code>st_x</code>, <code>st_y</code>, <code>st_xy</code> and <code>st_centroid_xy</code>.</p>
+<ul>
+<li><code>st_buffer</code> uses 36 vertices to make curves if you do not set <code>num_vertices</code>.</li>
+<li><code>st_extent</code> returns a struct. To read one field, use <code>col("extent.xmin")</code>.</li>
+<li><code>st_union_col</code> takes an array of geometries. Use it with <code>collect_list</code>.</li>
+</ul>
+
+<h2 id="relations">8. Spatial predicates</h2>
+<p>A predicate compares two geometries and returns <code>true</code> or <code>false</code>. In SQL, the six predicates <code>ST_INTERSECTS</code>, <code>ST_CONTAINS</code>, <code>ST_WITHIN</code>, <code>ST_TOUCHES</code>, <code>ST_OVERLAPS</code> and <code>ST_DISJOINT</code> take two or three arguments. If you do not give <code>wkid</code>, it is <code>'-1'</code>.</p>
+{{fig:predicates}}
+<h3>8.1 Repeated geometry</h3>
+<p>The six predicates and <code>st_dwithin</code> keep the last 4 parsed geometries of each argument. If a row has the same bytes, the function uses the parsed geometry again. This has effect on:</p>
+<ul>
+<li>A literal, for example <code>lit(bytes(wkb))</code>.</li>
+<li>A SQL scalar subquery.</li>
+<li>A join that repeats a small number of geometries.</li>
+</ul>
+<pre><code>county = zone.where("z_name = 'Coconino County'").select("z_boundary").first()[0]
+trip.where(st_intersects("t_pickuploc", lit(bytes(county)))).count()</code></pre>
+<p>On SpatialBench SF1, this query compares 6 million points with one polygon of 10,583 vertices. The time changed from approximately 66 s to 0.2&ndash;0.4 s.</p>
+<h3>8.2 Far-apart pairs</h3>
+<p>The six predicates compare the envelopes first. If the envelopes are apart, the function gives the result without the exact test. Thus you do not need a <code>st_intersects_box</code> filter before these predicates.</p>
+<h3>8.3 Many points and one large polygon</h3>
+<p>Spark gives each row its own copy of a binary value. Thus <code>st_within(point, polygon)</code> copies and parses a large polygon for each candidate. <code>st_within_mask</code> reads the polygon one time.</p>
+<ol>
+<li>Group the candidate points of each polygon with <code>collect_list</code>.</li>
+<li>Call <code>st_within_mask</code> one time per polygon.</li>
+<li>Explode the result with <code>arrays_zip</code>.</li>
+</ol>
+<pre><code>cand.groupBy("zonekey").agg(collect_list(struct("pt", "dur")).alias("ps")) \
+    .join(zones, "zonekey") \
+    .select("zonekey", "ps", st_within_mask(col("ps.pt"), "boundary").alias("mask")) \
+    .select("zonekey", explode(arrays_zip("ps", "mask")).alias("e")).where("e.mask")</code></pre>
+<p>On SpatialBench Q10 at SF1, the time changed from 20 s to 3.7 s.</p>
+
+<h2 id="coordinates">9. Coordinates and distance</h2>
+<p>Use <code>st_mercator</code> and <code>st_wgs84</code> to change a geometry between WGS84 degrees and Web Mercator meters. Use <code>st_lontox</code>, <code>st_lattoy</code>, <code>st_xtolon</code> and <code>st_ytolat</code> to change one value.</p>
+{{fig:coords}}
+<div class="scroll"><table>
+<thead><tr><th>Function</th><th>Input</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>st_euclid</code></td><td>x1, y1, x2, y2</td><td>Straight distance in the input units.</td></tr>
+<tr><td><code>st_manhattan</code></td><td>x1, y1, x2, y2</td><td><code>|x2-x1| + |y2-y1|</code>.</td></tr>
+<tr><td><code>st_haversine</code></td><td>lon1, lat1, lon2, lat2 in degrees</td><td>Distance on a sphere, in meters.</td></tr>
+<tr><td><code>st_distance</code></td><td>two geometries</td><td>Planar distance.</td></tr>
+<tr><td><code>st_dwithin</code></td><td>two geometries and a distance</td><td>The same result as <code>st_distance(a, b) &lt;= dist</code>. It is faster: pairs with envelopes farther apart than <code>dist</code> skip the exact distance.</td></tr>
+</tbody></table></div>
+
+<h2 id="qr">10. The QR grid</h2>
+<h3>10.1 Cells and keys</h3>
+<p>The QR grid divides the plane into squares. The side of each square is <code>cell</code>. The grid has no limit and includes negative numbers. Each cell has a number q and a number r. One <code>bigint</code> holds the two numbers. Spark can use this key in an equi-join and in a Parquet filter.</p>
+{{fig:qr_grid}}
+<p>Related functions are <code>st_lontoq</code>, <code>st_lattor</code>, <code>st_qtox</code>, <code>st_rtoy</code>, <code>qr_fromgeom</code> and <code>qr_contains_geom</code>.</p>
+<h3>10.2 The dist argument</h3>
+<p>Cell <code>(q, r)</code> spans <code>[q*cell - dist, (q+1)*cell + dist]</code> on each axis. Adjacent cells overlap by <code>2 * dist</code>. A geometry near an edge is thus in more than one cell. A QR equi-join can then find pairs on the two sides of an edge.</p>
+{{fig:qr_dist}}
+<div class="note"><b>NOTE</b>Set <code>dist</code> to the largest search distance that you need.</div>
+<h3>10.3 Read the cells of a geometry</h3>
+{{fig:qr_family}}
+<div class="scroll"><table>
+<thead><tr><th>Function</th><th>Result</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td><code>qr_count</code></td><td><code>int</code></td><td>Find how many rows a geometry makes.</td></tr>
+<tr><td><code>qr_list</code></td><td><code>array&lt;bigint&gt;</code></td><td>Get the keys.</td></tr>
+<tr><td><code>qr_envp</code></td><td><code>array&lt;struct&lt;qr, xmin, ymin, xmax, ymax&gt;&gt;</code></td><td>Get the key and the envelope of the geometry, for <code>qr_intersect</code>.</td></tr>
+<tr><td><code>qr_geom</code></td><td><code>array&lt;struct&lt;qr, geom&gt;&gt;</code></td><td>Clip the geometry to each cell.</td></tr>
+<tr><td><code>qr_envp_geom</code></td><td><code>array&lt;struct&lt;qr, xmin, ymin, xmax, ymax, geom&gt;&gt;</code></td><td>Clip the geometry and get the rectangle of each cell.</td></tr>
+<tr><td><code>qr_asgeom</code></td><td>polygon</td><td>Get the rectangle of a cell.</td></tr>
+</tbody></table></div>
+<p>The <code>*_explode</code> functions give one row per array item. These functions use the envelope of the geometry to find the cells. Thus <code>qr_list</code> can include cells that the geometry does not touch.</p>
+<p>All these functions use the same cells for the same <code>cell</code> and <code>dist</code>. <code>cell</code> must be finite and positive. <code>dist</code> must be finite and not negative. Each key must fit a signed 32-bit q and r, and the count must fit a Spark array. If not, the function stops with an error before it allocates memory. An empty geometry gives an empty array, or <code>0</code> from <code>qr_count</code>.</p>
+<h3>10.4 Clip a segment</h3>
+<p><code>clip_line</code> takes one segment as an array of four doubles, <code>[x1, y1, x2, y2]</code>. It does not take a polyline. To clip a polyline, make one row for each segment first.</p>
+{{fig:clip}}
+<p><code>clip_line_dist</code> adds <code>dist</code>. With <code>dist = 0</code>, the lengths add up to the segment length. With <code>dist &gt; 0</code> the cells overlap, and the sum is larger. <code>st_clipline</code> and <code>st_cliplinedist</code> are aliases.</p>
+<h3 id="qrcells">10.5 Read part of a sorted table</h3>
+<p><code>qr_cells</code> gives the same values as <code>qr_list</code> for one geometry. It calculates on the driver. Use it to read part of a Parquet table that you wrote sorted by a QR column.</p>
+<ol>
+<li>Write the table sorted by the QR column.</li>
+<li>Set the threshold above the number of cells.</li>
+<li>Get the cells of the area.</li>
+<li>Filter on the cells.</li>
+<li>Keep the exact predicate.</li>
+</ol>
+<pre><code>spark.conf.set("spark.sql.parquet.pushdown.inFilterThreshold", "1000000")
+cells = qr_cells("POINT (-111.761 34.8697)", 0.5, 0.45)
+trips.where(col("t_pickup_qr").isin(cells)).where(st_dwithin("t_pickuploc", center, 0.45))</code></pre>
+<div class="caution"><b>CAUTION</b>Above the threshold, Spark pushes only the minimum and the maximum of the list. That range contains all the rows between them. Hundreds of cells spread over the world can cost more than they save.</div>
+<p>This method makes SpatialBench Q1 and Q3 2 to 3 times faster.</p>
+
+<h2 id="joins">11. Spatial joins</h2>
+<h3>11.1 How join_qr finds pairs</h3>
+<ol>
+<li>The function adds a <code>qr</code> column to each side if the column is not there. It uses <code>qr_envp_explode</code>.</li>
+<li>Rows meet only when they have the same cell.</li>
+<li><code>qr_intersect</code> keeps a pair only in its canonical cell. This is the cell that holds the lower-left corner of the overlap of the two envelopes.</li>
+<li>The exact <code>oper</code> test runs.</li>
+</ol>
+<p>Step 3 makes sure that a pair that shares many cells comes back one time.</p>
+{{fig:join}}
+<h3>11.2 Select an execution path</h3>
+{{fig:join_paths}}
+<div class="scroll"><table>
+<thead><tr><th>Condition</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>Two large sides</td><td>The default path.</td></tr>
+<tr><td>One side has a few thousand rows</td><td><code>broadcast="lhs"</code> or <code>broadcast="rhs"</code>, for the small side.</td></tr>
+<tr><td><code>oper</code> is <code>crosses</code> or <code>equals</code></td><td>The default path. <code>broadcast</code> does not support them.</td></tr>
+</tbody></table></div>
+<p>On SpatialBench Q4 at SF1 (1000 points, 156,095 polygons), the default path took 1.9&ndash;44 s, because it shuffles 1.4 GB of polygons. The broadcast path took 0.42 s.</p>
+<h3>11.3 Arguments of join_qr</h3>
+<div class="scroll"><table>
+<thead><tr><th>Argument</th><th>Values</th></tr></thead>
+<tbody>
+<tr><td><code>oper</code></td><td><code>none</code> (default), <code>contains</code>, <code>crosses</code>, <code>equals</code>, <code>intersects</code> or <code>intersection</code>, <code>overlaps</code>, <code>touches</code>, <code>within</code>.</td></tr>
+<tr><td><code>acceleration</code></td><td><code>mild</code> (default), <code>medium</code>, <code>hot</code>.</td></tr>
+<tr><td><code>lhs_geom</code>, <code>rhs_geom</code></td><td>The geometry column of each side. The default is <code>geom</code>.</td></tr>
+<tr><td><code>qr</code></td><td>The name of the QR column. The default is <code>qr</code>.</td></tr>
+</tbody></table></div>
+<div class="note"><b>NOTE</b><code>disjoint</code> is not supported. The join finds only pairs with envelopes that overlap, so it cannot find all disjoint pairs.</div>
+<h3>11.4 Select the cell size</h3>
+<ul>
+<li>A small cell copies large polygons into many rows.</li>
+<li>A large cell puts more geometries in each cell, so more exact tests run.</li>
+<li>For the default path, use a cell near the size of a typical geometry on the large side.</li>
+<li>For the broadcast path, the cell has a small effect (0.42&ndash;0.57 s for 2&deg; to 45&deg; on Q4).</li>
+</ul>
+<p>The script <a href="../benchmarks/README.md"><code>benchmarks/optimize_qr_join.py</code></a> selects a cell size from your data.</p>
+<h3>11.5 Nearest neighbors</h3>
+<p><code>knn_join(lhs, rhs, k)</code> gives each lhs row its <code>k</code> nearest rhs rows, by planar distance.</p>
+{{fig:knn}}
+<ul>
+<li>The function copies rhs to each task. Thus rhs must be small: tens of thousands of rows.</li>
+<li>A null lhs geometry gives no rows.</li>
+<li>If rhs has fewer than <code>k</code> rows, each rhs row comes back.</li>
+<li>At equal distance, the rhs row that comes first stays.</li>
+</ul>
+<p>The search is exact. An R-tree finds the <code>k</code> nearest envelopes. Their exact distances give a radius. Each entry in that radius then gets an exact distance. The R-tree stores floats, so each box is rounded outward and the radius gets more length. The tree thus does not drop a true neighbor.</p>
+
+<h2 id="dissolve">12. Parts and dissolve</h2>
+<h3>12.1 Split a polygon into parts</h3>
+<p><code>st_dump</code> returns an array of parts. <code>st_dump_explode</code> gives one row per part. A part keeps its holes. An island in a hole is a part of its own. The function uses containment to group the rings, not the sequence in the file. Thus the result is correct when the file has a hole before its exterior ring.</p>
+{{fig:dump}}
+<h3>12.2 Dissolve polygons</h3>
+<p><code>pairwise_dissolve</code> merges polygons that touch or overlap. It does this over a series of larger cells.</p>
+<ol>
+<li>The function clips each polygon to the cells of the current size, with a margin.</li>
+<li>It merges the clipped polygons in each cell.</li>
+<li>It writes a merged part if the envelope of the part fits in one cell, and that cell is the home cell of the part. The home cell holds the lower-left corner of the envelope.</li>
+<li>It sends the other parts to the next round. The cell size is then <code>cell * cell_mul</code>.</li>
+<li>After <code>breaker</code> rounds, it merges the remaining parts in one pass with no grid.</li>
+</ol>
+{{fig:dissolve}}
+<ul>
+<li>Each merged polygon comes back one time and keeps its holes.</li>
+<li>The result has one column: the geometry.</li>
+<li>The margin is the larger of <code>dist</code> and <code>cell * 1e-6</code>. With no margin, a part cut on the edge of its cell seems complete, and the polygon stays split.</li>
+<li>The function uses <code>localCheckpoint()</code> on each intermediate result. This keeps the query plan small.</li>
+</ul>
+<div class="caution"><b>CAUTION</b>The value 0 is a cell edge at each cell size. A polygon across x = 0 or y = 0 can never finish in a cell, so it goes to the last pass. One task does the last pass. With a small <code>breaker</code> on large data, that task can run out of memory. Keep the default <code>breaker</code> of 10 for large data.</div>
+<div class="note"><b>NOTE</b>The defaults are <code>cell=100000.0</code>, <code>dist=100.0</code>, <code>wkid=3857</code>, <code>cell_mul=10.0</code>. These values are for meters. Set them for other units.</div>
+
+<h2 id="readers">13. Read FileGDB and Shapefile data</h2>
+<p>The shaded jar has two Spark data sources: <code>gdb</code> and <code>shp</code>.</p>
+<h3>13.1 Read a FileGDB layer</h3>
+<ol>
+<li>Read the layer with the format <code>gdb</code>.</li>
+<li>Select the function for the geometry type and the layout. Use the table in <a href="#layouts">section 13.2</a>.</li>
+<li>Apply the function to the <code>SHAPE</code> column.</li>
+</ol>
+{{fig:gdb}}
+<p>The options of the reader are <code>path</code>, <code>name</code>, <code>numPartitions</code> and <code>wkid</code>.</p>
+<h3 id="layouts">13.2 Select the function</h3>
+<div class="scroll"><table>
+<thead><tr><th>Layer type</th><th>xy</th><th>xyz</th><th>xym</th><th>xyzm</th></tr></thead>
+<tbody>
+<tr><td>Point</td><td colspan="4"><code>gdb_point</code>: one function for all layouts. A NaN x or y gives an empty point.</td></tr>
+<tr><td>Multipoint</td><td><code>gdb_multipoint2</code></td><td><code>gdb_multipointZ</code></td><td><code>gdb_multipointM</code></td><td><code>gdb_multipointM</code> keeps Z and M</td></tr>
+<tr><td>Polyline</td><td><code>gdb_polyline2</code></td><td><code>gdb_polylineZ</code></td><td><code>gdb_polylineM</code></td><td><code>gdb_polylineM</code> keeps Z and M</td></tr>
+<tr><td>Polygon</td><td><code>gdb_polygon2</code></td><td><code>gdb_polygonZ</code></td><td><code>gdb_polygonM</code></td><td><code>gdb_polygonM</code> keeps Z and M</td></tr>
+</tbody></table></div>
+<ul>
+<li>The <code>2</code> functions accept all layouts and keep x and y only.</li>
+<li>On xyzm, the <code>Z</code> functions keep Z and drop M.</li>
+<li>Polygons drop the closing vertex of each ring. Polylines keep it.</li>
+</ul>
+<div class="caution"><b>CAUTION</b>xyz and xym layers both have three values for each vertex. The function cannot find which it is. A <code>Z</code> function on an xym layer reads the measure as Z. An <code>M</code> function on an xyz layer reads the height as M. There is no error. Make sure that you know the layout of the layer.</div>
+<h3>13.3 The SHAPE column</h3>
+<ul>
+<li>A point layer gives a struct with named fields: <code>x, y[, z][, m]</code>.</li>
+<li>Other layers give <code>struct&lt;xmin, ymin, xmax, ymax, parts, coords&gt;</code>. <code>parts</code> holds the number of vertices in each path or ring. A multipoint has one item: the point count. <code>coords</code> holds all values in sequence.</li>
+<li>The values per vertex are <code>coords.length / sum(parts)</code>.</li>
+<li>Spark column names ignore case. Thus <code>"SHAPE"</code> and <code>"Shape"</code> are the same.</li>
+</ul>
+<h3>13.4 Read a Shapefile</h3>
+<pre><code>df = spark.read.format("shp").option("path", "&lt;folder-or-file&gt;").load()
+df.select(st_astext("shape")).show(1)</code></pre>
+<p>The <code>shape</code> column is WKB. You do not need a decode function.</p>
+<h3>13.5 ArcGIS toolboxes</h3>
+<p>The folder <code>toolbox/</code> has two Python toolboxes for ArcGIS Pro: <code>ExtentToolbox.pyt</code> and <code>ParquetToolbox.pyt</code>. They are in the release zip.</p>
+
+<h2 id="arcpy">14. The arcpy bridge</h2>
+<p>Three functions move data between Spark and ArcGIS. They need ArcGIS Pro, because they import <code>arcpy</code>. The import is in each function. Thus <code>import geofunctions</code> works without ArcGIS Pro.</p>
+{{fig:arcpy}}
+<h3>14.1 Write a feature class</h3>
+<ol>
+<li>Make a DataFrame with one WKB geometry column.</li>
+<li>Make sure that all rows have the same geometry type.</li>
+<li>Call <code>to_feature_class</code>.</li>
+</ol>
+<pre><code>df.to_feature_class("my_fc", geom="geom", sp_ref=4326, workspace="scratch")</code></pre>
+<div class="scroll"><table>
+<thead><tr><th>Argument</th><th>Values</th></tr></thead>
+<tbody>
+<tr><td><code>geom</code></td><td>The geometry column. The default is <code>geom</code>.</td></tr>
+<tr><td><code>sp_ref</code></td><td>A wkid. The default is <code>3857</code>. <code>None</code> or a value that is not positive uses the spatial reference of the active map. This needs an open ArcGIS Pro project.</td></tr>
+<tr><td><code>workspace</code></td><td><code>"scratch"</code> (default), <code>"memory"</code> or the path of a geodatabase.</td></tr>
+</tbody></table></div>
+<h3>14.2 Write a table</h3>
+<pre><code>df.to_feature_table("my_table", workspace="scratch")</code></pre>
+<h3>14.3 Read a feature class</h3>
+<pre><code>df = to_spark("my_fc")                                   # OBJECTID and SHAPE only
+df = to_spark("my_fc", fields="*")                       # all fields
+df = to_spark("my_fc", fields=["OBJECTID", "SHAPE", "Name"], where_clause="Population &gt; 100000")</code></pre>
+<p>The geometry column keeps the name that it has in the feature class. The result keeps Z and M. An empty feature class gives an empty DataFrame.</p>
+<h3>14.4 Errors from the bridge</h3>
+<p>These checks run before the function deletes the existing target. Thus an incorrect call does not remove your data.</p>
+<div class="scroll"><table>
+<thead><tr><th>Function</th><th>Condition</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>to_feature_class</code></td><td>The column is not in the DataFrame</td><td><code>ValueError</code></td></tr>
+<tr><td><code>to_feature_class</code>, <code>to_feature_table</code></td><td>The DataFrame has no rows</td><td><code>ValueError</code></td></tr>
+<tr><td><code>to_feature_class</code></td><td>A geometry is null</td><td><code>ValueError</code></td></tr>
+<tr><td><code>to_feature_class</code></td><td>Rows have different geometry types. A feature class holds one type: point, multipoint, polyline or polygon. Single-part and multi-part geometries of one type can mix.</td><td><code>ValueError</code></td></tr>
+</tbody></table></div>
+<h3>14.5 Data loss in ArcGIS, and what the bridge does</h3>
+<p>ArcGIS can lose data with no error in these conditions. The bridge prevents each one since version 0.40.</p>
+<div class="scroll"><table>
+<thead><tr><th>Condition in ArcGIS</th><th>Effect</th><th>What the bridge does</th></tr></thead>
+<tbody>
+<tr><td>pandas 3 changes strings to Arrow <code>large_string</code>. <code>CopyRows</code> and <code>CopyFeatures</code> ignore that type.</td><td>All string columns are lost.</td><td><code>_arrow_table</code> changes the type to <code>string</code>.</td></tr>
+<tr><td>The WKB from arcpy is always 2D. Its WKT keeps Z and M.</td><td>Z and M are lost on read.</td><td><code>to_spark</code> asks for WKT on a Z or M source and parses it with <code>st_fromtext</code>.</td></tr>
+<tr><td><code>CopyFeatures</code> keeps the first geometry type.</td><td>Rows of other types are lost.</td><td><code>to_feature_class</code> stops with <code>ValueError</code>.</td></tr>
+</tbody></table></div>
+<div class="caution"><b>CAUTION</b>Versions 0.38 and earlier do not have these corrections. If you wrote or read data with these functions on those versions, examine your output. ArcGIS Pro 3.7 has pandas 3.0.0. Earlier versions of ArcGIS Pro are not tested.</div>
+
+<h2 id="h3">15. H3</h2>
+<p>H3 is the only hexagonal index in the library. The H3 jar is not in the shaded jar, and ArcGIS Pro does not have it. You must add it.</p>
+<ol>
+<li>Find the version under <code>com.uber:h3</code> in <code>pom.xml</code>.</li>
+<li>Download the jar:<pre><code>curl -O "https://repo1.maven.org/maven2/com/uber/h3/${H3_VER}/h3-${H3_VER}.jar"</code></pre></li>
+<li>Add it to <code>spark.jars</code> with the GeoFunctions jar:<pre><code>spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()</code></pre></li>
+</ol>
+{{fig:h3}}
+<div class="caution"><b>CAUTION</b>A driver-only classpath works with <code>local</code> and fails on other masters. If the jar is missing, the session starts, and the first H3 call stops with <code>NoClassDefFoundError: com/uber/h3core/H3Core</code>. Use <code>spark.jars</code>. It covers the driver and the executors.</div>
+<div class="note"><b>NOTE</b>H3 is not tested on ArcGIS Pro 3.7.</div>
+
+<h2 id="performance">16. Performance</h2>
+<p>The folder <code>benchmarks/spatialbench/</code> runs the 12 queries of <a href="https://sedona.apache.org/spatialbench/queries/">SpatialBench</a> with GeoFunctions and with DuckDB. Read the <a href="../benchmarks/spatialbench/index.html">full report</a> for all measurements and conditions.</p>
+{{fig:bench}}
+<div class="scroll"><table>
+<thead><tr><th>Do this</th><th>Because</th><th>Measured effect</th></tr></thead>
+<tbody>
+<tr><td>Give a large polygon as a literal or a scalar subquery.</td><td>The predicate parses it one time.</td><td>Q2: 66 s to 0.3 s</td></tr>
+<tr><td>Use <code>broadcast</code> in <code>join_qr</code> when one side is small.</td><td>The large side does not shuffle.</td><td>Q4: 1.9&ndash;44 s to 0.42 s</td></tr>
+<tr><td>Use <code>st_within_mask</code> for many points and large polygons.</td><td>The polygon is copied one time.</td><td>Q10: 20 s to 3.7 s</td></tr>
+<tr><td>Use <code>qr_cells</code> on a table sorted by QR.</td><td>Parquet skips row groups.</td><td>Q1, Q3: 2 to 3 times faster</td></tr>
+<tr><td>Use <code>knn_join</code> for nearest neighbors.</td><td>An R-tree limits the exact distances.</td><td>Q12: 7.8 s at SF1</td></tr>
+</tbody></table></div>
+<p>The script <code>benchmarks/optimize_qr_join.py</code> selects a QR cell size and times a join of 5 million points with world time zones. See <a href="../benchmarks/README.md">its description</a>.</p>
+
+<h2 id="build">17. Build, test and release</h2>
+<h3>17.1 Prepare the tools</h3>
+<ol>
+<li>Install Java and Maven.</li>
+<li>Make active the repository environment:<pre><code>source .venv/bin/activate</code></pre></li>
+</ol>
+<div class="note"><b>NOTE</b>The repository can be on an external drive with a name that changes. Do not write an absolute path in scripts, notebooks or configuration. If you make the environment again, use <code>uv venv --relocatable</code>.</div>
+<h3>17.2 Get the dependencies</h3>
+<p>The three <code>com.esri</code> dependencies are not on Maven Central. Install them from their GitHub releases, or build them. Each release has a jar for Spark 3.5 and a jar for Spark 4.3.</p>
+<div class="scroll"><table>
+<thead><tr><th>Dependency</th><th>Build for Scala 2.12</th><th>Build for Scala 2.13</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/mraad/WebMercator/releases/tag/v1.15">WebMercator</a></td><td><code>mvn clean install</code></td><td><code>mvn -P scala-2.13 clean install</code></td></tr>
+<tr><td><a href="https://github.com/mraad/spark-shp/releases/tag/v0.33">spark-shp</a></td><td><code>mvn clean install</code></td><td><code>mvn -P spark-4.3,esri-geometry-github clean install</code></td></tr>
+<tr><td><a href="https://github.com/mraad/FileGDB/releases/tag/v0.69">FileGDB</a></td><td><code>mvn clean install</code></td><td><code>mvn -P spark-4.3 clean install</code></td></tr>
+</tbody></table></div>
+<div class="note"><b>NOTE</b>Maven removes all <code>activeByDefault</code> profiles when <code>-P</code> selects a profile. Thus you must name <code>esri-geometry-github</code>.</div>
+<h3>17.3 Build</h3>
+<div class="scroll"><table>
+<thead><tr><th>Command</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>./pw.sh</code></td><td>The jar and the wheel in <code>target/</code>. Use this during development.</td></tr>
+<tr><td><code>./gf.sh</code></td><td>Two jars and the zip in <code>release/</code>. It deletes <code>release/</code> first.</td></tr>
+<tr><td><code>mvn -P spark-4.3 clean package</code></td><td>The Spark 4.3 jar only.</td></tr>
+</tbody></table></div>
+<div class="caution"><b>CAUTION</b>Edit the version only in <code>pom.xml</code>. The build writes it to <code>pyproject.toml</code> and removes comments from that file. Do not put a real version in a notebook: <code>gf.sh</code> stops if it finds one.</div>
+<h3>17.4 Run the tests</h3>
+<div class="scroll"><table>
+<thead><tr><th>Test</th><th>Command</th><th>Needs</th></tr></thead>
+<tbody>
+<tr><td>All Scala suites</td><td><code>mvn -DskipTests=false test</code></td><td>Java</td></tr>
+<tr><td>Scala on Spark 4.3</td><td><code>mvn -P spark-4.3 -DskipTests=false clean package</code></td><td>Java 17, the 2.13 dependencies</td></tr>
+<tr><td>One Scala suite</td><td><code>mvn -DskipTests=false -Dsuites=com.esri.spark.ClipLineDistSpec test</code></td><td>Java</td></tr>
+<tr><td>Python unit tests</td><td><code>python -m unittest discover -s src/test/python</code></td><td>A built jar for the Spark tests. If there is no jar, those tests skip.</td></tr>
+<tr><td>ArcGIS Pro tests</td><td><code>run.ps1</code>. See below.</td><td>ArcGIS Pro, a <code>spark_esri</code> conda environment, the <code>./gf.sh</code> output</td></tr>
+</tbody></table></div>
+<p>Maven skips tests if you do not set <code>-DskipTests=false</code>.</p>
+<p>To run the ArcGIS Pro tests:</p>
+<ol>
+<li>Run <code>./gf.sh</code>.</li>
+<li>Open PowerShell on the machine with ArcGIS Pro.</li>
+<li>Run the script:<pre><code>powershell -ExecutionPolicy Bypass -File &lt;repo&gt;\src\test\pro\run.ps1 -Version {{version}}</code></pre></li>
+<li>To test the Spark in ArcGIS Pro, add <code>-Mode pro</code>.</li>
+<li>To test the Shapefile reader, add <code>-Shp &lt;folder that has gps.shp&gt;</code>.</li>
+<li>Examine the exit code. The value <code>1</code> means that a test failed or a script stopped.</li>
+</ol>
+<p>The script installs nothing. It extracts the zip to a temporary folder and removes that folder at the end. It uses the <code>spark_esri</code> conda environment in <code>%LOCALAPPDATA%\ESRI\conda\envs</code>.</p>
+<h3 id="tests">17.5 Test record for version {{version}}</h3>
+<p>All runs on ArcGIS Pro 3.7.3 used the <code>spark_esri</code> environment and the files in the release zip. They ran as Python scripts, not in the ArcGIS Pro application.</p>
+<div class="scroll"><table>
+<thead><tr><th>Test</th><th>Spark 4.1.1-esri-1</th><th>PySpark 4.1.3</th></tr></thead>
+<tbody>
+<tr><td><code>pro_smoke.py</code>: functions, joins, readers</td><td>45 passed, 0 failed</td><td>45 passed, 0 failed</td></tr>
+<tr><td><code>pro_arcpy.py</code>: arcpy bridge, layers written by ArcGIS</td><td>76 passed, 0 failed</td><td>76 passed, 0 failed</td></tr>
+<tr><td>Python unit tests, with 7 Spark dissolve tests</td><td>Not run: the tests remove <code>SPARK_HOME</code></td><td>17 passed, 0 failed</td></tr>
+</tbody></table></div>
+<p>These items are not tested:</p>
+<ul>
+<li><code>to_feature_class(sp_ref=None)</code>. It needs the ArcGIS Pro application.</li>
+<li>The arcpy helpers on ArcGIS Pro 3.5.</li>
+<li>H3 and the notebooks on ArcGIS Pro 3.7.</li>
+</ul>
+<h3>17.6 Add a function</h3>
+<ol>
+<li>Add <code>STFoo.scala</code> with an expression and a companion object.</li>
+<li>Add the function to <code>Registry.registerFunctions()</code>.</li>
+<li>Add <code>def stFoo(...)</code> to <code>GeoFunctions.scala</code>.</li>
+<li>Add <code>def st_foo(...)</code> to <code>__init__.py</code>, with a reST docstring.</li>
+<li>Add the function to <code>functions.md</code> and the README list.</li>
+<li>Run <code>python guide/make_guide.py</code>.</li>
+</ol>
+<p>The expression must return null for null input in <code>eval</code> and in generated code. <code>NullPropagationSpec</code> finds each new expression and tests this.</p>
+<h3>17.7 Make a release</h3>
+{{fig:release}}
+<ol>
+<li>Change the version in <code>pom.xml</code>.</li>
+<li>Change the version in the README install commands.</li>
+<li>Run <code>./pw.sh</code>.</li>
+<li>Run <code>python guide/make_guide.py</code>.</li>
+<li>Merge the change to <code>main</code>.</li>
+<li>Run <code>./gf.sh</code> from <code>main</code>.</li>
+<li>Run the ArcGIS Pro tests with <code>-Mode pip</code>.</li>
+<li>Run the ArcGIS Pro tests with <code>-Mode pro</code>.</li>
+<li>Run the <code>gh release create</code> command that <code>gf.sh</code> shows.</li>
+</ol>
+<div class="caution"><b>CAUTION</b>Do not use a jar from <code>target/</code> that has the Scala version in its name. It is not a shaded jar, and it has no dependencies. Use the jars in <code>release/</code>. <code>gf.sh</code> checks them.</div>
+
+<h2 id="trouble">18. Troubleshooting</h2>
+<div class="scroll"><table>
+<thead><tr><th>Symptom</th><th>Cause</th><th>Remedy</th></tr></thead>
+<tbody>
+<tr><td><code>NoClassDefFoundError: scala/collection/SeqOps</code> or <code>scala/Serializable</code></td><td>The jar is for a different Scala version.</td><td>Use the jar that matches your Spark. See <a href="#versions">section 3</a>.</td></tr>
+<tr><td><code>'JavaPackage' object is not callable</code></td><td><code>SPARK_HOME</code> points to a different Spark, or the jar is not loaded.</td><td>Remove <code>SPARK_HOME</code>. Examine <code>spark.jars</code>.</td></tr>
+<tr><td><code>Java gateway process exited before sending its port number</code></td><td>Colons in <code>--jars</code>, no <code>JAVA_HOME</code>, or no <code>HADOOP_HOME</code> on Windows.</td><td>Use commas in <code>--jars</code>. On ArcGIS Pro, use <code>spark_esri.spark_start</code>. It sets Java and Hadoop.</td></tr>
+<tr><td><code>HADOOP_HOME and hadoop.home.dir are unset</code></td><td>You started Spark directly on Windows.</td><td>Set <code>HADOOP_HOME</code> to <code>ArcGIS\Pro\Java\runtime\hadoop</code>, or use <code>spark_start</code>.</td></tr>
+<tr><td><code>Python worker exited unexpectedly</code></td><td>Spark 4.1.1 on Windows with Python 3.12 or higher.</td><td>Do the procedure in <a href="#pro37">section 4.2</a>.</td></tr>
+<tr><td><code>PYTHON_VERSION_MISMATCH</code></td><td>The worker found a different <code>python3</code>.</td><td>Set <code>PYSPARK_PYTHON</code> and <code>PYSPARK_DRIVER_PYTHON</code>.</td></tr>
+<tr><td><code>NoClassDefFoundError: com/uber/h3core/H3Core</code></td><td>The H3 jar is not on the executors.</td><td>Do the procedure in <a href="#h3">section 15</a>.</td></tr>
+<tr><td><code>OSError: CURRENT</code> from <code>to_feature_class</code></td><td><code>sp_ref=None</code> needs an open ArcGIS Pro project.</td><td>Give a wkid in <code>sp_ref</code>, or run in ArcGIS Pro.</td></tr>
+<tr><td><code>ValueError: cannot write ...</code></td><td>No rows, a null geometry or mixed geometry types.</td><td>Correct the data. See <a href="#arcpy">section 14.4</a>.</td></tr>
+<tr><td>String columns are not in the feature class</td><td>A version of the library before 0.40 on pandas 3.</td><td>Install this version.</td></tr>
+<tr><td>Z and M values are not correct on a layer</td><td>A <code>Z</code> function on an xym layer, or an <code>M</code> function on an xyz layer.</td><td>Use the table in <a href="#layouts">section 13.2</a>.</td></tr>
+<tr><td>Shapely rejects a value from <code>toPandas()</code></td><td>The value is a <code>bytearray</code>.</td><td>Change it to <code>bytes</code>. See <a href="#rules">section 6.4</a>.</td></tr>
+<tr><td>A <code>qr_cells</code> filter does not save time</td><td>The list is longer than the threshold, or the cells are far apart.</td><td>See <a href="#qrcells">section 10.5</a>.</td></tr>
+<tr><td><code>RemoteClassLoaderError</code> in Scala tests on Spark 4</td><td>The firewall stops the connection of the driver to its own address.</td><td>Keep the loopback settings in the scalatest configuration.</td></tr>
+<tr><td><code>IllegalAccessError</code> on <code>sun.nio.ch.DirectBuffer</code></td><td>Java 17 without the <code>--add-opens</code> options.</td><td>Keep the options in the scalatest configuration.</td></tr>
+</tbody></table></div>
+
+<h2 id="limits">19. Known limits</h2>
+<ul>
+<li>The SQL names are not all complete or the same as the Python names:
+  <ul>
+  <li><code>QR_ENVPGROM</code> is a spelling error of <code>QR_ENVPGEOM</code>. It stays so that existing callers continue to work.</li>
+  <li><code>qr_geom</code> is <code>QR_CLIP</code> in SQL.</li>
+  <li><code>ST_CLIPLINE</code> and <code>ST_CLIPLINEDIST</code> are not registered.</li>
+  <li>There is no SQL name for the change from y to r. <code>ST_RTOY</code> and <code>ST_XTOQ</code> are available.</li>
+  </ul></li>
+<li><code>join_qr</code> does not support <code>disjoint</code>. Its <code>broadcast</code> path does not support <code>crosses</code> or <code>equals</code>.</li>
+<li><code>knn_join</code> uses planar distance. It copies rhs to each task.</li>
+<li><code>pairwise_dissolve</code> does the last pass in one task.</li>
+<li>xyz and xym layers cannot be told apart by the value count. See <a href="#layouts">section 13.2</a>.</li>
+<li>ArcGIS Pro 3.6 does not work.</li>
+<li>A Spark 4.1 incompatibility in a function that the tests do not call shows only at run time. The 2.13 jar is built for Spark 4.3. The tests on Spark 4.1 do not cover each function.</li>
+</ul>
+
+<h2 id="notebooks">20. Notebooks</h2>
+<p>The folder <code>notebooks/</code> has {{n_nb}} notebooks. They show the functions on data. The release zip contains them.</p>
+<p>Some notebooks name a jar. In these notebooks, replace the text <code>geofunctions-0.XX.jar</code> with the name of your jar.</p>
+<p>Outside ArcGIS Pro, 45 of the 63 notebooks pass on PySpark 3.5.9. Each run adds a first cell that starts a session with the jar and H3. The other 18 need:</p>
+<ul>
+<li>ArcGIS Pro: 00_Spark_Start, GeoFunctions, ParquetToFeatureClass, PointNearPoint3, SparkToFeatureClass.</li>
+<li>More Python packages: AI_With_PySpark, FileGDBRead, FileGDBWrite, GWR, WeightedStandardDistance, Optuna, UNet_Optuna, Pipelines_Pipelines, Tanks.</li>
+<li>Your own data: GridSearch, OneHotEncoding, OneMillionText.</li>
+<li>StandardDist is a code fragment. It needs a <code>df</code> from you.</li>
+</ul>
+<div class="scroll">{{notebooks}}</div>
+
+<h2 id="reference">21. Function reference</h2>
+<p>The script makes this section from the source code. <a href="../functions.md"><code>functions.md</code></a> has more notes on each function.</p>
+{{reference}}
+</body>
+</html>

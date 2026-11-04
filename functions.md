@@ -933,16 +933,8 @@ Combines all geometries in the collection into a single geometry.
 
 Functions for converting GDB (Geodatabase) format geometries.
 
-### gdb_polyline(shape)
-Convert a GDB shape column to a polyline.
-
-**Parameters:**
-- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
-
-**Returns:** Column with polyline geometry (alias: "geom")
-
 ### gdb_polyline2(shape)
-Convert a GDB shape column to a polyline (version 2).
+Convert a GDB shape column to a polyline with x and y only. Accepts every layer type; Z and M are dropped.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
@@ -1004,16 +996,8 @@ x/y, x/y/z, x/y/m and x/y/z/m layers keep their Z and M. A NaN x or y gives an e
 
 **Returns:** Column with point geometry (alias: "geom")
 
-### gdb_polygon(shape)
-Convert a GDB shape column to a polygon.
-
-**Parameters:**
-- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
-
-**Returns:** Column with polygon geometry (alias: "geom")
-
 ### gdb_polygon2(shape)
-Convert a GDB shape column to a polygon (version 2).
+Convert a GDB shape column to a polygon with x and y only. Accepts every layer type; Z and M are dropped.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")

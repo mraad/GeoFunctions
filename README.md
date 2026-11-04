@@ -3,6 +3,8 @@
 This is a small collection of PySpark functions useful for working with geospatial data using the [Esri Geometry API for Java](https://github.com/Esri/geometry-api-java.git).
 It is typically used within an ArcGIS Pro conda environment, and the spark engine is exposed using the [Spark Esri](https://github.com/mraad/spark-esri) package.
 
+**Guide:** [`guide/index.html`](guide/index.html) is the complete guide, with figures made by running the code (open it in a browser). See also the [function reference](functions.md).
+
 NOTE: Use the jar that matches your ArcGIS Pro. The release zip carries both.
 
 | ArcGIS Pro | Spark in Pro | Jar | Status |
