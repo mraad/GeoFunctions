@@ -37,9 +37,9 @@ dependency.
 Pro 3.7.3 ships Spark 4.1.1, Scala 2.13, Java 17 and Python 3.13. Use
 `geofunctions-<ver>-2.13.jar`. The Scala 2.12 jar cannot load on Spark 4. The 2.13 jar is built for
 Spark 4.3 and was tested on Spark 4.1.1 and 4.1.3 through `spark_esri`: basic functions, joins, the
-`gdb` reader on every layer type and the `shp` reader. The tests ran as Python scripts in the conda
-environment, not inside the Pro application. H3, the arcpy bridge and the notebooks are not tested
-on 3.7.
+`gdb` reader on every layer type, including layers written by ArcGIS, the `shp` reader and the arcpy
+bridge. The tests ran as Python scripts in the conda environment, not inside the Pro application; see
+`src/test/pro/run.ps1`. H3 and the notebooks are not tested on 3.7.
 
 Install PySpark 4.1.3 in the environment. Python workers crash on Spark 4.1.1 on Windows with
 Python 3.13 ([SPARK-53759](https://issues.apache.org/jira/browse/SPARK-53759), Esri KB 000039267),
@@ -71,7 +71,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps <path-to>/geofunctions-0.38-py3-none-any.whl
+pip install --no-deps <path-to>/geofunctions-0.39-py3-none-any.whl
 ```
 
 Optional packages to install:
@@ -177,8 +177,8 @@ coordinates.
 Add the shaded jar to the session and register the SQL functions:
 
 ```python
-# Spark 4.x: the release asset is geofunctions-0.38-2.13.jar (a local -P spark-4.3 build names it geofunctions-0.38.jar)
-spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.38-2.13.jar").getOrCreate()
+# Spark 4.x: the release asset is geofunctions-0.39-2.13.jar (a local -P spark-4.3 build names it geofunctions-0.39.jar)
+spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.39-2.13.jar").getOrCreate()
 
 from geofunctions import st_register_functions
 st_register_functions()   # only needed for the ST_*/QR_* SQL names
@@ -212,7 +212,7 @@ shaded jar — `spark.jars` covers the driver and the executors in one go:
 import os
 from glob import glob
 
-gf_jar = os.path.expanduser("~/geofunctions-0.38.jar")
+gf_jar = os.path.expanduser("~/geofunctions-0.39.jar")
 # glob, so the h3 version stays wherever pom.xml put it
 h3_jar = glob(os.path.expanduser("~/.m2/repository/com/uber/h3/*/h3-*.jar"))[0]
 spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()
@@ -231,8 +231,8 @@ bite:
   colons for `--jars` fails the launch with `Java gateway process exited before sending its
   port number`.
 - pyspark parses the variable with `shlex.split()` in POSIX mode, which **eats backslashes**.
-  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.38.jar` reaches the JVM
-  as `C:Usersmegeofunctions-0.38.jar`, and a path containing a space splits into two
+  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.39.jar` reaches the JVM
+  as `C:Usersmegeofunctions-0.39.jar`, and a path containing a space splits into two
   arguments. Use forward slashes (`Path(p).as_posix()`) or `shlex.quote`.
 - `PYSPARK_PYTHON` should point at your interpreter, or the worker picks whatever `python3`
   is first on `PATH` and fails with `PYTHON_VERSION_MISMATCH`.
