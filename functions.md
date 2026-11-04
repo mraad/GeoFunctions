@@ -864,7 +864,8 @@ Attempts to fix invalid geometries such as self-intersections, incorrect ring or
 Get the exterior ring of a polygon.
 
 Returns a polygon made of every part's outer boundary ring, with the holes dropped. A
-multi-part polygon keeps all its parts. For a polyline, returns its first path.
+multi-part polygon keeps all its parts, except a part nested inside a hole of another, which the
+outer ring already covers. An empty input gives an empty result. For a polyline, returns its first path.
 
 **Parameters:**
 - `geom` (Union[Column, str]): Polygon geometry or column name
@@ -1182,7 +1183,7 @@ k-nearest-neighbour join.
 ### pairwise_dissolve(buf, cell, dist, wkid, cell_mul, breaker, geom_name)
 Dissolve a DataFrame by cell using a progressive multi-resolution approach.
 
-Performs iterative spatial dissolve operations with progressively increasing cell sizes. Separates polygons fully contained in a QR cell from those spanning multiple cells for efficient processing. Each dissolved polygon is returned once, from the cell that holds its envelope, and keeps its holes. The result has one column, the geometry.
+Performs iterative spatial dissolve operations with progressively increasing cell sizes. Separates polygons fully contained in a QR cell from those spanning multiple cells for efficient processing. Each dissolved polygon is returned once and keeps its holes. The result has one column, the geometry. A `dist` of 0 uses a margin of `cell * 1e-6`, because clipping needs one to see that a polygon crosses a cell edge. Polygons that still cross an edge after `breaker` rounds are merged in one final pass with no grid; anything crossing x=0 or y=0 always takes this path, since 0 is a cell edge at every size.
 
 **Parameters:**
 - `buf` (DataFrame): DataFrame with polygons to dissolve

@@ -33,21 +33,12 @@ object STDumpObj extends Serializable {
           pi += 1
         }
       case src: Polygon =>
-        // A polygon part is an exterior ring plus the holes that follow it; a hole on its own
-        // would come out as a solid polygon.
-        val pathCount = src.getPathCount
-        var start = 0
-        while (start < pathCount) {
-          var end = start + 1
-          while (end < pathCount && !src.isExteriorRing(end)) end += 1
+        // A polygon part is an exterior ring plus its holes; a hole on its own would come out as
+        // a solid polygon.
+        PolygonRings.parts(src).foreach { rings =>
           val part = src.createInstance().asInstanceOf[Polygon]
-          var i = start
-          while (i < end) {
-            part.addPath(src, i, true)
-            i += 1
-          }
+          rings.foreach(part.addPath(src, _, true))
           arr append part.bytes
-          start = end
         }
       case src: MultiPath =>
         var i = 0

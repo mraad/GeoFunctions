@@ -14,17 +14,14 @@ object STExteriorRingObj extends Serializable {
                 ): Array[Byte] = {
     bytes.geom match {
       case src: Polygon =>
-        // Every part's exterior ring, not just the first part's.
+        // Every part's exterior ring, except one nested in another (an island inside a hole):
+        // with the hole gone it would overlap the ring around it.
         val dst = src.createInstance().asInstanceOf[Polygon]
-        var i = 0
-        while (i < src.getPathCount) {
-          if (src.isExteriorRing(i)) dst.addPath(src, i, true)
-          i += 1
-        }
+        PolygonRings.outermost(src).foreach(dst.addPath(src, _, true))
         dst.bytes
       case src: MultiPath =>
         val dst = src.createInstance().asInstanceOf[MultiPath]
-        dst.addPath(src, 0, true)
+        if (src.getPathCount > 0) dst.addPath(src, 0, true)
         dst.bytes
       case _ =>
         Array.emptyByteArray
