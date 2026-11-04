@@ -45,7 +45,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps <path-to>/geofunctions-0.33-py3-none-any.whl
+pip install --no-deps <path-to>/geofunctions-0.34-py3-none-any.whl
 ```
 
 Optional packages to install:
@@ -151,7 +151,8 @@ coordinates.
 Add the shaded jar to the session and register the SQL functions:
 
 ```python
-spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.33.jar").getOrCreate()
+# Spark 4.x: the release asset is geofunctions-0.34-2.13.jar (a local -P spark-4.3 build names it geofunctions-0.34.jar)
+spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.34-2.13.jar").getOrCreate()
 
 from geofunctions import st_register_functions
 st_register_functions()   # only needed for the ST_*/QR_* SQL names
@@ -185,7 +186,7 @@ shaded jar — `spark.jars` covers the driver and the executors in one go:
 import os
 from glob import glob
 
-gf_jar = os.path.expanduser("~/geofunctions-0.33.jar")
+gf_jar = os.path.expanduser("~/geofunctions-0.34.jar")
 # glob, so the h3 version stays wherever pom.xml put it
 h3_jar = glob(os.path.expanduser("~/.m2/repository/com/uber/h3/*/h3-*.jar"))[0]
 spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()
@@ -204,8 +205,8 @@ bite:
   colons for `--jars` fails the launch with `Java gateway process exited before sending its
   port number`.
 - pyspark parses the variable with `shlex.split()` in POSIX mode, which **eats backslashes**.
-  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.33.jar` reaches the JVM
-  as `C:Usersmegeofunctions-0.33.jar`, and a path containing a space splits into two
+  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.34.jar` reaches the JVM
+  as `C:Usersmegeofunctions-0.34.jar`, and a path containing a space splits into two
   arguments. Use forward slashes (`Path(p).as_posix()`) or `shlex.quote`.
 - `PYSPARK_PYTHON` should point at your interpreter, or the worker picks whatever `python3`
   is first on `PATH` and fails with `PYTHON_VERSION_MISMATCH`.
@@ -280,10 +281,13 @@ The list above is a subset. Other areas covered in [functions.md](functions.md):
 - **ArcGIS bridge**: to_spark, to_feature_class, to_feature_table.
 - **SQL**: st_register_functions() registers the `ST_*`/`QR_*`/`H3_*` names for Spark SQL.
 
-### Known notebook issues
+### Running the notebooks outside ArcGIS Pro
 
-Running all 63 notebooks outside ArcGIS Pro (local PySpark 3.5.9, shapely 2.1.2, geopandas 1.1.1) shows three open problems. They are not yet fixed.
+All 63 notebooks were run with local PySpark 3.5.9, shapely 2.1.2 and geopandas 1.1.1. Each run adds a first cell that starts a `SparkSession` with the jar and H3, and skips the `spark_esri` cells. 45 notebooks pass. The other 18 need something outside this library:
 
-- **`TypeError: Expected bytes or string, got bytearray`.** `toPandas()` returns a `BinaryType` column as `bytearray`, and shapely 2.1's `from_wkb` rejects that, so `gp.GeoSeries.from_wkb(pdf.geometry)` fails. Workaround: convert first, e.g. `pdf.geometry.map(bytes)`. Affects GeoPandas, H3_LatLngToCell, HotSpotAnalysis, Miami, PointNearPoint1, QR_AsGeom, QR_Geom, ST_Buffer, ST_Convexhull, ST_Convexhull_group, ST_FromText, ST_Multipoint, ST_Polygon and ST_Polyline. The shapely version ArcGIS Pro ships has not been checked.
-- **PointNearPoint2: ``UNRESOLVED_COLUMN `lgeom` ``.** `join_qr` keeps each side's geometry column under its input name (`geom` and `geom`). `st_distance()` defaults to `lgeom`/`rgeom`, so the notebook's call has nothing to resolve.
-- **PointInTimeZone1, PointInTimeZone2: `SQL_CONF_NOT_FOUND` for `spark.esri.parallel`.** The notebooks call `spark.conf.get("spark.esri.parallel")` with no default. The library reads it with default 64, but nothing sets it outside the notebook's own (commented-out) `spark.conf.set`, so the bare `get` fails.
+- ArcGIS Pro (`arcpy` or `spark_esri`): 00_Spark_Start, GeoFunctions, ParquetToFeatureClass, PointNearPoint3, SparkToFeatureClass.
+- Extra Python packages: AI_With_PySpark (plotly), FileGDBRead and FileGDBWrite (GDAL), GWR and WeightedStandardDistance (statsmodels), Optuna and UNet_Optuna (optuna), Pipelines_Pipelines (sparkgeo), Tanks (torch).
+- Your own data: GridSearch and OneHotEncoding (`your_data.csv`), OneMillionText (`~/data/OneMillionRows.csv`).
+- StandardDist is a code fragment. It uses a `df` that you supply.
+
+`toPandas()` returns WKB as `bytearray`, and shapely 2.1 `from_wkb` accepts only `bytes`. The notebooks convert first: `gp.GeoSeries.from_wkb(pdf.geometry.map(bytes, na_action="ignore"))`. Use the same conversion in your own code.
