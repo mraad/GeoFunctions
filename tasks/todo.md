@@ -1,4 +1,4 @@
-# Readers on Spark 4.3: spark-shp + FileGDB built for 3.5 and 4.3
+# Readers on Spark 4.3: spark-shp + FileGDB built for 3.5 and 4.3 — DONE 2026-11-04
 
 Goal: GeoFunctions `-P spark-4.3` links spark-shp/FileGDB jars **built for 4.3**, not the
 4.0 builds via `readers.spark.compact=4.0`. Spark 3.5 stays the default line everywhere; 4.3 is the only Spark 4 line (user, 2026-11-03).
@@ -23,4 +23,4 @@ Repos: `/Volumes/LaCie/GWorkspace/{spark-shp,FileGDB}`.
 - [x] suite green on spark-3.5 and spark-4.3
 - [x] smoke: `shp` + `gdb` read through the shaded jar on PySpark 3.5.9 and 4.3.0 (gps.shp, Miami.gdb)
 - [x] README dependency table + CLAUDE.md (no more "untested on 4.3")
-- [ ] ship; release 0.35 (jar bundles the new filegdb)
+- [x] ship; release 0.35 (jar bundles the new filegdb) — PR #29, v0.35
