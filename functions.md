@@ -1,6 +1,6 @@
 # GeoFunctions - Complete Function Reference
 
-A comprehensive Spark-based geospatial library providing SQL functions for geometry operations, spatial indexing, and data transformations.
+A comprehensive Spark-based geospatial library providing SQL functions for geometry operations, spatial indexing, and data transformations. For install steps, figures and procedures, read the [complete guide](https://claude.ai/artifact/1kXZDnayRfGUY8QY3pGgLk).
 
 ---
 
