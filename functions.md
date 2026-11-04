@@ -863,12 +863,13 @@ Attempts to fix invalid geometries such as self-intersections, incorrect ring or
 ### st_exterior_ring(geom)
 Get the exterior ring of a polygon.
 
-Extracts the outer boundary ring of a polygon, discarding any holes.
+Returns a polygon made of every part's outer boundary ring, with the holes dropped. A
+multi-part polygon keeps all its parts. For a polyline, returns its first path.
 
 **Parameters:**
 - `geom` (Union[Column, str]): Polygon geometry or column name
 
-**Returns:** Column with exterior ring as polyline (alias: "geom")
+**Returns:** Column with the exterior rings as a polygon (alias: "geom")
 
 ---
 
@@ -949,7 +950,7 @@ Convert a GDB shape column to a polyline (version 2).
 
 ### gdb_polylineM(shape)
 Convert a GDB shape column to a polyline with M values. M layers (x, y, m) give M; ZM layers
-give Z and M; XY layers give 2D.
+give Z and M; XY layers give 2D. On a Z-only layer it stores the third value as M; use the matching Z function to keep Z.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
@@ -992,7 +993,7 @@ Convert a GDB shape column to a polygon (version 2).
 
 ### gdb_polygonM(shape)
 Convert a GDB shape column to a polygon with M values. On an M layer (x, y, m per vertex) the
-result has M; on a ZM layer (x, y, z, m) it has Z and M; on an XY layer it is 2D.
+result has M; on a ZM layer (x, y, z, m) it has Z and M; on an XY layer it is 2D. On a Z-only layer it stores the third value as M; use the matching Z function to keep Z.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
@@ -1153,7 +1154,7 @@ k-nearest-neighbour join.
 ### pairwise_dissolve(buf, cell, dist, wkid, cell_mul, breaker, geom_name)
 Dissolve a DataFrame by cell using a progressive multi-resolution approach.
 
-Performs iterative spatial dissolve operations with progressively increasing cell sizes. Separates polygons fully contained in a QR cell from those spanning multiple cells for efficient processing.
+Performs iterative spatial dissolve operations with progressively increasing cell sizes. Separates polygons fully contained in a QR cell from those spanning multiple cells for efficient processing. Each dissolved polygon is returned once, from the cell that holds its envelope, and keeps its holes. The result has one column, the geometry.
 
 **Parameters:**
 - `buf` (DataFrame): DataFrame with polygons to dissolve

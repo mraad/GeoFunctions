@@ -12,6 +12,11 @@
 #                                           as draft and marking ready costs one review
 #                                           instead of one per push.
 reviews:
+  # Binary test fixtures: a FileGDB is a folder of ~60 small binary files, and each counts as a
+  # billable file. Shapes.gdb alone pushed PR #31 past the review limit. Its generator script
+  # (make_shapes_gdb.py) stays reviewed.
+  path_filters:
+    - "!src/test/resources/**/*.gdb/**"
   auto_review:
     # Default 5. Pauses automatic re-review after this many reviewed commits on a PR;
     # resume deliberately with an "@coderabbitai review" comment.

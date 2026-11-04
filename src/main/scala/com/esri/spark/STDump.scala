@@ -1,6 +1,6 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{MultiPath, MultiPoint, Point}
+import com.esri.core.geometry.{MultiPath, MultiPoint, Point, Polygon}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
@@ -9,8 +9,6 @@ import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.types._
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent._
 
 
 object STDumpObj extends Serializable {
@@ -34,34 +32,31 @@ object STDumpObj extends Serializable {
           }
           pi += 1
         }
-      case src: MultiPath =>
+      case src: Polygon =>
+        // A polygon part is an exterior ring plus the holes that follow it; a hole on its own
+        // would come out as a solid polygon.
         val pathCount = src.getPathCount
-        //        var pathIndex = 0
-        //        while (pathIndex < pathCount) {
-        //          val mpp = src.createInstance().asInstanceOf[MultiPath]
-        //          mpp.insertPath(0, src, pathIndex, true)
-        //          arr append mpp.bytes
-        //          pathIndex += 1
-        //        }
-
-        //        val results = (0 until pathCount)
-        //          .par
-        //          .map { pathIndex =>
-        //            val mpp = src.createInstance().asInstanceOf[MultiPath]
-        //            mpp.insertPath(0, src, pathIndex, true)
-        //            mpp.bytes
-        //          }
-        //        arr ++= results.toIterator
-
-        // TODO - Check pathCount and if it is less than parallel, then use parallel = pathCount
-        val futures = (0 until pathCount).map { pathIndex =>
-          Future {
-            val mpp = src.createInstance().asInstanceOf[MultiPath]
-            mpp.insertPath(0, src, pathIndex, true)
-            mpp.bytes
+        var start = 0
+        while (start < pathCount) {
+          var end = start + 1
+          while (end < pathCount && !src.isExteriorRing(end)) end += 1
+          val part = src.createInstance().asInstanceOf[Polygon]
+          var i = start
+          while (i < end) {
+            part.addPath(src, i, true)
+            i += 1
           }
+          arr append part.bytes
+          start = end
         }
-        arr ++= Await.result(Future.sequence(futures), duration.Duration.Inf)
+      case src: MultiPath =>
+        var i = 0
+        while (i < src.getPathCount) {
+          val part = src.createInstance().asInstanceOf[MultiPath]
+          part.addPath(src, i, true)
+          arr append part.bytes
+          i += 1
+        }
       case _ =>
     }
     ArrayData.toArrayData(arr)

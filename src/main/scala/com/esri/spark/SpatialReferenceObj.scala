@@ -27,6 +27,7 @@ object SpatialReferenceObj extends Serializable {
       case "-1" =>
         null
       case text =>
+        require(text.nonEmpty, "wkid must not be empty; use '-1' for no spatial reference")
         srMap.getOrElseUpdate(text, if (Character.isDigit(text(0))) SpatialReference.create(text.toInt) else SpatialReference.create(text))
     }
   }

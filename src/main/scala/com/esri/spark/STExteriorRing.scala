@@ -1,6 +1,6 @@
 package com.esri.spark
 
-import com.esri.core.geometry.MultiPath
+import com.esri.core.geometry.{MultiPath, Polygon}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
@@ -13,14 +13,19 @@ object STExteriorRingObj extends Serializable {
                   bytes: Array[Byte]
                 ): Array[Byte] = {
     bytes.geom match {
-      case src: MultiPath =>
-        val instance = src.createInstance()
-        instance match {
-          case dst: MultiPath =>
-            dst.addPath(src, 0, true)
-          case _ =>
+      case src: Polygon =>
+        // Every part's exterior ring, not just the first part's.
+        val dst = src.createInstance().asInstanceOf[Polygon]
+        var i = 0
+        while (i < src.getPathCount) {
+          if (src.isExteriorRing(i)) dst.addPath(src, i, true)
+          i += 1
         }
-        instance.bytes
+        dst.bytes
+      case src: MultiPath =>
+        val dst = src.createInstance().asInstanceOf[MultiPath]
+        dst.addPath(src, 0, true)
+        dst.bytes
       case _ =>
         Array.emptyByteArray
     }
