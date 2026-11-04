@@ -9,32 +9,8 @@ import org.apache.spark.sql.types._
 
 
 object GDBPolyline2Obj extends Serializable {
-  final def eval(row: InternalRow): Array[Byte] = {
-    val polyline = new Polyline()
-    val parts = row.getArray(4).toIntArray()
-    val coords = row.getArray(5).toDoubleArray()
-    var i = 0
-    var j = 1
-    var p = 0
-    while (p < parts.length) {
-      val part = parts(p)
-      var n = 0
-      while (n < part) {
-        val x = coords(i)
-        val y = coords(j)
-        if (n == 0) {
-          polyline.startPath(x, y)
-        } else {
-          polyline.lineTo(x, y)
-        }
-        i += 2
-        j += 2
-        n += 1
-      }
-      p += 1
-    }
-    polyline.bytes
-  }
+  final def eval(row: InternalRow): Array[Byte] =
+    GDBShapeObj.fill(new Polyline(), row, wantZ = false, wantM = false, thirdIsM = false)
 }
 
 final case class GDBPolyline2(children: Seq[Expression])

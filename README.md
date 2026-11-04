@@ -45,7 +45,7 @@ pip install .
 Install the geofunctions package using:
 
 ```shell
-pip install --no-deps <path-to>/geofunctions-0.35-py3-none-any.whl
+pip install --no-deps <path-to>/geofunctions-0.36-py3-none-any.whl
 ```
 
 Optional packages to install:
@@ -150,8 +150,8 @@ coordinates.
 Add the shaded jar to the session and register the SQL functions:
 
 ```python
-# Spark 4.x: the release asset is geofunctions-0.35-2.13.jar (a local -P spark-4.3 build names it geofunctions-0.35.jar)
-spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.35-2.13.jar").getOrCreate()
+# Spark 4.x: the release asset is geofunctions-0.36-2.13.jar (a local -P spark-4.3 build names it geofunctions-0.36.jar)
+spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.36-2.13.jar").getOrCreate()
 
 from geofunctions import st_register_functions
 st_register_functions()   # only needed for the ST_*/QR_* SQL names
@@ -185,7 +185,7 @@ shaded jar — `spark.jars` covers the driver and the executors in one go:
 import os
 from glob import glob
 
-gf_jar = os.path.expanduser("~/geofunctions-0.35.jar")
+gf_jar = os.path.expanduser("~/geofunctions-0.36.jar")
 # glob, so the h3 version stays wherever pom.xml put it
 h3_jar = glob(os.path.expanduser("~/.m2/repository/com/uber/h3/*/h3-*.jar"))[0]
 spark = SparkSession.builder.config("spark.jars", f"{gf_jar},{h3_jar}").getOrCreate()
@@ -204,8 +204,8 @@ bite:
   colons for `--jars` fails the launch with `Java gateway process exited before sending its
   port number`.
 - pyspark parses the variable with `shlex.split()` in POSIX mode, which **eats backslashes**.
-  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.35.jar` reaches the JVM
-  as `C:Usersmegeofunctions-0.35.jar`, and a path containing a space splits into two
+  On Windows — the ArcGIS Pro platform — `C:\Users\me\geofunctions-0.36.jar` reaches the JVM
+  as `C:Usersmegeofunctions-0.36.jar`, and a path containing a space splits into two
   arguments. Use forward slashes (`Path(p).as_posix()`) or `shlex.quote`.
 - `PYSPARK_PYTHON` should point at your interpreter, or the worker picks whatever `python3`
   is first on `PATH` and fails with `PYTHON_VERSION_MISMATCH`.
@@ -276,7 +276,7 @@ The list above is a subset. Other areas covered in [functions.md](functions.md):
 - **Spatial joins**: join_qr(lhs, rhs, cell, ..., broadcast=None), also usable as `df.join_qr(...)`. Pass `broadcast="lhs"` or `"rhs"` when that side is small.
 - **Nearest neighbours**: knn_join(lhs, rhs, k, lhs_geom, rhs_geom), also usable as `df.knn_join(...)`. Exact k nearest rhs rows per lhs row; rhs is broadcast.
 - **Aggregation**: st_union_col, qr_count, pairwise_dissolve.
-- **GDB decoding**: gdb_polyline2, gdb_polygon2, gdb_polygonM, gdb_polygonZ — turn the `Shape` struct from the `gdb`/`shp` readers into WKB.
+- **GDB decoding**: gdb_point, gdb_polyline2, gdb_polylineM, gdb_polylineZ, gdb_polygon2, gdb_polygonM, gdb_polygonZ — turn the `Shape` struct from the `gdb` reader into WKB, for xy, xyz, xym and xyzm layers.
 - **ArcGIS bridge**: to_spark, to_feature_class, to_feature_table.
 - **SQL**: st_register_functions() registers the `ST_*`/`QR_*`/`H3_*` names for Spark SQL.
 

@@ -325,6 +325,15 @@ object GeoFunctions {
   def gdbPolyline2(c1: Column): Column =
     toColumn(GDBPolyline2(Seq(c1.expr)))
 
+  def gdbPolylineM(c1: Column): Column =
+    toColumn(GDBPolylineM(Seq(c1.expr)))
+
+  def gdbPolylineZ(c1: Column): Column =
+    toColumn(GDBPolylineZ(Seq(c1.expr)))
+
+  def gdbPoint(c1: Column): Column =
+    toColumn(GDBPoint(Seq(c1.expr)))
+
   def stArea(c1: Column): Column =
     toColumn(STArea(Seq(c1.expr)))
 
