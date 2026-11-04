@@ -151,7 +151,8 @@ coordinates.
 Add the shaded jar to the session and register the SQL functions:
 
 ```python
-spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.34.jar").getOrCreate()
+# Spark 4.x: the release asset is geofunctions-0.34-2.13.jar (a local -P spark-4.3 build names it geofunctions-0.34.jar)
+spark = SparkSession.builder.config("spark.jars", "<path-to>/geofunctions-0.34-2.13.jar").getOrCreate()
 
 from geofunctions import st_register_functions
 st_register_functions()   # only needed for the ST_*/QR_* SQL names
