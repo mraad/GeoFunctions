@@ -55,8 +55,8 @@ mvn -P spark-4.3 clean package
 cp "target/geofunctions-${GF_VER}.jar" "${DIST}/geofunctions-${GF_VER}-2.13.jar"
 verify_jar "${DIST}/geofunctions-${GF_VER}-2.13.jar" 2.13
 
-# Default profile: Spark 3.5 / Scala 2.12. This is what ArcGIS Pro runs and what the zip
-# carries; the wheel is pure Python and serves both lines.
+# Default profile: Spark 3.5 / Scala 2.12, for ArcGIS Pro 3.5. The zip carries both jars, because
+# Pro 3.7 runs Spark 4.1 and needs the 2.13 one; the wheel is pure Python and serves both lines.
 mvn clean package
 python3 -m pip wheel --no-deps --wheel-dir=target .
 cp "target/geofunctions-${GF_VER}.jar" "${DIST}/geofunctions-${GF_VER}.jar"
@@ -69,6 +69,7 @@ zip -j "${DIST}/geofunctions-${GF_VER}.zip"\
  data/Miami.gdb.zip\
  "target/geofunctions-${GF_VER}-py3-none-any.whl"\
  "target/geofunctions-${GF_VER}.jar"\
+ "${DIST}/geofunctions-${GF_VER}-2.13.jar"\
  notebooks/*.ipynb\
  toolbox/ParquetToolbox.pyt\
  toolbox/ExtentToolbox.pyt\
