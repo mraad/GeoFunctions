@@ -26,6 +26,10 @@ private[spark] object GDBShapeObj {
     val mAt = if (!wantM) -1 else if (stride == 4) 3 else if (stride == 3 && thirdIsM) 2 else -1
     // Esri rings close implicitly; the stored closing vertex would become a zero-length segment.
     val dropClosing = geom.isInstanceOf[Polygon]
+    // Resolved once: this loop runs per vertex.
+    val multiPoint = geom match { case m: MultiPoint => m; case _ => null }
+    val path = geom match { case m: MultiPath => m; case _ => null }
+    require(multiPoint != null || path != null, s"Unsupported target ${geom.getClass.getName}")
     var base = 0
     var p = 0
     while (p < parts.length) {
@@ -40,10 +44,9 @@ private[spark] object GDBShapeObj {
         val point = new Point(coords(i), coords(i + 1))
         if (zAt >= 0) point.setZ(coords(i + zAt))
         if (mAt >= 0) point.setM(coords(i + mAt))
-        geom match {
-          case mp: MultiPoint => mp.add(point)
-          case path: MultiPath => if (n == 0) path.startPath(point) else path.lineTo(point)
-        }
+        if (multiPoint != null) multiPoint.add(point)
+        else if (n == 0) path.startPath(point)
+        else path.lineTo(point)
         n += 1
       }
       base += parts(p) * stride

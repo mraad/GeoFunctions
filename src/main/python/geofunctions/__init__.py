@@ -2884,7 +2884,9 @@ def pairwise_dissolve(
         return (
             df
             # Clip each polygon by its overlapping QR envp inflated by dist.
-            .withColumn("qr", qr_geom_explode("geom", cell_, dist, wkid))
+            # The margin must be positive: with none, a fragment cut on its cell's edge looks
+            # complete, and a polygon crossing that edge stays split.
+            .withColumn("qr", qr_geom_explode("geom", cell_, max(dist, cell_ * 1e-6), wkid))
             # Get the QR and clipped geometry.
             .select("qr.qr", "qr.geom")
             # Collect all the clipped geometries by QR.
@@ -2925,9 +2927,15 @@ def pairwise_dissolve(
         if buf.count() == 0:
             break
     else:
-        # The circuit breaker is a resource limit, not permission to drop the
-        # geometries that still cross a QR boundary at the final resolution.
-        dfu = buf if dfu is None else dfu.unionAll(buf).localCheckpoint()
+        # The circuit breaker is a resource limit, not permission to drop what still crosses a
+        # cell edge. A shape crossing x=0 or y=0 always lands here: floor(x/cell) has an edge at
+        # 0 at every cell size. Its pieces overlap, so merge them with no grid at all.
+        rest = (
+            buf.agg(collect_list("geom").alias("col"))
+            .select(st_union_col("col", wkid).alias("geom"))
+            .withColumn("geom", st_dump_explode("geom"))
+        )
+        dfu = dfu.unionAll(rest).localCheckpoint()
 
     if rename:
         dfu = dfu.withColumnRenamed("geom", geom_name)

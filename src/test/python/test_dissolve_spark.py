@@ -6,6 +6,7 @@ hole all fail.
 """
 import glob
 import os
+import shlex
 import sys
 import unittest
 
@@ -29,9 +30,12 @@ class DissolveSparkTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.saved_env = dict(os.environ)
         os.environ.pop("SPARK_HOME", None)
         os.environ["PYSPARK_PYTHON"] = sys.executable
-        os.environ["PYSPARK_SUBMIT_ARGS"] = f"--driver-class-path {JAR} --jars {JAR} pyspark-shell"
+        # shlex.quote: pyspark splits this like a shell, and this repo's mount name can hold a space.
+        jar = shlex.quote(JAR)
+        os.environ["PYSPARK_SUBMIT_ARGS"] = f"--driver-class-path {jar} --jars {jar} pyspark-shell"
         from pyspark.sql import SparkSession
         cls.spark = (SparkSession.builder.master("local[2]").appName("DissolveSparkTest")
                      .config("spark.ui.showConsoleProgress", "false")
@@ -42,11 +46,14 @@ class DissolveSparkTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.spark.stop()
+        os.environ.clear()
+        os.environ.update(cls.saved_env)
 
     def dissolve(self, *wkts, **kwargs):
         import geofunctions as gf
         df = self.spark.createDataFrame([(w,) for w in wkts], "wkt string").select(gf.st_fromtext("wkt").alias("geom"))
-        rows = (df.pairwise_dissolve(cell=100_000.0, dist=100.0, wkid=3857, **kwargs)
+        args = {"cell": 100_000.0, "dist": 100.0, "wkid": 3857, **kwargs}
+        rows = (df.pairwise_dissolve(**args)
                 .select(gf.st_area("geom").alias("a")).collect())
         return sorted(round(r.a, 6) for r in rows)
 
@@ -63,6 +70,22 @@ class DissolveSparkTest(unittest.TestCase):
         self.assertEqual([17500.0], self.dissolve(
             "POLYGON ((99950 1000, 100050 1000, 100050 1100, 99950 1100, 99950 1000))",
             "POLYGON ((100000 1050, 100100 1050, 100100 1150, 100000 1150, 100000 1050))"))
+
+    def test_a_polygon_crossing_an_axis_comes_out_once(self):
+        # x=0 is a cell edge at every cell size, so this never fits one cell.
+        square = "POLYGON ((-50 1000, 50 1000, 50 1100, -50 1100, -50 1000))"
+        self.assertEqual([10000.0], self.dissolve(square, breaker=3))
+        around_origin = "POLYGON ((-50 -50, 50 -50, 50 50, -50 50, -50 -50))"
+        self.assertEqual([10000.0], self.dissolve(around_origin, breaker=3))
+
+    def test_no_margin_does_not_split_a_polygon_on_a_cell_edge(self):
+        self.assertEqual([10000.0], self.dissolve(
+            "POLYGON ((99950 1000, 100050 1000, 100050 1100, 99950 1100, 99950 1000))", dist=0.0))
+
+    def test_the_breaker_merges_what_is_left(self):
+        # One round cannot finish this; the remainder must not come back as overlapping pieces.
+        self.assertEqual([10000.0], self.dissolve(
+            "POLYGON ((99950 1000, 100050 1000, 100050 1100, 99950 1100, 99950 1000))", breaker=1))
 
     def test_separate_polygons_stay_separate(self):
         self.assertEqual([100.0, 100.0], self.dissolve(

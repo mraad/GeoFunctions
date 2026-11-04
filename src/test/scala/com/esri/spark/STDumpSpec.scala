@@ -57,7 +57,51 @@ class STDumpSpec extends AnyFlatSpec with Matchers {
     dump("POINT EMPTY") shouldBe empty
   }
 
-  "ST_EXTERIOR_RING" should "keep every part's exterior ring and drop the holes" in {
+  /** Rings in file order, as gdb_polygon* builds them: outer rings CW, holes CCW. */
+  private def rings(paths: Seq[(Double, Double, Double, Boolean)]): Polygon = {
+    val p = new Polygon()
+    paths.foreach { case (x, y, s, hole) =>
+      p.startPath(x, y)
+      if (hole) { p.lineTo(x + s, y); p.lineTo(x + s, y + s); p.lineTo(x, y + s) }
+      else { p.lineTo(x, y + s); p.lineTo(x + s, y + s); p.lineTo(x + s, y) }
+    }
+    p
+  }
+
+  private def dumpGeom(p: Polygon): Seq[Geometry] = {
+    val arr = STDumpObj.eval(p.bytes)
+    (0 until arr.numElements()).map(i => arr.getBinary(i).geom)
+  }
+
+  it should "give a hole to the ring around it, wherever the file stores it" in {
+    val ext1 = (0.0, 0.0, 100.0, false)
+    val ext2 = (200.0, 0.0, 100.0, false)
+    val hole = (40.0, 40.0, 20.0, true)
+    dumpGeom(rings(Seq(ext1, ext2, hole))).map(area).sum shouldBe 19600.0
+    dumpGeom(rings(Seq(hole, ext1, ext2))).map(area).sum shouldBe 19600.0
+    dumpGeom(rings(Seq(ext1, ext2, hole))).map(area).toSet shouldBe Set(9600.0, 10000.0)
+    dumpGeom(rings(Seq(hole, ext1, ext2))).map(area).toSet shouldBe Set(9600.0, 10000.0)
+  }
+
+  "ST_EXTERIOR_RING" should "keep the outer ring when an island sits inside a hole" in {
+    val g = rings(Seq((0.0, 0.0, 100.0, false), (20.0, 20.0, 60.0, true), (40.0, 40.0, 20.0, false)))
+    val out = STExteriorRingObj.eval(g.bytes).geom.asInstanceOf[Polygon]
+    out.getPathCount shouldBe 1
+    area(out) shouldBe 10000.0
+  }
+
+  it should "find the outer rings wherever the file stores them" in {
+    val g = rings(Seq((40.0, 40.0, 20.0, true), (0.0, 0.0, 100.0, false), (200.0, 0.0, 100.0, false)))
+    area(STExteriorRingObj.eval(g.bytes).geom) shouldBe 20000.0
+  }
+
+  it should "return an empty result for an empty polyline" in {
+    Seq("LINESTRING EMPTY", "MULTILINESTRING EMPTY", "POLYGON EMPTY").foreach { text =>
+      STExteriorRingObj.eval(wkt(text)).geom.isEmpty shouldBe true
+    }
+  }
+
+  it should "keep every part's exterior ring and drop the holes" in {
     val g = STExteriorRingObj.eval(wkt("MULTIPOLYGON (((10 10, 90 10, 90 90, 10 90, 10 10), " +
       "(40 40, 40 60, 60 60, 60 40, 40 40)), ((100 0, 110 0, 110 10, 100 10, 100 0)))")).geom.asInstanceOf[Polygon]
     g.getPathCount shouldBe 2
