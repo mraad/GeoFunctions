@@ -405,7 +405,7 @@ trips.where(col("t_pickup_qr").isin(cells)).where(st_dwithin("t_pickuploc", cent
 Raise `spark.sql.parquet.pushdown.inFilterThreshold` above the number of cells. Above it, Spark
 pushes only the minimum and maximum of the list, and that range covers every row in between.
 The cell filter only narrows the candidates, so keep the exact predicate. It pays off when the
-cells cover one compact area (SpatialBench Q1 and Q3: 2–3× faster). A list of hundreds of cells
+cells cover one compact area ([SpatialBench](https://sedona.apache.org/spatialbench/queries/) Q1 and Q3: 2–3× faster). A list of hundreds of cells
 spread over the world can cost more than it saves.
 
 **Parameters:**

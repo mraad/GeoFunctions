@@ -338,7 +338,7 @@ def page():
     body = f"""
 <div class="wrap">
 <h1>SpatialBench on Spark</h1>
-<p class="lede">GeoFunctions on Apache Spark 4.3 against DuckDB 2.0 spatial, SpatialBench queries Q1 to Q12.</p>
+<p class="lede">GeoFunctions on Apache Spark 4.3 against DuckDB 2.0 spatial, <a href="https://sedona.apache.org/spatialbench/queries/">SpatialBench queries</a> Q1 to Q12.</p>
 <p class="meta">Data: SpatialBench v0.1.0, SF1 (6M trips) and SF10 (60M trips) · Machine: 16 cores, 128 GB RAM, local NVMe ·
 Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf1-sf10.jsonl</p>
 
@@ -383,7 +383,7 @@ Spark local[*], 64 GB driver · Times: warm median seconds · Source: results/sf
 <p>A point is in only one cell. Thus a point and a polygon meet in one cell only, and no pair repeats.</p>
 
 <h2>How each query is written</h2>
-<p>The SQL is not a copy of the SpatialBench SQL. Each query uses the plan that is fastest on Spark. The results are the same.</p>
+<p>The <a href="https://sedona.apache.org/spatialbench/queries/">SpatialBench queries page</a> defines the 12 queries. The SQL here is not a copy of the SpatialBench SQL. Each query uses the plan that is fastest on Spark. The results are the same.</p>
 <h3>Q1 and Q3: distance from a constant geometry</h3>
 <p>The query uses <code>ST_DWITHIN</code>. The constant geometry is parsed one time for each task. Pairs with envelopes that are far apart are rejected before the exact test.</p>
 <h3>Q2: points in a constant polygon</h3>
