@@ -1,11 +1,12 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{MultiPath, Point, Polygon}
+import com.esri.core.geometry.{MultiPath, MultiPoint, MultiVertexGeometry, Point, Polygon}
 import org.apache.spark.sql.catalyst.InternalRow
 
 /**
  * Decodes the `Shape` struct of the gdb reader (`struct<xmin, ymin, xmax, ymax, parts, coords>`)
- * into an Esri multipath. `parts` holds the vertex count of each ring/path; `coords` holds the
+ * into an Esri multipath or multipoint. `parts` holds the vertex count of each ring/path (one
+ * entry, the point count, for a multipoint); `coords` holds the
  * vertices back to back, with as many values per vertex as the layer has dimensions:
  * 2 = (x, y), 3 = (x, y, z) on a Z layer or (x, y, m) on an M layer, 4 = (x, y, z, m).
  * The count is derived from the data, never assumed, so every GDB_* function reads every layer
@@ -14,7 +15,7 @@ import org.apache.spark.sql.catalyst.InternalRow
  */
 private[spark] object GDBShapeObj {
 
-  final def fill(path: MultiPath, row: InternalRow, wantZ: Boolean, wantM: Boolean, thirdIsM: Boolean): Array[Byte] = {
+  final def fill(geom: MultiVertexGeometry, row: InternalRow, wantZ: Boolean, wantM: Boolean, thirdIsM: Boolean): Array[Byte] = {
     val parts = row.getArray(4).toIntArray()
     val coords = row.getArray(5).toDoubleArray()
     val vertices = parts.sum
@@ -24,7 +25,7 @@ private[spark] object GDBShapeObj {
     val zAt = if (wantZ && (stride == 4 || (stride == 3 && !thirdIsM))) 2 else -1
     val mAt = if (!wantM) -1 else if (stride == 4) 3 else if (stride == 3 && thirdIsM) 2 else -1
     // Esri rings close implicitly; the stored closing vertex would become a zero-length segment.
-    val dropClosing = path.isInstanceOf[Polygon]
+    val dropClosing = geom.isInstanceOf[Polygon]
     var base = 0
     var p = 0
     while (p < parts.length) {
@@ -39,12 +40,15 @@ private[spark] object GDBShapeObj {
         val point = new Point(coords(i), coords(i + 1))
         if (zAt >= 0) point.setZ(coords(i + zAt))
         if (mAt >= 0) point.setM(coords(i + mAt))
-        if (n == 0) path.startPath(point) else path.lineTo(point)
+        geom match {
+          case mp: MultiPoint => mp.add(point)
+          case path: MultiPath => if (n == 0) path.startPath(point) else path.lineTo(point)
+        }
         n += 1
       }
       base += parts(p) * stride
       p += 1
     }
-    path.bytes
+    geom.bytes
   }
 }
