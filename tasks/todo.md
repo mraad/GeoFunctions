@@ -1,120 +1,26 @@
-# Spark 4.0 / Scala 2.13 compatibility — DONE 2026-08-31
+# Readers on Spark 4.3: spark-shp + FileGDB built for 3.5 and 4.3
 
-Goal: `mvn -P spark-4.0 clean package` builds GeoFunctions. Achieved; full suite passes on
-both profiles.
+Goal: GeoFunctions `-P spark-4.3` links spark-shp/FileGDB jars **built for 4.3**, not the
+4.0 builds via `readers.spark.compact=4.0`. Spark 3.5 stays the default line everywhere; 4.3 is the only Spark 4 line (user, 2026-11-03).
+Repos: `/Volumes/LaCie/GWorkspace/{spark-shp,FileGDB}`.
 
-Toolchain: Spark 4.0.0, Scala 2.13.16, Java 17.
-Repos live in `/Volumes/LaCie/GWorkspace/` (not `~/GWorkspace`).
+## 1. spark-shp 0.32 -> 0.33
+- [x] replace `spark-4.0` with `spark-4.3` (Java 17, Scala 2.13.18, Spark 4.3.0)
+- [x] tests green on spark-3.5 and spark-4.3
+- [x] version 0.33, README build/jar table
+- [x] `mvn install` 0.33-3.5-2.12, 0.33-4.3-2.13
+- [x] ship: PR, CodeRabbit, merge; release v0.33 with the 3.5 and 4.3 jars
 
-## 1. WebMercator -> `webmercator-1.15-2.13`
-- [x] `mvn -P scala-2.13 clean install` — profile already existed, no pom change. 5/5 tests.
+## 2. FileGDB 0.69 (unreleased)
+- [x] replace `spark-4.0`/`4.1`/`4.2` with `spark-4.3`
+- [x] tests green on spark-3.5 and spark-4.3; real-GDB smoke (Miami, NorthSea, World) on 4.3
+- [x] README build/jar table
+- [x] `mvn install` 0.69-3.5-2.12, 0.69-4.3-2.13
+- [x] ship: PR, merge; release v0.69 with the 3.5 and 4.3 jars
 
-## 2. spark-shp -> `spark-shp-0.32-4.0-2.13`
-- [x] added `spark-4.0` profile (java 17, scala 2.13.16, scalatest 3.2.19, spark 4.0.0)
-- [x] `mvn -P spark-4.0,esri-geometry-github clean install`. 13/13 tests.
-
-## 3. FileGDB -> `filegdb-0.68-4.0-2.13`
-- [x] added `spark-4.0` profile
-- [x] `mvn -P spark-4.0 clean install`. 5/5 tests (1 ignored, as on 3.5).
-
-## 4. GeoFunctions
-- [x] `.par` removed from `QRScan` and `JoinQRInnerProcessor` — `IntStream.parallel()` instead
-- [x] `Column`/`Expression` bridge split into `src/main/scala-{2.12,2.13}/org/apache/spark/sql/esri/ColumnCompat.scala`, selected by `build-helper-maven-plugin`
-- [x] `ClipLineDistSpec` `out.sorted` -> `out.toSeq.sorted` (2.13's `Seq` is `immutable.Seq`)
-- [x] `mvn -P spark-4.0 -DskipTests=false clean package`. 51/51, warning-free.
-
-## 5. Regression
-- [x] `mvn -P spark-3.5 -DskipTests=false clean package`. 51/51, warning-free.
-- [x] `./pw.sh` green, wheel builds.
-
-## 6. Docs
-- [x] CLAUDE.md profile section rewritten
-- [x] README note + new "Spark 4.0" section
-
-## 7. PySpark 3.x + 4.x from one wheel
-- [x] `pyproject.toml`: `pyspark==3.5.9` -> `pyspark>=3.5.9,<5`
-- [x] `geofunctions/__init__.py`: `Column`/`_to_java_column` import falls back from
-      `pyspark.sql.classic.column` (4.0) to `pyspark.sql.column` (3.x)
-- [x] verified end to end on pyspark 3.5.9 + 2.12 jar and pyspark 4.0.0 + 2.13 jar:
-      identical output for st_point/st_astext, qr_fromxy, qr_envp_explode, the DataFrame
-      monkey-patch and the SQL registry
-- [x] confirmed the range survives `pom_to_pyproject.py`'s toml round trip
-
-## 8. Committed
-- [x] `agent/spark-4.0-scala-2.13` pushed in GeoFunctions, spark-shp, FileGDB
-- [x] `agent/readme-1.15-scala-2.13` pushed in WebMercator (docs only)
-
-## Merged 2026-08-31
-- [x] mraad/WebMercator#6 — README: version 1.15, non-deprecated Scala sample, profile list
-- [x] mraad/spark-shp#8 — spark-4.0 profile
-- [x] mraad/FileGDB#12 — spark-4.0 profile
-- [x] mraad/FileGDB#13 — GPS/Elastic notebooks, absolute paths scrubbed
-- [x] mraad/GeoFunctions#12 — the Spark 4.0 port
-- [x] mraad/GeoFunctions#13 — QR cell-size benchmark
-
-GeoFunctions #12 and #13 were merged with `--admin`. The `main` ruleset "Protect main:
-owner-reviewed pull requests" requires a code-owner approval and GitHub does not let an
-author approve their own PR, so there was no path to merge them without the bypass.
-
-CodeRabbit caught four real defects across two rounds, all in prose rather than code, all
-fixed before merge:
-- `mvn -P scala-2.10 clean install` in the WebMercator README named a profile that is
-  commented out. Maven only warns and then builds the 2.12 default, so the command handed
-  back a `webmercator-1.15-2.12.jar` while claiming to be 2.10.
-- The GeoFunctions Spark 4.0 build command omitted `-DskipTests=false`, directly under the
-  claim that it passes the full suite, in a repo that skips tests by default.
-- "the wheel pins `pyspark==3.5.9`" was stale inside the very diff that changed it.
-- The three dependency-build commands used bare relative `cd`s, so only the first ever ran.
-
-## Released 2026-08-31 — nothing outstanding
-
-First published release for all four repositories. Maven Central was never an option:
-the `com.esri` group there holds only Esri's own artifacts and the namespace needs
-esri.com domain verification, and there is no GPG key or Sonatype credential here. So
-the artifacts ship as GitHub release assets, installed with `mvn install:install-file`.
-
-| Repo | Release | Assets |
-|---|---|---|
-| WebMercator | [v1.15](https://github.com/mraad/WebMercator/releases/tag/v1.15) | `webmercator-1.15-{2.12,2.13}.jar` |
-| spark-shp | [v0.32](https://github.com/mraad/spark-shp/releases/tag/v0.32) | `spark-shp-0.32-{3.5-2.12,4.0-2.13}.jar` |
-| FileGDB | [v0.68](https://github.com/mraad/FileGDB/releases/tag/v0.68) | `filegdb-0.68-{3.5-2.12,4.0-2.13}.jar` |
-| GeoFunctions | [v0.32](https://github.com/mraad/GeoFunctions/releases/tag/v0.32) | zip + `geofunctions-0.32.jar` + `geofunctions-0.32-2.13.jar` |
-
-- [x] **Publish the Scala 2.13 dependency artifacts.** Done, and the 2.12 ones too — they
-      had never been published either, which the README used to imply otherwise.
-- [x] **Decide whether releases ship a 2.13 artifact.** Yes. `gf.sh` still builds the 2.12
-      zip for ArcGIS Pro; the 2.13 shaded jar is attached to the release alongside it.
-
-Verified against the **published** assets, not local builds: the 2.13 jar on pyspark 4.0.0
-and the 2.12 jar on pyspark 3.5.9 both pass the smoke path (point construction, WKT round
-trip, codegen, an `*_explode` helper, the DataFrame monkey-patch, the SQL registry), and the
-2.12 jar on pyspark 4.0.0 fails with `NoClassDefFoundError: scala/collection/SeqOps` exactly
-as the release notes warn.
-
-## Automated 2026-08-31
-- [x] `gf.sh` builds both Scala lines and stages `release/` with the zip and both shaded
-      jars, then prints the `gh release create` line. `verify_jar` rejects the unshaded
-      classifier jar and a jar from the wrong Scala line, so the two ways of shipping the
-      wrong artifact both fail the build rather than the release.
-
-## Not doing
-- Raising the `spark-3.3`/`spark-3.4` profiles or testing them. Untouched and unverified
-  here; they were already unverified before.
-
-# SpatialBench Q3/Q4 + QR preparation — 2026-11-03
-
-Branch `perf/qr-prepared-q3-q4`. Spark 4.3 jar, SF1/SF10 (SF100 for the final table).
-
-Findings so far: Q4 broadcast `qr` equi-join 0.42 s (SF1) vs `join_qr` cogroup 2–44 s (shuffles
-1.4 GB of zones); cell size barely matters with broadcast. Spark floor = scans run one after the
-other; a fast WKB envelope reader would save ~0.02 s, so skip it.
-
-- [x] `join_qr(..., broadcast="lhs"|"rhs")`: equi-join on `qr`, broadcast the small side,
-      `qr_intersect` dedup, exact ST_* predicate. Python unit test + real-Spark parity vs processor.
-- [x] `qr_cells(geom, cell, dist)`: driver-side QR_LIST (Scala `QRListObj.cells`/`cellsWkt`) to
-      prune a QR-sorted Parquet table by row-group stats (`isin` + inFilterThreshold).
-- [x] `benchmarks/spatialbench/prepare.py`: trip sorted by pickup qr (+`t_pickup_qr`), zone clipped
-      into per-cell pieces (`QR_CLIP`, tiny dist) sorted by qr.
-- [x] Q3/Q4 in bench.py: as-is (both engines) and QR-prepared (both engines, same IN filter).
-- [x] Cell-size sweep on prepared layouts (Q1–Q4), SF10; final SF1/SF10/SF100 table.
-- [x] Docs: functions.md, README, benchmark README, CLAUDE.md (join_qr dispatch).
+## 3. GeoFunctions
+- [x] pom: spark-shp 0.33, filegdb 0.69; drop `readers.spark.compact`; drop the `spark-4.0` profile (4.3 is the only Spark 4 line)
+- [x] suite green on spark-3.5 and spark-4.3
+- [x] smoke: `shp` + `gdb` read through the shaded jar on PySpark 3.5.9 and 4.3.0 (gps.shp, Miami.gdb)
+- [x] README dependency table + CLAUDE.md (no more "untested on 4.3")
+- [ ] ship; release 0.35 (jar bundles the new filegdb)
