@@ -334,6 +334,15 @@ object GeoFunctions {
   def gdbPoint(c1: Column): Column =
     toColumn(GDBPoint(Seq(c1.expr)))
 
+  def gdbMultiPoint2(c1: Column): Column =
+    toColumn(GDBMultiPoint2(Seq(c1.expr)))
+
+  def gdbMultiPointM(c1: Column): Column =
+    toColumn(GDBMultiPointM(Seq(c1.expr)))
+
+  def gdbMultiPointZ(c1: Column): Column =
+    toColumn(GDBMultiPointZ(Seq(c1.expr)))
+
   def stArea(c1: Column): Column =
     toColumn(STArea(Seq(c1.expr)))
 

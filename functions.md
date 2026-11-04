@@ -948,6 +948,34 @@ Convert a GDB shape column to a polyline (version 2).
 
 **Returns:** Column with polyline geometry (alias: "geom")
 
+### gdb_multipoint2(shape)
+Convert the Shape struct of a GDB multipoint layer to a multipoint with x and y only. Accepts
+every layer type; Z and M are dropped.
+
+**Parameters:**
+- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
+
+**Returns:** Column with multipoint geometry (alias: "geom")
+
+### gdb_multipointM(shape)
+Convert a GDB multipoint Shape to a multipoint with M values. M layers (x, y, m) give M; ZM
+layers give Z and M; XY layers give 2D. On a Z-only layer it stores the third value as M; use
+`gdb_multipointZ` to keep Z.
+
+**Parameters:**
+- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
+
+**Returns:** Column with multipoint geometry (alias: "geom")
+
+### gdb_multipointZ(shape)
+Convert a GDB multipoint Shape to a multipoint with Z values. Z and ZM layers give Z (M
+dropped); XY layers give 2D. On an M-only layer it reads the measure as Z; use `gdb_multipointM`.
+
+**Parameters:**
+- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
+
+**Returns:** Column with multipoint geometry (alias: "geom")
+
 ### gdb_polylineM(shape)
 Convert a GDB shape column to a polyline with M values. M layers (x, y, m) give M; ZM layers
 give Z and M; XY layers give 2D. On a Z-only layer it stores the third value as M; use the matching Z function to keep Z.

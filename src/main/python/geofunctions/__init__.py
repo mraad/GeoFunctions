@@ -2143,6 +2143,62 @@ def st_dump_explode(
     return explode(st_dump(geom)).alias("geom")
 
 
+def gdb_multipoint2(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB multipoint Shape struct to a multipoint (x and y only).
+
+    Accepts xy, xyz, xym and xyzm layers; Z and M are dropped.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: MultiPoint geometry with alias "geom"
+    :rtype: Column
+    """
+    sc = _get_active_spark_context()
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbMultiPoint2(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_multipointM(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB multipoint Shape struct to a multipoint with M values.
+
+    M layers (x, y, m) give M; ZM layers give Z and M; XY layers give 2D. On a Z-only layer
+    this stores the third value as M - use gdb_multipointZ there.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: MultiPoint geometry with alias "geom"
+    :rtype: Column
+    """
+    sc = _get_active_spark_context()
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbMultiPointM(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_multipointZ(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB multipoint Shape struct to a multipoint with Z values.
+
+    Z and ZM layers give Z (M dropped); XY layers give 2D. On an M-only layer this reads the
+    measure as Z - use gdb_multipointM there.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: MultiPoint geometry with alias "geom"
+    :rtype: Column
+    """
+    sc = _get_active_spark_context()
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbMultiPointZ(_to_java_column(shape))
+    ).alias("geom")
+
+
 def gdb_polyline2(
         shape: Union[Column, str] = "Shape",
 ) -> Column:

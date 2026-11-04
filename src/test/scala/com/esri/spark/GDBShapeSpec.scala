@@ -1,7 +1,7 @@
 package com.esri.spark
 
 import com.esri.core.geometry.VertexDescription.Semantics
-import com.esri.core.geometry.{MultiPath, Point, Polygon, Polyline}
+import com.esri.core.geometry.{MultiPath, MultiPoint, Point, Polygon, Polyline}
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.functions.col
@@ -17,7 +17,7 @@ import org.scalatest.matchers.should.Matchers
  * kept its stored closing vertex as a zero-length segment.
  *
  * Shapes.gdb (src/test/resources, made by make_shapes_gdb.py with GDAL) holds a point, a
- * polyline and a polygon in each of the four layouts. The polygon has 3 rings of 5, 5 and 4
+ * multipoint, a polyline and a polygon in each of the four layouts. The polygon has 3 rings of 5, 5 and 4
  * stored vertices (closing vertex included); vertex k carries z = 100 + k and m = 1000 + k.
  * Run with: mvn -DskipTests=false -Dsuites=com.esri.spark.GDBShapeSpec test
  */
@@ -177,6 +177,37 @@ class GDBShapeSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
           if (m) p.getM shouldBe 1000.0
         }
       }
+  }
+
+  // mpoint_*: (1,2) (3,4) (5,6), point k with z = 100 + k and m = 1000 + k.
+  private def checkMulti(g: MultiPoint, z: Option[Double], m: Option[Double]): Unit = {
+    g.getPointCount shouldBe 3
+    g.hasAttribute(Semantics.Z) shouldBe z.isDefined
+    g.hasAttribute(Semantics.M) shouldBe m.isDefined
+    (0 until 3).foreach { k =>
+      val p = g.getPoint(k)
+      (p.getX, p.getY) shouldBe ((1.0 + 2 * k, 2.0 + 2 * k))
+      z.foreach(base => p.getZ shouldBe base + k)
+      m.foreach(base => p.getM shouldBe base + k)
+    }
+  }
+
+  "The gdb reader + GDB_MULTIPOINT*" should "decode every multipoint layer type GDAL writes" in {
+    def mp(layer: String, f: Column => Column) = read(layer, f).asInstanceOf[MultiPoint]
+    Seq("xy", "xyz", "xym", "xyzm").foreach(k => checkMulti(mp(s"mpoint_$k", GeoFunctions.gdbMultiPoint2), None, None))
+    checkMulti(mp("mpoint_xy", GeoFunctions.gdbMultiPointZ), None, None)
+    checkMulti(mp("mpoint_xyz", GeoFunctions.gdbMultiPointZ), Some(100), None)
+    checkMulti(mp("mpoint_xyzm", GeoFunctions.gdbMultiPointZ), Some(100), None)
+    checkMulti(mp("mpoint_xy", GeoFunctions.gdbMultiPointM), None, None)
+    checkMulti(mp("mpoint_xym", GeoFunctions.gdbMultiPointM), None, Some(1000))
+    checkMulti(mp("mpoint_xyzm", GeoFunctions.gdbMultiPointM), Some(100), Some(1000))
+  }
+
+  "GDB_MULTIPOINT2" should "keep a point that repeats the first one" in {
+    // No ring closing for multipoints: a repeated first point is a real point.
+    val row = new GenericInternalRow(Array[Any](null, null, null, null,
+      ArrayData.toArrayData(Array(3)), ArrayData.toArrayData(Array(1.0, 2.0, 3.0, 4.0, 1.0, 2.0))))
+    GDBMultiPoint2Obj.eval(row).geom.asInstanceOf[MultiPoint].getPointCount shouldBe 3
   }
 
   "GDB_POINT" should "give an empty point for the reader's NaN shape" in {

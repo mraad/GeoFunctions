@@ -2,9 +2,11 @@
 
 usage: python make_shapes_gdb.py   (writes Shapes.gdb next to this script; needs ogr2ogr on PATH)
 
-Twelve layers, one feature each: point_*, line_* and poly_* in the xy, xyz, xym and xyzm layouts.
+Sixteen layers, one feature each: point_*, mpoint_*, line_* and poly_* in the xy, xyz, xym and
+xyzm layouts.
 Vertex i carries z = 100 + i and m = 1000 + i, so a value read from the wrong slot can never pass.
 - point: the single vertex (5, 7).
+- mpoint: three points (1, 2), (3, 4), (5, 6).
 - line: two paths; the second is closed in x/y (its last vertex meets its first) and must stay so.
 - poly: an outer ring (CW) with a hole (CCW) plus a second part (CW); each ring's closing vertex
   repeats its first, as a polygon ring must.
@@ -15,6 +17,7 @@ import subprocess
 import tempfile
 
 RINGS = [[(0, 0), (0, 10), (10, 10), (10, 0)], [(2, 2), (4, 2), (4, 4), (2, 4)], [(20, 0), (20, 5), (25, 5)]]
+MPOINTS = [(1, 2), (3, 4), (5, 6)]
 PATHS = [[(0, 0), (5, 5), (10, 0)], [(20, 0), (25, 5), (30, 0), (20, 0)]]
 KINDS = ("xy", "xyz", "xym", "xyzm")
 SUFFIX = {"xy": "", "xyz": "Z", "xym": "M", "xyzm": "ZM"}
@@ -31,6 +34,11 @@ def tag(kind: str) -> str:
 
 def point_wkt(kind: str) -> str:
     return f"POINT{tag(kind)} ({coord(kind, 5, 7, 0)})"
+
+
+def mpoint_wkt(kind: str) -> str:
+    pts = ", ".join(f"({coord(kind, x, y, i)})" for i, (x, y) in enumerate(MPOINTS))
+    return f"MULTIPOINT{tag(kind)} ({pts})"
 
 
 def line_wkt(kind: str) -> str:
@@ -57,7 +65,8 @@ def poly_wkt(kind: str) -> str:
 
 
 LAYERS = [(f"{name}_{kind}", f"{ogr}{SUFFIX[kind]}", make(kind))
-          for name, ogr, make in (("point", "POINT", point_wkt), ("line", "MULTILINESTRING", line_wkt),
+          for name, ogr, make in (("point", "POINT", point_wkt), ("mpoint", "MULTIPOINT", mpoint_wkt),
+                                  ("line", "MULTILINESTRING", line_wkt),
                                   ("poly", "MULTIPOLYGON", poly_wkt))
           for kind in KINDS]
 
