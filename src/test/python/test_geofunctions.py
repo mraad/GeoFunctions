@@ -112,6 +112,23 @@ class GeoFunctionsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cell_mul"):
             gf.pairwise_dissolve(frame, cell_mul=1.0)
 
+    def test_arrow_table_turns_large_string_into_string(self):
+        import pandas as pd
+        import pyarrow as pa
+        # pandas 3 makes large_string by itself; ArcGIS drops those columns with no error.
+        schema = pa.schema([pa.field("s", pa.large_string()), pa.field("SHAPE", pa.binary(), metadata={"k": "v"})])
+        tab = gf._arrow_table(pd.DataFrame({"s": ["abc"], "SHAPE": [b"x"]}), schema)
+        self.assertEqual(pa.string(), tab.schema.field("s").type)
+        self.assertEqual({b"k": b"v"}, tab.schema.field("SHAPE").metadata)
+        self.assertEqual("abc", tab.column("s")[0].as_py())
+
+    def test_wkb_families_group_single_and_multi_part(self):
+        def wkb(code, order=1):
+            return bytes([order]) + code.to_bytes(4, "little" if order == 1 else "big") + b"rest"
+        self.assertEqual({"polygon"}, gf._wkb_families([wkb(3), wkb(6), wkb(1006), bytearray(wkb(3, 0))]))
+        self.assertEqual({"point", "polyline"}, gf._wkb_families([wkb(1), wkb(5)]))
+        self.assertEqual({"multipoint"}, gf._wkb_families([wkb(3004)]))
+
 
 if __name__ == "__main__":
     unittest.main()

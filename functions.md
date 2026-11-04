@@ -1214,6 +1214,8 @@ missing package surfaces at call time rather than at import time.
 the `SHAPE` column before writing, which is what lets ArcGIS read the WKB back as geometry.
 
 ### to_feature_table(df, feature_table_name, workspace)
+Raises `ValueError` if the DataFrame has no rows.
+
 Converts a Spark DataFrame to an ArcGIS feature table.
 
 **Parameters:**
@@ -1224,7 +1226,12 @@ Converts a Spark DataFrame to an ArcGIS feature table.
 **Returns:** None
 
 ### to_feature_class(df, feature_class_name, geom, sp_ref, workspace)
-Converts a Spark DataFrame to an ArcGIS feature class.
+Converts a Spark DataFrame to an ArcGIS feature class. Z and M are kept.
+
+Raises `ValueError` if the DataFrame has no rows, has a null geometry, or mixes geometry types
+(a feature class holds one type: point, multipoint, polyline or polygon). Single-part and
+multi-part geometries of one type can mix. An existing feature class of that name is unchanged
+when this happens.
 
 **Parameters:**
 - `df` (DataFrame): Spark DataFrame to convert
@@ -1236,7 +1243,9 @@ Converts a Spark DataFrame to an ArcGIS feature class.
 **Returns:** None
 
 ### to_spark(feature_class_name, fields, where_clause)
-Converts an ArcGIS feature class to a Spark DataFrame.
+Converts an ArcGIS feature class to a Spark DataFrame. The geometry is WKB and keeps Z and M. An
+empty feature class gives an empty DataFrame. The geometry column keeps its name in the feature
+class, for example `Shape`; Spark column names ignore case, so `SHAPE` also finds it.
 
 **Parameters:**
 - `feature_class_name` (str): Name or path of the feature class

@@ -2669,6 +2669,29 @@ def _join_qr_broadcast(lhs, rhs, cell, qr, oper, wkid, lhs_geom, rhs_geom, side)
     )
 
 
+def _wkb_families(values) -> set:
+    """The ArcGIS geometry family of each WKB value: point, multipoint, polyline or polygon."""
+    families = {1: "point", 4: "multipoint", 2: "polyline", 5: "polyline", 3: "polygon", 6: "polygon"}
+    found = set()
+    for header in {bytes(value[:5]) for value in values}:
+        code = int.from_bytes(header[1:], "little" if header[0] == 1 else "big")
+        found.add(families.get(code % 1000, f"WKB type {code}"))
+    return found
+
+
+def _arrow_table(pdf, schema=None):
+    """A pandas frame as an Arrow table that ArcGIS reads without losing columns.
+
+    pandas 3 (ArcGIS Pro 3.7) maps strings to large_string, and CopyRows and CopyFeatures drop
+    those columns with no error.
+    """
+    import pyarrow as pa
+
+    tab = pa.Table.from_pandas(pdf, schema=schema)
+    fields = [f.with_type(pa.string()) if pa.types.is_large_string(f.type) else f for f in tab.schema]
+    return tab.cast(pa.schema(fields, metadata=tab.schema.metadata))
+
+
 def to_feature_table(
         df: DataFrame,
         feature_table_name: str,
@@ -2693,13 +2716,14 @@ def to_feature_table(
         to_feature_table(df, "my_table", workspace="/path/to/my.gdb")
     """
     import arcpy
-    import pyarrow as pa
 
     if workspace == "scratch":
         workspace = arcpy.env.scratchGDB
 
     pdf = df.toPandas()
-    tab = pa.Table.from_pandas(pdf)
+    if pdf.empty:
+        raise ValueError(f"cannot write {feature_table_name!r}: the dataframe has no rows")
+    tab = _arrow_table(pdf)
     fc = os.path.join(workspace, feature_table_name)
     if arcpy.Exists(fc):
         arcpy.management.Delete(fc)
@@ -2745,6 +2769,15 @@ def to_feature_class(
     if geom not in df.columns:
         raise ValueError(f"missing geometry column {geom!r}")
     pdf = df.withColumnRenamed(geom, "SHAPE").toPandas()
+    # Checked before the existing feature class is deleted below.
+    if pdf.empty:
+        raise ValueError(f"cannot write {feature_class_name!r}: the dataframe has no rows")
+    if pdf["SHAPE"].isna().any():
+        raise ValueError(f"cannot write {feature_class_name!r}: column {geom!r} has null geometries")
+    families = _wkb_families(pdf["SHAPE"])
+    if len(families) > 1:
+        # A feature class holds one type; ArcGIS would keep the first and drop the other rows.
+        raise ValueError(f"cannot write {feature_class_name!r}: {geom!r} mixes {sorted(families)}")
     if sp_ref is None or (isinstance(sp_ref, int) and sp_ref <= 0):
         project = arcpy.mp.ArcGISProject("CURRENT")
         if project.activeMap is None:
@@ -2760,7 +2793,7 @@ def to_feature_class(
     if shape_index < 0:
         raise ValueError("failed to create the SHAPE column for ArcGIS export")
     schema = schema.set(shape_index, pa_shape)
-    tab = pa.Table.from_pandas(pdf, schema=schema)
+    tab = _arrow_table(pdf, schema)
     fc = os.path.join(workspace, feature_class_name)
     if arcpy.Exists(fc):
         arcpy.management.Delete(fc)
@@ -2797,6 +2830,7 @@ def to_spark(
         df = to_spark("my_feature_class", where_clause="Population > 100000")
     """
     import arcpy
+    from pyspark.sql.pandas.types import from_arrow_schema
 
     if fields is None:
         fields = ["OBJECTID", "SHAPE"]
@@ -2809,12 +2843,22 @@ def to_spark(
     if where_clause is None:
         where_clause = ""
 
-    tab = arcpy.da.TableToArrowTable(feature_class_name, fields, where_clause, "WKB")
-    return (SparkSession
-            .builder
-            .getOrCreate()
-            .createDataFrame(tab.to_pandas())
-            )
+    # arcpy's WKB is always 2D; its WKT keeps Z and M.
+    described = arcpy.Describe(feature_class_name)
+    has_zm = getattr(described, "hasZ", False) or getattr(described, "hasM", False)
+    tab = arcpy.da.TableToArrowTable(feature_class_name, fields, where_clause, "WKT" if has_zm else "WKB")
+    spark = SparkSession.builder.getOrCreate()
+    if tab.num_rows == 0:
+        # Spark cannot infer a schema from no rows. An empty RDD has no partitions, so no Python
+        # worker starts (they crash on Spark 4.1.1, Windows and Python 3.12+).
+        spark_df = spark.createDataFrame(spark.sparkContext.emptyRDD(), from_arrow_schema(tab.schema))
+    else:
+        spark_df = spark.createDataFrame(tab.to_pandas())
+    if has_zm:
+        for field in tab.schema:
+            if (field.metadata or {}).get(b"esri.encoding") == b"WKT":
+                spark_df = spark_df.withColumn(field.name, st_fromtext(col(field.name)).alias(field.name))
+    return spark_df
 
 
 def pairwise_dissolve(
