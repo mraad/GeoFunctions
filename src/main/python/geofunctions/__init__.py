@@ -1999,7 +1999,7 @@ def st_exterior_ring(
 
     :param geom: A polygon geometry or column name
     :type geom: Union[Column, str]
-    :return: The exterior ring as a polyline with alias "geom"
+    :return: A polygon of every part's exterior ring (holes dropped), with alias "geom"
     :rtype: Column
 
     Example::
@@ -2143,22 +2143,6 @@ def st_dump_explode(
     return explode(st_dump(geom)).alias("geom")
 
 
-def gdb_polyline(
-        shape: Union[Column, str] = "Shape",
-) -> Column:
-    """Convert a GDB shape column to a polyline.
-
-    :param shape: GDB shape column or column name. Default is "Shape"
-    :type shape: Union[Column, str]
-    :return: Polyline geometry with alias "geom"
-    :rtype: Column
-    """
-    sc = _get_active_spark_context()
-    return Column(
-        sc._jvm.com.esri.spark.GeoFunctions.gdbPolyline2(_to_java_column(shape))
-    ).alias("geom")
-
-
 def gdb_polyline2(
         shape: Union[Column, str] = "Shape",
 ) -> Column:
@@ -2173,6 +2157,10 @@ def gdb_polyline2(
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolyline2(_to_java_column(shape))
     ).alias("geom")
+
+
+gdb_polyline = gdb_polyline2  # older name, same function
+
 
 def gdb_polylineM(
         shape: Union[Column, str] = "Shape",
@@ -2230,22 +2218,6 @@ def gdb_point(
     ).alias("geom")
 
 
-def gdb_polygon(
-        shape: Union[Column, str] = "Shape",
-) -> Column:
-    """Convert a GDB shape column to a polygon.
-
-    :param shape: GDB shape column or column name. Default is "Shape"
-    :type shape: Union[Column, str]
-    :return: Polygon geometry with alias "geom"
-    :rtype: Column
-    """
-    sc = _get_active_spark_context()
-    return Column(
-        sc._jvm.com.esri.spark.GeoFunctions.gdbPolygon2(_to_java_column(shape))
-    ).alias("geom")
-
-
 def gdb_polygon2(
         shape: Union[Column, str] = "Shape",
 ) -> Column:
@@ -2260,6 +2232,9 @@ def gdb_polygon2(
     return Column(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolygon2(_to_java_column(shape))
     ).alias("geom")
+
+
+gdb_polygon = gdb_polygon2  # older name, same function
 
 
 def gdb_polygonM(
@@ -2861,13 +2836,15 @@ def pairwise_dissolve(
             .agg(collect_list("geom").alias("col"))
             # Union each collection.
             .select("qr", st_union_col("col", wkid).alias("geom"))
-            # Multipart to single part.
+            # Multipart to single part; each part keeps its holes.
             .withColumn("geom", st_dump_explode("geom"))
-            # Get only the exterior rings.
-            .withColumn("geom", st_exterior_ring("geom"))
-            # Set a flag indicating if the ring (the dissolved polygon) is fully in a QR.
-            .withColumn("in_qr", qr_contains_geom("qr", cell_, "geom"))
-            # .checkpoint(eager=True)
+            # A part is done when its envelope lies in one cell, its home cell. Only that cell
+            # emits it: the dist margin also clips it into neighbouring cells, and those copies
+            # would come back every round. Parts that cross a cell edge go to the next round.
+            .withColumn("ext", st_extent("geom"))
+            .withColumn("home", qr_fromxy("ext.xmin", "ext.ymin", cell_))
+            .withColumn("done", col("home") == qr_fromxy("ext.xmax", "ext.ymax", cell_))
+            .filter(~col("done") | (col("home") == col("qr")))
             .localCheckpoint()
         )
 
@@ -2881,12 +2858,11 @@ def pairwise_dissolve(
     for _ in range(0, breaker):
         # Dissolved the dataframe by cell.
         res = _dissolve(buf, cell)
-        # Get all the dissolved polygons that are not in a QR.
-        buf = res.filter(col("in_qr") == False).localCheckpoint()  # .checkpoint(eager=True)
-        # Get all the dissolved polygons that are fully (by envelope) in a QR.
-        res = res.filter(col("in_qr") == True).localCheckpoint()  # .checkpoint(eager=True)
-        # If not first time through, keep union all the "inside qr" polygons.
-        dfu = res if dfu is None else dfu.unionAll(res).localCheckpoint()  # .checkpoint(eager=True)
+        # Parts that cross a cell edge: dissolve again with bigger cells.
+        buf = res.filter(~col("done")).select("geom").localCheckpoint()
+        # Parts that are done.
+        res = res.filter(col("done")).select("geom").localCheckpoint()
+        dfu = res if dfu is None else dfu.unionAll(res).localCheckpoint()
         # Increment the cell size.
         cell *= cell_mul
         # Check if there are no more polygons to dissolve.
@@ -2899,7 +2875,7 @@ def pairwise_dissolve(
 
     if rename:
         dfu = dfu.withColumnRenamed("geom", geom_name)
-    return dfu.drop("qr", "in_qr").localCheckpoint()  # .checkpoint(eager=True)
+    return dfu.localCheckpoint()
 
 
 DataFrame.pairwise_dissolve = pairwise_dissolve
