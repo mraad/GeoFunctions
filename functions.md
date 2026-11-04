@@ -947,6 +947,33 @@ Convert a GDB shape column to a polyline (version 2).
 
 **Returns:** Column with polyline geometry (alias: "geom")
 
+### gdb_polylineM(shape)
+Convert a GDB shape column to a polyline with M values. M layers (x, y, m) give M; ZM layers
+give Z and M; XY layers give 2D.
+
+**Parameters:**
+- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
+
+**Returns:** Column with polyline M geometry (alias: "geom")
+
+### gdb_polylineZ(shape)
+Convert a GDB shape column to a polyline with Z values. Z and ZM layers give Z (M dropped); XY
+layers give 2D. On an M-only layer it reads the measure as Z: use `gdb_polylineM` there.
+
+**Parameters:**
+- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
+
+**Returns:** Column with polyline Z geometry (alias: "geom")
+
+### gdb_point(shape)
+Convert the Shape struct of a GDB point layer to a point. The struct is read by field name, so
+x/y, x/y/z, x/y/m and x/y/z/m layers keep their Z and M. A NaN x or y gives an empty point.
+
+**Parameters:**
+- `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
+
+**Returns:** Column with point geometry (alias: "geom")
+
 ### gdb_polygon(shape)
 Convert a GDB shape column to a polygon.
 
@@ -964,7 +991,8 @@ Convert a GDB shape column to a polygon (version 2).
 **Returns:** Column with polygon geometry (alias: "geom")
 
 ### gdb_polygonM(shape)
-Convert a GDB shape column to a polygon with M values.
+Convert a GDB shape column to a polygon with M values. On an M layer (x, y, m per vertex) the
+result has M; on a ZM layer (x, y, z, m) it has Z and M; on an XY layer it is 2D.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
@@ -972,7 +1000,12 @@ Convert a GDB shape column to a polygon with M values.
 **Returns:** Column with polygon M geometry (alias: "geom")
 
 ### gdb_polygonZ(shape)
-Convert a GDB shape column to a polygon with Z values.
+Convert a GDB shape column to a polygon with Z values. On a Z or ZM layer the result has Z (M is
+dropped); on an XY layer it is 2D. Do not use it on an M-only layer: the reader gives three
+values per vertex there too, and this function reads the measure as Z. Use `gdb_polygonM`.
+
+All `gdb_polygon*`/`gdb_polyline2` functions accept every layer type and keep x and y from
+it. Polygons drop each ring's stored closing vertex, because Esri rings close implicitly.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")

@@ -1,6 +1,6 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{Point, Polygon}
+import com.esri.core.geometry.Polygon
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
@@ -9,36 +9,8 @@ import org.apache.spark.sql.types._
 
 
 object GDBPolygonMObj extends Serializable {
-  final def eval(row: InternalRow): Array[Byte] = {
-    val mp = new Polygon()
-    val parts = row.getArray(4).toIntArray()
-    val coords = row.getArray(5).toDoubleArray()
-
-    var x = 0
-    var y = 1
-    var z = 2
-    var m = 3
-    parts.foreach(nPoint => {
-      var n = 0
-      while (n < nPoint) {
-        // Point(x, y, z) is the only 3-arg ctor - it sets Z. The measure has to go through
-        // setM, or it lands in Z and the real Z is dropped (which is what this used to do).
-        val point = new Point(coords(x), coords(y), coords(z))
-        point.setM(coords(m))
-        n match {
-          case 0 => mp.startPath(point)
-          case _ => mp.lineTo(point)
-        }
-        x += 4
-        y += 4
-        z += 4
-        m += 4
-        n += 1
-      }
-    })
-
-    mp.bytes
-  }
+  final def eval(row: InternalRow): Array[Byte] =
+    GDBShapeObj.fill(new Polygon(), row, wantZ = true, wantM = true, thirdIsM = true)
 }
 
 final case class GDBPolygonM(children: Seq[Expression])

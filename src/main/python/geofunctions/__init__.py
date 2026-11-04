@@ -2174,6 +2174,61 @@ def gdb_polyline2(
         sc._jvm.com.esri.spark.GeoFunctions.gdbPolyline2(_to_java_column(shape))
     ).alias("geom")
 
+def gdb_polylineM(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB shape column to a polyline with M values.
+
+    M layers (x, y, m) give M; ZM layers give Z and M; XY layers give 2D.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polyline M geometry with alias "geom"
+    :rtype: Column
+    """
+    sc = _get_active_spark_context()
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolylineM(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_polylineZ(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB shape column to a polyline with Z values.
+
+    Z and ZM layers give Z (M dropped); XY layers give 2D. On an M-only layer this reads the
+    measure as Z - use gdb_polylineM there.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Polyline Z geometry with alias "geom"
+    :rtype: Column
+    """
+    sc = _get_active_spark_context()
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPolylineZ(_to_java_column(shape))
+    ).alias("geom")
+
+
+def gdb_point(
+        shape: Union[Column, str] = "Shape",
+) -> Column:
+    """Convert a GDB point Shape struct to a point.
+
+    Reads the struct by field name, so x/y, x/y/z, x/y/m and x/y/z/m layers all keep their
+    Z and M. A NaN x or y (an empty shape) gives an empty point.
+
+    :param shape: GDB shape column or column name. Default is "Shape"
+    :type shape: Union[Column, str]
+    :return: Point geometry with alias "geom"
+    :rtype: Column
+    """
+    sc = _get_active_spark_context()
+    return Column(
+        sc._jvm.com.esri.spark.GeoFunctions.gdbPoint(_to_java_column(shape))
+    ).alias("geom")
+
 
 def gdb_polygon(
         shape: Union[Column, str] = "Shape",
@@ -2212,6 +2267,8 @@ def gdb_polygonM(
 ) -> Column:
     """Convert a GDB shape column to a polygon with M values.
 
+    M layers (x, y, m) give M; ZM layers give Z and M; XY layers give 2D.
+
     :param shape: GDB shape column or column name. Default is "Shape"
     :type shape: Union[Column, str]
     :return: Polygon M geometry with alias "geom"
@@ -2227,6 +2284,9 @@ def gdb_polygonZ(
         shape: Union[Column, str] = "Shape",
 ) -> Column:
     """Convert a GDB shape column to a polygon with Z values.
+
+    Z and ZM layers give Z (M dropped); XY layers give 2D. On an M-only layer this reads the
+    measure as Z - use gdb_polygonM there.
 
     :param shape: GDB shape column or column name. Default is "Shape"
     :type shape: Union[Column, str]

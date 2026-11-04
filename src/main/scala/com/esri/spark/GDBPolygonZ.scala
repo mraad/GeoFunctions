@@ -1,6 +1,6 @@
 package com.esri.spark
 
-import com.esri.core.geometry.{Point, Polygon}
+import com.esri.core.geometry.Polygon
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
@@ -9,30 +9,8 @@ import org.apache.spark.sql.types._
 
 
 object GDBPolygonZObj extends Serializable {
-  final def eval(row: InternalRow): Array[Byte] = {
-    val mp = new Polygon()
-    val parts = row.getArray(4).toIntArray()
-    val coords = row.getArray(5).toDoubleArray()
-
-    var x = 0
-    var y = 1
-    var z = 2
-    parts.foreach(nPoint => {
-      var n = 0
-      while (n < nPoint) {
-        n match {
-          case 0 => mp.startPath(new Point(coords(x), coords(y), coords(z)))
-          case _ => mp.lineTo(new Point(coords(x), coords(y), coords(z)))
-        }
-        x += 3
-        y += 3
-        z += 3
-        n += 1
-      }
-    })
-
-    mp.bytes
-  }
+  final def eval(row: InternalRow): Array[Byte] =
+    GDBShapeObj.fill(new Polygon(), row, wantZ = true, wantM = false, thirdIsM = false)
 }
 
 final case class GDBPolygonZ(children: Seq[Expression])
