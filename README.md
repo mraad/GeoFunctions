@@ -3,12 +3,17 @@
 This is a small collection of PySpark functions useful for working with geospatial data using the [Esri Geometry API for Java](https://github.com/Esri/geometry-api-java.git).
 It is typically used within an ArcGIS Pro conda environment, and the spark engine is exposed using the [Spark Esri](https://github.com/mraad/spark-esri) package.
 
-NOTE: This works in Pro up to version 3.5. This does NOT work in Pro 3.6 (yet).
+NOTE: Use the jar that matches your ArcGIS Pro. The release zip carries both.
 
-NOTE: This targets **Spark 3.5.9** and Scala 2.12. Java 11 is the build baseline;
+| ArcGIS Pro | Spark in Pro | Jar | Status |
+|---|---|---|---|
+| 3.5 and earlier | 3.5 | `geofunctions-<ver>.jar` (Scala 2.12) | Supported |
+| 3.6 | | | Does not work (not retested) |
+| 3.7 | 4.1 | `geofunctions-<ver>-2.13.jar` (Scala 2.13) | Tested on 3.7.3; see [ArcGIS Pro 3.7](#arcgis-pro-37) |
+
+NOTE: The default build targets **Spark 3.5.9** and Scala 2.12. Java 11 is the build baseline;
 Java 17 is also supported and smoke-tested. A **Spark 4.3.0 / Scala 2.13 / Java 17** build
-(the latest Spark) exists behind `-P spark-4.3`; see [Spark 4](#spark-4). The ArcGIS Pro bundle
-stays on 3.5.9, because Pro 3.5 ships Spark 3.5.
+(the latest Spark) exists behind `-P spark-4.3`; see [Spark 4](#spark-4).
 
 ### Core Geometry Dependency
 
@@ -26,6 +31,27 @@ mvn install
 
 Keep the source checkout and the coordinate in `pom.xml` aligned when updating this
 dependency.
+
+### ArcGIS Pro 3.7
+
+Pro 3.7.3 ships Spark 4.1.1, Scala 2.13, Java 17 and Python 3.13. Use
+`geofunctions-<ver>-2.13.jar`. The Scala 2.12 jar cannot load on Spark 4. The 2.13 jar is built for
+Spark 4.3 and was tested on Spark 4.1.1 and 4.1.3 through `spark_esri`: basic functions, joins, the
+`gdb` reader on every layer type and the `shp` reader. The tests ran as Python scripts in the conda
+environment, not inside the Pro application. H3, the arcpy bridge and the notebooks are not tested
+on 3.7.
+
+Install PySpark 4.1.3 in the environment. Python workers crash on Spark 4.1.1 on Windows with
+Python 3.13 ([SPARK-53759](https://issues.apache.org/jira/browse/SPARK-53759), Esri KB 000039267),
+so `createDataFrame` from a Python list, `rdd.map()`, `@udf` and `@pandas_udf` fail with
+`Python worker exited unexpectedly`. Spark SQL and the GeoFunctions functions do not need a worker.
+
+```shell
+pip install pyspark==4.1.3
+set SPARK_HOME=%CONDA_PREFIX%\Lib\site-packages\pyspark
+```
+
+Restart the notebook kernel after you set `SPARK_HOME`.
 
 ### Create New Conda Environment
 
@@ -106,8 +132,9 @@ default, so ask for them explicitly to run the suite:
 mvn -P spark-4.3 -DskipTests=false clean package
 ```
 
-`./gf.sh` ships this build as `geofunctions-<ver>-2.13.jar`. Use it against standalone Spark
-4.3 hosts and clusters. ArcGIS Pro still needs the default 3.5.9 jar. Spark 4.3 is the only
+`./gf.sh` ships this build as `geofunctions-<ver>-2.13.jar`, also inside the release zip. Use it
+against standalone Spark 4.3 hosts and clusters, and in ArcGIS Pro 3.7. ArcGIS Pro 3.5 needs the
+default 3.5.9 jar. Spark 4.3 is the only
 Spark 4 line; the `spark-4.0` profile is gone.
 
 The three `com.esri` dependencies have **never been published to Maven Central** — the
@@ -139,9 +166,9 @@ Building them from source works too:
 (cd FileGDB     && mvn -P spark-4.3 clean install)
 ```
 
-On SpatialBench Q1/Q2, Spark 4.3 is 0–19% faster than 3.5.9 for the same library code. At
+On [SpatialBench](https://sedona.apache.org/spatialbench/queries/) Q1/Q2, Spark 4.3 is 0–19% faster than 3.5.9 for the same library code. At
 600M trips it matches DuckDB on one machine (see
-[`benchmarks/spatialbench`](benchmarks/spatialbench/README.md)).
+[`benchmarks/spatialbench`](benchmarks/spatialbench/README.md), which covers all 12 queries).
 
 `esri-geometry-github` has to be named explicitly: Maven deactivates every `activeByDefault`
 profile the moment `-P` selects one, and that is the profile supplying the geometry API

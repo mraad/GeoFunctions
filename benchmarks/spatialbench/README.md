@@ -1,12 +1,37 @@
-# SpatialBench Q1–Q10: geofunctions on Spark vs DuckDB
+# SpatialBench Q1–Q12: geofunctions on Spark vs DuckDB
 
 **Report:** [`index.html`](index.html) is the full report, with figures (open it in a browser). It is
 built from [`results/sf1-sf10.jsonl`](results/sf1-sf10.jsonl) by `make_report.py`. This README keeps
 the run notes and the history of each measurement.
 
-[SpatialBench](https://sedona.apache.org/spatialbench/queries/) Q1–Q10, run on the same
-Parquet files with geofunctions on Apache Spark and with DuckDB spatial. `bench.py` runs one
-engine per process: one warm-up run, then N timed runs, and it reports the median.
+The queries come from the Apache Sedona page [SpatialBench Queries (Geometry)](https://sedona.apache.org/spatialbench/queries/), which
+defines the 12 queries and their SQL over a synthetic transportation dataset (tables `building`,
+`customer`, `driver`, `trip`, `vehicle`, `zone`). That page is the specification. This benchmark
+runs Q1–Q12 on the same Parquet files with geofunctions on Apache Spark and with DuckDB spatial.
+The data is published at SF0.1, SF1, SF10 and SF100; the current results use SF1 and SF10.
+`bench.py` runs one engine per process: one warm-up run, then N timed runs, and it reports the
+median.
+
+| Query | Title in the specification | Specification uses | geofunctions uses |
+|---|---|---|---|
+| Q1 | Find trips starting within 50km of Sedona city center, ordered by distance | `ST_DWithin`, `ST_Distance`, `ST_X`, `ST_Y` | `ST_DWITHIN`, `ST_DISTANCE`, `ST_X`, `ST_Y` |
+| Q2 | Count trips starting within Coconino County (Arizona) zone | `ST_Intersects` | `ST_INTERSECTS` |
+| Q3 | Monthly trip statistics for a buffered box around the Sedona city center | `ST_DWithin` | `ST_DWITHIN` |
+| Q4 | Zone distribution of top 1000 trips by tip amount | `ST_Within` | QR join: `QR_ENVP`, `QR_INTERSECT`, `ST_WITHIN` |
+| Q5 | Monthly travel patterns for repeat customers (convex hull of dropoff locations) | `ST_Collect_Agg`, `ST_ConvexHull`, `ST_Area` | `collect_list`, `ST_MULTIPOINT`, `ST_CONVEXHULL`, `ST_AREA` |
+| Q6 | Zone statistics for trips within a 50km radius of the Sedona city center | `ST_Intersects`, `ST_Within` | QR join: `QR_LIST`, `QR_FROMGEOM`, `ST_INTERSECTS`, `ST_WITHIN` |
+| Q7 | Detect potential route detours by comparing reported vs. geometric distances | `ST_MakeLine`, `ST_Length` | `ST_DISTANCE` |
+| Q8 | Count nearby pickups for each building within a 500m radius | `ST_DWithin` | QR join: `QR_LIST`, `QR_FROMGEOM`, `ST_DWITHIN` |
+| Q9 | Building Conflation (duplicate/overlap detection via IoU) | `ST_Intersects`, `ST_Intersection`, `ST_Area` | QR self-join: `QR_ENVP`, `QR_INTERSECT`, `ST_INTERSECTS`, `ST_INTERSECTION`, `ST_AREA` |
+| Q10 | Zone statistics for trips starting within each zone | `ST_Within` | QR join: `QR_ENVP`, `QR_FROMGEOM`, `ST_WITHIN_MASK` |
+| Q11 | Count trips that cross between different zones | `ST_Within` | QR join: `QR_ENVP`, `QR_FROMGEOM`, `ST_WITHIN_MASK` |
+| Q12 | Rank trip pickups by average distance to their five nearest buildings (KNN join) | `ST_KNN`, `ST_Distance` | `knn_join` |
+
+The specification also wraps each stored geometry in `ST_GeomFromWKB`. geofunctions does not need
+it, because WKB is already its geometry type. Where the table differs, the plan is rewritten for
+Spark and must return the same result; `bench.py` holds the exact SQL for both engines.
+
+How each query runs here:
 
 - **Q1**: trips whose pickup is within 0.45° of Sedona, the 100 nearest. Uses `ST_DWITHIN`,
   `ST_DISTANCE`, `ST_X`, `ST_Y`.
@@ -28,11 +53,19 @@ engine per process: one warm-up run, then N timed runs, and it reports the media
 - **Q8**: pickups within 0.0045° (~500 m) of each building, top 100. A QR distance join: each
   building is listed in every 0.05° cell its envelope grown by 0.0045 touches (`QR_LIST` with
   `dist`), each pickup in its one cell, so every pair within range meets exactly once.
-- **scan**: `count(*) WHERE length(t_pickuploc) > 0`. This is the engine's cost to read the
-  geometry column with no spatial work. It is the floor for both queries.
-
-The geofunctions SQL is the SpatialBench SQL without `ST_GeomFromWKB`, because geofunctions
-already uses WKB as its geometry type.
+- **Q9**: the 100 building pairs with the highest intersection over union. A QR self-join: both
+  sides exploded into 0.05° cells (`QR_ENVP`), `QR_INTERSECT` to keep each pair once, then
+  `ST_INTERSECTS` and `ST_INTERSECTION`.
+- **Q10**: trip count and averages per zone, top 100 by duration. Candidate (zone, pickup) pairs
+  come from broadcast zone envelopes. One `ST_WITHIN_MASK` call per zone then tests them, so each
+  boundary is copied and parsed once.
+- **Q11**: count of (trip, pickup zone, dropoff zone) combinations where the two zones differ. Zones
+  overlap (country, state, county), so one trip can count many times. The Q10 plan, on both ends of
+  each trip.
+- **Q12**: trips ranked by the average distance to their 5 nearest buildings, top 100. `knn_join`
+  broadcasts the buildings into an R-tree per task and returns exact distances.
+- **scan**: `count(*) WHERE length(t_pickuploc) > 0`, not part of the specification. This is the
+  engine's cost to read the geometry column with no spatial work. It is the floor for every query.
 
 ## Reproduce
 
