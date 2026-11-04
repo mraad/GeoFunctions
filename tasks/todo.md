@@ -11,7 +11,7 @@ Repos: `/Volumes/LaCie/GWorkspace/{spark-shp,FileGDB}`.
 - [x] `mvn install` 0.33-3.5-2.12, 0.33-4.3-2.13
 - [x] ship: PR, CodeRabbit, merge; release v0.33 with the 3.5 and 4.3 jars
 
-## 2. FileGDB 0.69 (unreleased)
+## 2. FileGDB 0.69
 - [x] replace `spark-4.0`/`4.1`/`4.2` with `spark-4.3`
 - [x] tests green on spark-3.5 and spark-4.3; real-GDB smoke (Miami, NorthSea, World) on 4.3
 - [x] README build/jar table
