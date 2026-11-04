@@ -1,7 +1,7 @@
 # Run the ArcGIS Pro tests on a machine with Pro and a spark_esri conda env. Nothing is installed:
 # the release zip is unpacked into a temp folder, and that folder is removed at the end.
 #
-#   powershell -ExecutionPolicy Bypass -File <repo>\src\test\pro\run.ps1 -Version 0.39 [-Mode pro] [-Shp <gps.shp folder>]
+#   powershell -ExecutionPolicy Bypass -File <repo>\src\test\pro\run.ps1 -Version 0.40 [-Mode pro] [-Shp <gps.shp folder>]
 #
 # -Mode pip uses the env's pip PySpark. -Mode pro uses the Spark that ships with Pro.
 # Run ./gf.sh first: this reads release\geofunctions-<Version>.zip.
