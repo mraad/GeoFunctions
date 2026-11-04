@@ -2,7 +2,7 @@
 
 Goal: GeoFunctions `-P spark-4.3` links spark-shp/FileGDB jars **built for 4.3**, not the
 4.0 builds via `readers.spark.compact=4.0`. Spark 3.5 stays the default line everywhere; 4.3 is the only Spark 4 line (user, 2026-11-03).
-Repos: `/Volumes/LaCie/GWorkspace/{spark-shp,FileGDB}`.
+Repos: `/Volumes/990PRO/{spark-shp,FileGDB}`.
 
 ## 1. spark-shp 0.32 -> 0.33
 - [x] replace `spark-4.0` with `spark-4.3` (Java 17, Scala 2.13.18, Spark 4.3.0)
