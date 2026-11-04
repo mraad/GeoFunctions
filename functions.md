@@ -949,7 +949,7 @@ Convert a GDB shape column to a polyline (version 2).
 
 ### gdb_polylineM(shape)
 Convert a GDB shape column to a polyline with M values. M layers (x, y, m) give M; ZM layers
-give Z and M; XY layers give 2D.
+give Z and M; XY layers give 2D. On a Z-only layer it stores the third value as M; use the matching Z function to keep Z.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")
@@ -992,7 +992,7 @@ Convert a GDB shape column to a polygon (version 2).
 
 ### gdb_polygonM(shape)
 Convert a GDB shape column to a polygon with M values. On an M layer (x, y, m per vertex) the
-result has M; on a ZM layer (x, y, z, m) it has Z and M; on an XY layer it is 2D.
+result has M; on a ZM layer (x, y, z, m) it has Z and M; on an XY layer it is 2D. On a Z-only layer it stores the third value as M; use the matching Z function to keep Z.
 
 **Parameters:**
 - `shape` (Union[Column, str]): GDB shape column or column name (default: "Shape")

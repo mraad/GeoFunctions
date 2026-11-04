@@ -64,15 +64,19 @@ LAYERS = [(f"{name}_{kind}", f"{ogr}{SUFFIX[kind]}", make(kind))
 
 def main() -> None:
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Shapes.gdb")
-    shutil.rmtree(out, ignore_errors=True)
     with tempfile.TemporaryDirectory() as tmp:
-        for layer, geom_type, wkt in LAYERS:
+        # Built aside and swapped in at the end, so a failed run never leaves the fixture deleted.
+        new = os.path.join(tmp, "Shapes.gdb")
+        for n, (layer, geom_type, wkt) in enumerate(LAYERS):
             csv = os.path.join(tmp, f"{layer}.csv")
             with open(csv, "w") as f:
                 f.write(f'id,WKT\n1,"{wkt}"\n')
-            subprocess.run(["ogr2ogr", "-f", "OpenFileGDB", "-update", "-append", out, csv,
+            # The first call creates the geodatabase; -update adds each later layer to it.
+            subprocess.run(["ogr2ogr", "-f", "OpenFileGDB", *(["-update"] if n else []), new, csv,
                             "-nln", layer, "-nlt", geom_type,
                             "-oo", "GEOM_POSSIBLE_NAMES=WKT", "-oo", "KEEP_GEOM_COLUMNS=NO"], check=True)
+        shutil.rmtree(out, ignore_errors=True)
+        shutil.copytree(new, out)
     print("wrote", out)
 
 
